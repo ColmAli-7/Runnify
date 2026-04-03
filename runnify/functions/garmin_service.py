@@ -1,6 +1,6 @@
 import os
 import zipfile
-from datetime import datetime
+from datetime import datetime, time
 from garminconnect import Garmin
 from models import db, Run
 
@@ -58,6 +58,7 @@ def fetch_and_store_garmin_activities(user, fernet):
                 fit_zip_data = client.download_activity(
                     activity_id, dl_fmt=DOWNLOAD_FORMAT
                 )
+                time.sleep(1)  
                 with open(zip_filename, "wb") as f:
                     f.write(fit_zip_data)
                 with zipfile.ZipFile(zip_filename, "r") as zip_ref:

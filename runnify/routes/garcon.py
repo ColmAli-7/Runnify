@@ -58,6 +58,6 @@ def garmin():
             )
             return redirect(url_for("dash.dashboard"))
         except Exception as e:  # login or api failure
-            flash(f"Garmin login failed: Incorrect Details or API Failed", "danger")
+            flash(f"Garmin login failed: Incorrect Details or API Failed: {e}", "danger")
             return render_template("garmin.html")
     return render_template("garmin.html")

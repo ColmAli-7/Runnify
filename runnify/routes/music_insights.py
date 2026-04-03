@@ -76,7 +76,7 @@ def music_insights_page():
 
     performance_trend = (
         db.session.query(
-            func.strftime("%Y-%m-%d", Run.date_time).label("month"),
+            func.date_trunc('month', Run.date_time).label("month"),
             func.avg(RunSongAnalysis.performance_score).label("avg_score"),
         )
         .join(Run, Run.id == RunSongAnalysis.run_id)
