@@ -1,0 +1,127 @@
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from datetime import datetime
+
+db = SQLAlchemy()  # initialise database instance
+
+
+class User(db.Model, UserMixin):
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, unique=True, index=True, nullable=False)
+    password_hash = db.Column(db.String, nullable=False)
+    spotify_token = db.Column(db.String)
+    spotify_refresh_token = db.Column(db.String)
+    spotify_expires_at = db.Column(db.Integer)
+    garmin_username = db.Column(db.String)
+    garmin_password = db.Column(db.String)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_login_at = db.Column(db.DateTime)
+
+    runs = db.relationship("Run", back_populates="user")  # link to user runs
+    song_history = db.relationship(
+        "UserSongHistory", back_populates="user"
+    )  # link to user song history
+
+    # friend relationship through association table
+    friends = db.relationship(
+        "User",
+        secondary="friends",
+        primaryjoin="User.id==friends.c.user_id",
+        secondaryjoin="User.id==friends.c.friend_id",
+        backref="friend_of",
+    )
+
+
+class Run(db.Model):
+    __tablename__ = "runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    activity_id = db.Column(db.String, nullable=False)
+    date_time = db.Column(db.DateTime, default=datetime.utcnow)
+    distance = db.Column(db.Float)
+    duration = db.Column(db.Integer)
+    avg_hr = db.Column(db.Integer)
+    avg_pace = db.Column(db.Float)
+    fit_file_path = db.Column(db.String)
+
+    user = db.relationship("User", back_populates="runs")  # link run to user
+    analysis = db.relationship(
+        "RunSongAnalysis", back_populates="run"
+    )  # link run to analysis
+
+
+class Song(db.Model):
+    __tablename__ = "songs"
+
+    id = db.Column(db.String, primary_key=True)
+    name = db.Column(db.String)
+    artist = db.Column(db.String)
+    duration = db.Column(db.Integer)
+    spotify_url = db.Column(db.String)
+    tempo = db.Column(db.Float)
+
+    song_history = db.relationship(
+        "UserSongHistory", back_populates="song"
+    )  # link song to user song history
+
+
+class UserSongHistory(db.Model):
+    __tablename__ = "user_song_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    song_id = db.Column(db.String, db.ForeignKey("songs.id"))
+    played_at = db.Column(db.DateTime)
+    time_played = db.Column(db.Integer)
+    run_id = db.Column(db.Integer, db.ForeignKey("runs.id"))
+
+    user = db.relationship("User", back_populates="song_history")
+    song = db.relationship("Song", back_populates="song_history")
+    analysis = db.relationship(
+        "RunSongAnalysis", back_populates="user_song"
+    )  # link to analysis table
+
+
+class RunSongAnalysis(db.Model):
+    __tablename__ = "run_song_analysis"
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.Integer, db.ForeignKey("runs.id"))
+    user_song_id = db.Column(db.Integer, db.ForeignKey("user_song_history.id"))
+    performance_score = db.Column(db.Float)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    run = db.relationship("Run", back_populates="analysis")
+    user_song = db.relationship(
+        "UserSongHistory", back_populates="analysis"
+    )  # connect analysis to song history
+
+
+# association table for user friendships
+friends = db.Table(
+    "friends",
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+    db.Column("friend_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+)
+
+
+class FriendRequest(db.Model):
+    __tablename__ = "friend_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    status = db.Column(db.String, default="pending")  # pending, accepted, or rejected
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sender = db.relationship(
+        "User", foreign_keys=[sender_id], backref="sent_requests" 
+    )  # link sender
+    receiver = db.relationship(
+        "User", foreign_keys=[receiver_id], backref="received_requests"
+    )  # link receiver

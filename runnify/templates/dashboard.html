@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Dashboard{% endblock %}
+{% block extra_css %}
+  <!-- styles for dashboard layout and shared components -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/activities.css') }}">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+{% endblock %}
+{% block content %}
+  <body class="page-dashboard">
+    <div class="dashboard">
+      <!-- sidebar navigation -->
+      <aside class="sidebar">
+        <h2>Menu</h2>
+        <nav>
+          <a href="/dashboard">Dashboard</a>
+          <a href="/activities">Activities</a>
+          <a href="/music-insights">Music Insights</a>
+          <a href="/friends">Friends</a>
+          {% if current_user.garmin_username %}
+            <a href="{{ url_for('garmin.garmin') }}">Garmin Connected</a>
+          {% else %}
+            <a href="{{ url_for('garmin.garmin') }}">Connect Garmin</a>
+          {% endif %}
+          <a href="{{ url_for('spotify.upload_history') }}">Upload history</a>
+        </nav>
+      </aside>
+
+      <!-- main dashboard content -->
+      <main class="main">
+        <div class="welcome">
+          Welcome back, <strong>{{ current_user.name or "Runner" }}</strong>!
+        </div>
+
+        <!-- top summary cards -->
+        <section class="welcome-summary">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <h3>Total Runs</h3>
+              <p>{{ total_runs }}</p>
+            </div>
+            <div class="stat-card">
+              <h3>Total Songs Analysed</h3>
+              <p>{{ total_songs }}</p>
+            </div>
+            <div class="stat-card">
+              <h3>Total Distance Ran</h3>
+              <p>{{ (total_distance / 1000)|round(2) }} km</p>
+            </div>
+            <div class="stat-card">
+              <h3>Favourite Artist</h3>
+              <p>{{ favourite_artist }}</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- detailed performance sections -->
+        <div class="card-grid">
+          <div class="stat-card">
+            <h3>Last Run</h3>
+            <p>{{ last_run_display }}</p>
+          </div>
+          <div class="stat-card">
+            <h3>Fastest Kilometer</h3>
+            <p>{{ fastest_km_display }}</p>
+            {% if fastest_km_date %}
+              <p style="font-size:0.9rem; color:#888;">{{ fastest_km_date }}</p>
+            {% endif %}
+          </div>
+          <div class="stat-card">
+            <h3>Longest Run</h3>
+            <p>{{ longest_run_display }}</p>
+            {% if longest_run_date %}
+              <p style="font-size:0.9rem; color:#888;">{{ longest_run_date }}</p>
+            {% endif %}
+          </div>
+          <div class="stat-card">
+            <h3>Monthly Mileage</h3>
+            <canvas id="mileageChart"></canvas> <!-- visual graph for monthly distance -->
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- floating help icon for support page -->
+    <a href="/help" class="help-floating">
+      <i class="fa-solid fa-circle-question"></i>
+    </a>
+  </body>
+{% endblock %}
+{% block extra_js %}
+  <!-- chart.js visualisation for monthly mileage -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const ctx = document.getElementById('mileageChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: {{ monthly_labels|tojson }},  // month labels
+        datasets: [{
+          label: 'Distance (km)',
+          data: {{ monthly_values|tojson }},  // data points per month
+          backgroundColor: '#f97316'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            title: { display: true, text: 'Kilometres' },
+            beginAtZero: true
+          },
+          x: {
+            title: { display: true, text: 'Month' }
+          }
+        }
+      }
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,135 @@
+/* styling for the homepage hero section, feature grid, and sync integration area */
+
+.hero-bg {
+	height: 100vh;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background: linear-gradient(to bottom right, #f97316, #fb923c);
+}
+
+/* glass effect hero card */
+.hero-glass {
+	background: rgba(255, 255, 255, 0.95);
+	padding: 3rem 2rem;
+	border-radius: 20px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+	text-align: center;
+	max-width: 600px;
+}
+.hero-glass h1 {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+	color: #f97316;
+}
+.hero-glass p {
+	font-size: 1.15rem;
+	color: #2e2e2e;
+	margin-bottom: 2rem;
+	line-height: 1.6;
+}
+.cta {
+	display: flex;
+	justify-content: center;
+	gap: 1.5rem;
+	flex-wrap: wrap;
+}
+
+/* sync integrations section */
+.sync-section {
+	padding: 3rem 2rem;
+	background: #fff7f3;
+	text-align: center;
+}
+.sync-section h2 {
+	font-size: 1.8rem;
+	margin-bottom: 0.5rem;
+}
+
+/* oauth connect buttons */
+.oauth {
+	margin-top: 1.5rem;
+	display: flex;
+	justify-content: center;
+	gap: 1rem;
+	flex-wrap: wrap;
+}
+.oauth a {
+	display: inline-block;
+	padding: 0.7rem 1.4rem;
+	border-radius: 6px;
+	font-size: 1rem;
+	font-weight: 600;
+	text-align: center;
+	text-decoration: none;
+	color: white;
+	transition: 0.2s ease;
+}
+.btn.spotify {
+	background-color: #f97316;
+}
+.btn.spotify:hover {
+	background-color: #ea580c;
+}
+.btn.garmin {
+	background-color: #1f2937;
+}
+.btn.garmin:hover {
+	background-color: #111827;
+}
+
+/* feature cards section */
+.features {
+	padding: 4rem 2rem;
+	background: #fffaf6;
+	text-align: center;
+}
+.features h2 {
+	font-size: 2rem;
+	margin-bottom: 2rem;
+}
+.features-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: 2rem;
+	max-width: 1100px;
+	margin: 0 auto;
+}
+.feature {
+	background: white;
+	padding: 2rem;
+	border-radius: 12px;
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+	transition: transform 0.3s ease;
+}
+.feature:hover {
+	transform: translateY(-5px);
+	background: #fff3e5;
+}
+.features-grid h3 {
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 1.25rem;
+}
+.feature p {
+	color: #555;
+}
+
+/* dark mode adjustments */
+body.dark .hero-glass {
+	background: rgba(30, 30, 30, 0.9);
+	color: #f5f5f5;
+}
+body.dark .hero-glass h1 {
+	color: #fb923c;
+}
+body.dark .hero-glass p {
+	color: #e5e5e5;
+}
+body.dark .features,
+body.dark .sync-section {
+	background: #121212;
+}
+body.dark .feature {
+	background: #1f1f1f;
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!-- base html used for all main pages -->
+<!-- all html files inherit from this one -->
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            {% block title %}Runnify{% endblock %}
+        </title>
+        {% block top_css %}{% endblock %}
+        <!-- import base stylesheets -->
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+        {% block extra_css %}
+        <!-- all extra stylesheets -->
+        {% endblock %}
+    </head>
+    <body>
+        <!-- navigation bar that links to all the pages -->
+        <header class="navbar">
+            <div class="nav-container">
+                <a href="{{ url_for('main.home') }}" class="nav-logo">Runnify</a>
+                <nav class="nav-links">
+                    <!-- all pages will have flashed messages in the navbar -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            <div class="flash-messages">
+                                {% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                    <a href="{{ url_for('main.home') }}">Home</a>
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('dash.dashboard') }}">Dashboard</a>
+                        <a href="{{ url_for('auth.logout') }}">Log Out</a>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}">Log In</a>
+                        <a href="{{ url_for('auth.register') }}">Register</a>
+                    {% endif %}
+                    {% if current_user.is_authenticated %}
+                        <a href="/manage" class="user-initials">
+                            <!-- user's initials -->
+                            {{ current_user.name[0:1] }}{{ current_user.name.split(" ")[-1] [0:1] if " " in current_user.name else "" }} 
+                        </a>
+                    {% endif %}
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌓</button>
+                </nav>
+            </div>
+        </header>
+        {% block content %}
+        <!-- all page content -->
+        {% endblock %}
+        <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+        {% block extra_js %}
+        <!-- all extra javascript -->
+        {% endblock %}
+    </body>
+</html>

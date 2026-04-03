@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Forgot{% endblock %}
+{% block extra_css %}
+  <!-- styles for auth and forgot password page -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+{% block content %}
+  <div class="auth-container">
+
+    <!-- password reset form -->
+    <h2>Forgot Password</h2>
+    <form method="POST" class="auth-form">
+      <input type="email" name="email" placeholder="Enter your email" required>
+      <button type="submit">Send reset link</button>
+    </form>
+
+    <!-- navigation back to login -->
+    <div class="switch-mode">
+      <a href="{{ url_for('auth.login') }}">Back to login</a>
+    </div>
+  </div>
+{% endblock %}

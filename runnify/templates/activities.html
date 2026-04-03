@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Activities{% endblock %}
+{% block extra_css %}
+<!-- styles for the activities page -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/activities.css') }}">
+{% endblock %}
+{% block content %}
+<body class="page-activities">
+  <section class="activities">
+    <section class="activities">
+      <h2>Your Activities</h2>
+      <div class="filter-bar">
+        <div class="filter-option">
+          <!-- toggle to show only runs with linked music -->
+          <input type="checkbox" id="musicFilter" class="music-checkbox" {% if music_only %}checked{% endif %}>
+          <label for="musicFilter" class="music-label">Only show runs with music</label>
+        </div>
+        {% if music_only %}
+        <!-- info text when filter is active -->
+        <p class="filter-note">Showing only runs with music</p>
+        {% endif %}
+      </div>
+      {% if runs %}
+        <!-- loop through all user's runs -->
+        {% for run in runs %}
+          <a href="{{ url_for('activities.activity_detail', run_id=run.id) }}" class="activity-card-link">
+            <div class="activity-card">
+              <div class="activity-meta">
+                <!-- display distance and date -->
+                <span>{{ run.distance|round|int }} meters</span>
+                <span>{{ run.date_time.strftime("%d %b %Y") }}</span>
+              </div>
+              <div class="activity-title">
+              {% if run.duration and run.distance and run.distance > 0 %}
+                <!-- calculate and display pace in min/km -->
+                {% set distance_km = run.distance / 1000 %}
+                {% set pace_seconds = (run.duration / distance_km) | round(0) %}
+                {% set pace_min = (pace_seconds // 60) | int %}
+                {% set pace_sec = (pace_seconds % 60) | int %}
+                <span>Pace: {{ pace_min }}:{{ "%02d"|format(pace_sec) }} /km</span>
+              {% else %}
+                <span>Pace: --</span>
+              {% endif %}
+              </div>
+              <div class="activity-meta">
+                <!-- display total duration -->
+                <span>Time: {{ (run.duration // 60)|int }}:{{ "%02d"|format(run.duration % 60|int) }} minutes</span>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <!-- message if no activities found -->
+        <p>No activities yet — connect Garmin to get started!</p>
+      {% endif %}
+    </section>
+  </section>
+</body>
+{% endblock %}
+{% block extra_js %}
+<!-- controls the "only music" filter toggle -->
+<script src="{{ url_for('static', filename='js/music_toggle.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,12 @@
+fit_files/*.fit
+.env
+testing/
+__pycache__/
+migrate.py
+instance/
+testorpresenting/
+venv/
+*.db
+*.pyc
+*.pyo
+.agents/skills/

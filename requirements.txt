@@ -1,0 +1,13 @@
+cryptography
+fitparse
+Flask
+Flask-Login
+Flask-Mail
+Flask-SQLAlchemy
+garminconnect
+ijson
+itsdangerous
+python-dotenv
+spotipy
+SQLAlchemy
+Werkzeug

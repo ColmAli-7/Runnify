@@ -1,0 +1,47 @@
+/* styling for the friends leaderboard and performance ranking table */
+
+.leaderboard {
+	margin: 4rem auto 2rem;
+	max-width: 500px;
+	text-align: center;
+	padding: 2rem;
+	background: white;
+	border-radius: 12px;
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+.leaderboard h3 {
+	font-size: 1.5rem;
+	margin-bottom: 1rem;
+	color: #f97316;
+}
+.leaderboard table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.leaderboard th,
+.leaderboard td {
+	padding: 0.75rem;
+	font-size: 1rem;
+	border-bottom: 1px solid #e0e0e0;
+}
+.leaderboard th {
+	text-align: left;
+	color: #666;
+}
+.leaderboard td {
+	color: #333;
+}
+
+/* dark mode styling */
+body.dark .leaderboard {
+	background: #2a2a2a;
+}
+body.dark .leaderboard h3 {
+	color: #fb923c;
+}
+body.dark .leaderboard th {
+	color: #aaa;
+}
+body.dark .leaderboard td {
+	color: #f0f0f0;
+}

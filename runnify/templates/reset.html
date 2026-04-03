@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Reset Password{% endblock %}
+{% block extra_css %}
+  <!-- uses auth.css for consistent styling with other login pages -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+{% block content %}
+  <div class="auth-container">
+    <!-- password reset form -->
+    <h2>Reset Password</h2>
+    <form method="POST" class="auth-form">
+      <input type="password" name="password" placeholder="New password" required>
+      <button type="submit">Reset</button>
+    </form>
+    <!-- link to return to login page -->
+    <div class="switch-mode">
+      <a href="{{ url_for('auth.login') }}">Back to login</a>
+    </div>
+  </div>
+{% endblock %}

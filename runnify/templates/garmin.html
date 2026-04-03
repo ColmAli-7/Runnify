@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Connect Garmin{% endblock %}
+{% block extra_css %}
+  <!-- shared auth styles for garmin connection page -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+{% block content %}
+<body class="page-login">
+  <div class="auth-container">
+
+    <!-- form for connecting user's Garmin account -->
+    <h2>Connect Garmin</h2>
+    <form method="POST" action="{{ url_for('garmin.garmin') }}" class="auth-form">
+      <input type="email" name="email" placeholder="Garmin Email" required>
+      <input type="password" name="password" placeholder="Garmin Password" required>
+      <button type="submit">Connect Garmin</button>
+    </form>
+
+    <!-- back navigation to dashboard -->
+    <div class="switch-mode">
+      <a href="{{ url_for('dash.dashboard') }}">Back to Dashboard</a>
+    </div>
+  </div>
+</body>
+{% endblock %}

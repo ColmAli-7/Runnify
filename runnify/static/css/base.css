@@ -1,0 +1,38 @@
+/* reset basic spacing and layout */
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+/* base font and layout settings */
+html,
+body {
+	font-family: "Segoe UI", sans-serif;
+	font-size: 16px;
+	line-height: 1.6;
+	color: #1a1a1a;
+	overflow-x: hidden;
+	background: linear-gradient(
+		to bottom right,
+		#fff7f3,
+		#fef2e8
+	); /* light gradient background */
+	height: 100%;
+}
+
+/* smooth transition for theme and element changes */
+body,
+.hero-glass,
+.feature,
+.navbar,
+.nav-links a,
+.btn {
+	transition: all 0.3s ease;
+}
+
+/* dark mode styles */
+body.dark {
+	background: #1a1a1a;
+	color: #f5f5f5;
+}

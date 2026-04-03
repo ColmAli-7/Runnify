@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Runnify | Playlist Builder</title>
+  <title>Runnify | My Activities</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/activities.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/playlist.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/friends.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leaderboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/manage.css') }}">
+</head>
+<body class="page-playlist">
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="nav-logo">Runnify</a>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/activities">Activities</a>
+        <a href="/playlist">Playlist</a>
+        <a href="/friends">Friends</a>
+        <a href="/logout">Log Out</a>
+        <a href="/manage" class="user-initials">
+          {{ current_user.name[0:1] }}{{ current_user.name.split(" ")[-1][0:1] if " " in current_user.name else "" }}
+        </a>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌓</button>
+      </nav>
+    </div>
+  </header>
+  <section class="playlist-builder">
+    <h2>🎧 Playlist Builder</h2>
+    <form method="POST" class="builder-form">
+      <label for="type">Run Type</label>
+      <select id="type" name="type" required>
+        <option value="">Select run type...</option>
+        <option value="race">Race</option>
+        <option value="interval">Interval Session</option>
+        <option value="easy">Easy / Recovery</option>
+      </select>
+      <label for="pace">Target Pace (min/km)</label>
+      <input type="text" id="pace" name="pace" placeholder="e.g. 4:30" required>
+      <label for="length">Playlist Length (minutes)</label>
+      <input type="number" id="length" name="length" placeholder="e.g. 30" min="5" required>
+      <label for="mood">Mood / Energy</label>
+      <select id="mood" name="mood">
+        <option value="">Any</option>
+        <option value="hype">Hype / Motivated</option>
+        <option value="chill">Chill / Flow</option>
+        <option value="angry">Aggressive / Push Hard</option>
+      </select>
+      <button type="submit">Generate Playlist</button>
+    </form>
+  </section>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

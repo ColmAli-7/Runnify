@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Home{% endblock %}
+{% block extra_css %}
+  <!-- styles for hero and landing sections -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
+{% endblock %}
+{% block content %}
+  <!-- hero section with title and intro text -->
+  <div class="hero-bg">
+    <div class="hero-glass">
+      <h1>Runnify</h1>
+      <p>
+        Where music meets your stride. Connect Garmin and Spotify to unlock
+        personalised running insights and playlists that fuel your pace.
+      </p>
+      <!-- main call-to-action buttons -->
+      <div class="cta">
+        <a href="/register" class="btn primary">Get Started</a>
+        <a href="#about" class="btn secondary">Learn More</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- section for syncing accounts -->
+  <section class="sync-section">
+    <h2>Already Connected?</h2>
+    <p>Sync your accounts below:</p>
+    <div class="oauth">
+      {% if current_user.is_authenticated %}
+        <!-- show correct state for Spotify connection -->
+        {% if current_user.spotify_token %}
+          <a class="btn spotify">Spotify Connected</a>
+        {% else %}
+          <a href="{{ url_for('spotify.login_spotify') }}" class="btn spotify">Connect Spotify</a>
+        {% endif %}
+        <!-- show correct state for Garmin connection -->
+        {% if current_user.garmin_username %}
+          <a class="btn garmin">Garmin Connected</a>
+        {% else %}
+          <a href="/garmin" class="btn garmin">Connect Garmin</a>
+        {% endif %}
+      {% else %}
+        <!-- if not logged in, link redirects to login -->
+        <a href="{{ url_for('auth.login') }}" class="btn spotify">Connect Spotify</a>
+        <a href="{{ url_for('auth.login') }}" class="btn garmin">Connect Garmin</a>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- section describing Runnify's main features -->
+  <section class="features" id="about">
+    <h2>What Runnify Offers</h2>
+    <div class="features-grid">
+      <div class="feature">
+        <h3>Music Meets Metrics</h3>
+        <p>
+          Link your BPM to your splits and uncover the soundtrack behind your
+          best runs.
+        </p>
+      </div>
+      <div class="feature">
+        <h3>Personal Insights</h3>
+        <p>See what songs push your pace and what tracks stall you.</p>
+      </div>
+      <div class="feature">
+        <h3>Leaderboards</h3>
+        <p>
+          Compete with friends and climb the charts: pace and playlists side
+          by side.
+        </p>
+      </div>
+    </div>
+  </section>
+{% endblock %}

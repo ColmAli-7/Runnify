@@ -1,0 +1,235 @@
+/* layout and styling for activities and analysis pages */
+
+.activities {
+	max-width: 900px;
+	margin: 5rem auto 3rem;
+	padding: 0 1rem;
+	min-height: 100vh;
+	box-sizing: border-box;
+}
+.activities h2 {
+	font-size: 2rem;
+	color: #f97316;
+	margin-bottom: 2rem;
+	text-align: center;
+}
+
+/* activity cards */
+.activity-card {
+	background: white;
+	padding: 1.5rem;
+	margin-bottom: 1.5rem;
+	border-radius: 12px;
+	box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+	transition: transform 0.2s ease;
+}
+.activity-card:hover {
+	transform: translateY(-4px);
+}
+
+.activity-meta {
+	display: flex;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	margin-bottom: 0.5rem;
+	font-size: 0.95rem;
+	color: #555;
+}
+
+.activity-desc {
+	color: #333;
+}
+
+/* analysis page structure */
+.activity-analysis {
+	max-width: 900px;
+	margin: 5rem auto;
+	padding: 0 1rem;
+}
+.activity-analysis h2 {
+	font-size: 2rem;
+	color: #f97316;
+	text-align: center;
+}
+.activity-analysis .subtitle {
+	text-align: center;
+	font-size: 1.1rem;
+	color: #555;
+	margin-bottom: 2rem;
+}
+
+/* grid of run stats */
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 1.5rem;
+	margin-bottom: 2rem;
+}
+.stat-card {
+	background: white;
+	border-radius: 12px;
+	padding: 1.5rem;
+	box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+	text-align: center;
+}
+.stat-card h3 {
+	font-size: 1.2rem;
+	color: #f97316;
+	margin-bottom: 0.5rem;
+}
+.stat-card p {
+	font-size: 1.4rem;
+	font-weight: 600;
+	color: #333;
+}
+.analysis-extra {
+	margin-top: 2rem;
+	font-size: 0.95rem;
+	color: #555;
+}
+
+/* dark mode variants */
+body.dark .activities h2 {
+	color: #fb923c;
+}
+body.dark .activity-card {
+	background: #2a2a2a;
+}
+body.dark .activity-title {
+	color: #f97316;
+}
+body.dark .activity-desc {
+	color: #ccc;
+}
+body.dark .activity-meta {
+	color: #aaa;
+}
+body.dark .activity-analysis h2 {
+	color: #fb923c;
+}
+
+/* detailed activity layout */
+.activity-title {
+	font-size: 1.8rem;
+	font-weight: 700;
+	margin-bottom: 1.5rem;
+	color: var(--text-color, #222);
+}
+
+.activity-wrapper {
+	max-width: 1100px;
+	margin: 5rem auto 2rem;
+	padding: 0 1rem;
+}
+
+/* grid utilities */
+.grid {
+	display: grid;
+	gap: 1.25rem;
+}
+.four-cards {
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* section stats */
+.section-card {
+	background: var(--card-bg, #fff);
+	border-radius: 12px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+	padding: 1rem 1.25rem;
+}
+.section-title {
+	font-weight: 600;
+	font-size: 1rem;
+	margin-bottom: 0.5rem;
+	color: #f97316;
+}
+.stat-value {
+	font-size: 1.8rem;
+	font-weight: 700;
+	color: var(--text-color, #111);
+}
+.section-card.impact {
+	border-left: 5px solid #f97316;
+	background: var(--card-alt-bg, #fafafa);
+}
+.section-card.impact .stat-value {
+	color: #f97316;
+}
+
+/* charts */
+.section-card canvas {
+	width: 100% !important;
+	max-width: 100%;
+	height: 320px !important;
+}
+
+/* song list styling */
+.song-list {
+	margin-top: 0.5rem;
+}
+.song-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0.75rem;
+	border-radius: 8px;
+}
+.song-item:nth-child(odd) {
+	background: var(--card-alt-bg, #fafafa);
+}
+.song-meta {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.song-color {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+/* tags and sort button */
+.tag,
+.sort-btn {
+	padding: 0.25rem 0.6rem;
+	border-radius: 999px;
+	background: #fff2e8;
+	color: #f97316;
+	border: 1px solid #ffd5b8;
+	font-size: 0.85rem;
+	margin-top: 10px;
+	cursor: pointer;
+}
+
+/* dark mode styling */
+body.dark .section-card {
+	background: #1f1f1f;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+body.dark .section-title {
+	color: #f97316;
+}
+body.dark .stat-value {
+	color: #eaeaea;
+}
+body.dark .section-card.impact {
+	border-left: 5px solid #f97316;
+	background: #2a2a2a;
+}
+body.dark .section-card.impact .stat-value {
+	color: #f97316;
+}
+body.dark .song-item {
+	background: #2a2a2a;
+}
+body.dark .song-item:nth-child(odd) {
+	background: #333;
+}
+body.dark .tag,
+body.dark .sort-btn {
+	background: #2a2a2a;
+	color: #f97316;
+	border: 1px solid #555;
+}

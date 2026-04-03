@@ -1,0 +1,102 @@
+/* layout and styling for the user dashboard and sidebar navigation */
+
+.dashboard {
+	display: flex;
+	min-height: 100vh;
+}
+
+/* sidebar navigation */
+.sidebar {
+	width: 220px;
+	background: #fff;
+	padding: 2rem 1rem;
+	border-right: 1px solid #e2e2e2;
+}
+.sidebar h2 {
+	color: #f97316;
+	margin-bottom: 2rem;
+	font-size: 1.5rem;
+	text-align: center;
+}
+.sidebar nav a {
+	display: block;
+	margin-bottom: 1rem;
+	color: #333;
+	text-decoration: none;
+	font-weight: 500;
+	transition: 0.2s ease;
+}
+.sidebar nav a:hover {
+	color: #f97316;
+}
+
+/* main dashboard area */
+.main {
+	flex: 1;
+	padding: 2rem;
+	background: #fff7f3;
+}
+.welcome {
+	padding-top: 50px;
+	font-size: 2.5rem;
+	margin-bottom: 1rem;
+}
+
+/* info cards layout */
+.card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: 2rem;
+}
+.card {
+	background: white;
+	border-radius: 12px;
+	padding: 1.5rem;
+	box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+}
+.card h3 {
+	font-size: 1.2rem;
+	margin-bottom: 0.5rem;
+	color: #f97316;
+}
+.card p {
+	color: #555;
+}
+
+/* dark mode styling */
+body.dark .sidebar {
+	background: #121212;
+	border-color: #2a2a2a;
+}
+body.dark .sidebar h2 {
+	color: #fb923c;
+}
+body.dark .sidebar nav a {
+	color: #ccc;
+}
+body.dark .sidebar nav a:hover {
+	color: #fb923c;
+}
+body.dark .main {
+	background: #1a1a1a;
+}
+body.dark .card {
+	background: #2a2a2a;
+}
+body.dark .card h3 {
+	color: #fb923c;
+}
+body.dark .card p {
+	color: #ccc;
+}
+
+body.dark .welcome-header h1 {
+	color: #fb923c;
+}
+body.dark .stat-card {
+	background: #2a2a2a;
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+body.dark .stat-card p {
+	color: #f5f5f5;
+}

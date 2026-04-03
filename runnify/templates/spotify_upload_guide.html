@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Runnify{% endblock %}
+{% block extra_css %}
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/activities.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/playlist.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/friends.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/leaderboard.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/manage.css') }}">
+{% endblock %}
+{% block content %}
+    <div class="activity-wrapper" style="max-width: 900px;">
+        <h1 class="activity-title"
+            style="text-align:center; margin-bottom: 1rem">Spotify Upload Guide</h1>
+        <p class="text-muted" style="text-align:center; margin-bottom: 3rem;">
+            Set up your Spotify data with Runnify to unlock full music-performance insights.
+        </p>
+        <!-- Step 1 -->
+        <section class="section-card" style="padding: 2rem;">
+            <h2 class="section-title">1. Request your Spotify data</h2>
+            <p>
+                To get started, open the
+                <a href="https://www.spotify.com/account/privacy/" target="_blank">Spotify Privacy page</a>
+                and scroll down to <strong>“Download your data.”</strong>
+            </p>
+            <div style="margin: 1rem 0;">
+                <ul style="margin-left: 1.5rem; list-style: disc;">
+                    <li>
+                        <strong>Untick</strong> “Account data”
+                    </li>
+                    <li>
+                        <strong>Tick</strong> “Extended streaming history”
+                    </li>
+                </ul>
+            </div>
+            <p>
+                Then press <strong>Request data</strong>. You’ll get a confirmation email shortly.
+            </p>
+        </section>
+        <!-- Step 2 -->
+        <section class="section-card" style="padding: 2rem;">
+            <h2 class="section-title">2. Confirm your request</h2>
+            <p>
+                Spotify will send an email asking you to confirm. Open it and click the
+                confirmation link — this starts preparing your data for download.
+            </p>
+            <p class="text-muted" style="margin-top: 0.5rem;">
+                (You’ll receive another email when your data is ready to download.)
+            </p>
+        </section>
+        <!-- Step 3 -->
+        <section class="section-card" style="padding: 2rem;">
+            <h2 class="section-title">3. Enable stream sync</h2>
+            <p>
+                Spotify’s exported files don’t include your most recent few days of listening.
+                To avoid missing data, enable <strong>Sync recent streams</strong> in your
+                <strong>Runnify Settings</strong> after making the request.
+            </p>
+            <p class="text-muted">This ensures all new plays are saved while you wait.</p>
+        </section>
+        <!-- Step 4 -->
+        <section class="section-card" style="padding: 2rem;">
+            <h2 class="section-title">4. Wait for your data</h2>
+            <p>
+                Spotify will gather your data — this can take up to <strong>30 days</strong>.
+            </p>
+            <blockquote style="margin-top: 1rem;
+                               font-style: italic;
+                               color: var(--text-muted, #666)">
+                “We're currently gathering a copy of your personal data. This shouldn't take longer than 30 days.”
+            </blockquote>
+        </section>
+        <!-- Step 5 -->
+        <section class="section-card" style="padding: 2rem;">
+            <h2 class="section-title">5. Download and extract</h2>
+            <p>
+                When your files are ready, download the <strong>.ZIP file</strong> from Spotify
+                and extract it. You’ll find multiple <code>.json</code> files containing your
+                listening history.
+            </p>
+            <p class="text-danger" style="margin-top: 0.5rem;">
+                ⚠ Keep these files private — they contain sensitive account data.
+            </p>
+        </section>
+        <!-- Step 6 -->
+        <section class="section-card" style="padding: 2rem;">
+            <h2 class="section-title">6. Upload your files to Runnify</h2>
+            <ol style="margin-left: 1.5rem;">
+                <li>
+                    Go to the <strong>Import</strong> page (<code>/import</code>).
+                </li>
+                <li>Log in to your account.</li>
+                <li>
+                    Drag and drop your <code>.json</code> files, or click to select them.
+                </li>
+                <li>
+                    Press <strong>Upload</strong> to begin processing.
+                </li>
+            </ol>
+            <p style="margin-top: 1rem;">
+                Runnify will process your files automatically in the background — you can safely
+                close the tab while it works.
+            </p>
+        </section>
+        <!-- Step 7 -->
+        <section class="section-card" style="padding: 2rem;">
+            <h2 class="section-title">7. All set!</h2>
+            <p>Once complete, you’ll unlock full song–performance insights:</p>
+            <ul style="margin-left: 1.5rem; list-style: disc;">
+                <li>Every song played during your runs</li>
+                <li>Performance scores per track</li>
+                <li>Personalised playlists for training and race day</li>
+            </ul>
+            <p style="margin-top: 1rem;">Your future streams and runs will now sync automatically.</p>
+        </section>
+        <div style="text-align:center; margin-top: 3rem;">
+            <a href="/dashboard"
+               class="btn-orange"
+               style="padding: 0.75rem 2rem;
+                      border-radius: 10px">Return to Dashboard</a>
+        </div>
+    </div>
+{% endblock %}

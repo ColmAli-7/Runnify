@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Friend Search{% endblock %}
+{% block extra_css %}
+  <!-- styles for the friends search page -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/friends.css') }}">
+{% endblock %}
+{% block content %}
+<body class="page-friends">
+  <div class="friends-container">
+
+    <!-- search form for finding users -->
+    <h2>Find Friends</h2>
+    <form method="get" action="{{ url_for('friends.search_users') }}" class="search-form">
+      <input type="text" name="q" placeholder="Search by name" value="{{ query }}" required>
+      <button type="submit" class="btn">Search</button>
+    </form>
+
+    <!-- results section appears after a search query -->
+    {% if query %}
+      <h3>Results for "{{ query }}"</h3>
+      <div class="results-list">
+        <!-- display matching users -->
+        {% for user in results %}
+          <div class="friend-card">
+            <p><strong>{{ user.name }}</strong></p>
+            {% if user.id != current_user.id %}
+              <!-- send a friend request if not current user -->
+              <a href="{{ url_for('friends.send_request', user_id=user.id) }}" class="btn">Send Request</a>
+            {% endif %}
+          </div>
+        {% else %}
+          <!-- message shown when no users match the query -->
+          <p>No users found.</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- back navigation to main friends page -->
+    <div class="search-link">
+      <a href="{{ url_for('friends.friends_page') }}" class="btn">Back to Friends</a>
+    </div>
+  </div>
+</body>
+{% endblock %}

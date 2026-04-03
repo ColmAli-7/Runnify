@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Upload History{% endblock %}
+{% block content %}
+  <body class="page-upload">
+    <main class="upload">
+      <!-- page heading -->
+      <h2>Upload your extended Spotify streaming history</h2>
+      <p class="muted">We will only store song listens that overlap your activities. Podcasts and videos are ignored.</p>
+
+      <!-- upload form for spotify history zip -->
+      <form id="upload-form"
+            action="{{ url_for('spotify.upload_history') }}"
+            method="post"
+            enctype="multipart/form-data">
+        
+        <!-- file dropzone area -->
+        <div id="dropzone" class="dropzone">
+          <input id="file-input" type="file" name="history_zip" accept=".zip" hidden>
+          <p id="dz-text">Click or drop your .zip here</p>
+          <p id="dz-file" class="file-name" hidden></p>
+        </div>
+
+        <!-- upload button (enabled once file selected) -->
+        <button id="submit-btn" type="submit" disabled>Upload</button>
+      </form>
+
+      <!-- data handling disclaimer -->
+      <p class="small muted" style="margin-top:1rem;">
+        We never keep the uploaded file. It is processed in memory and discarded after the request.
+      </p>
+    </main>
+  </body>
+{% endblock %}
+{% block extra_js %}
+  <!-- script controlling upload interactions -->
+  <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}
+
+
+
+
