@@ -10,12 +10,12 @@ from flask import (
     url_for,
 )
 from flask_login import login_required, login_user, logout_user
-from flask_mail import Message
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from runnify.extensions import db
 from runnify.models import User
+from runnify.services.mail import send_email
 from runnify.services.passwords import passw_strength
 
 bp = Blueprint("auth", __name__)  # handles auth routes
@@ -90,18 +90,11 @@ def verify_reset_token(token, max_age=3600):
 
 
 def send_reset_email(to_email, reset_link):
-    """Email a password-reset link using Flask-Mail.
-
-    Raises:
-        RuntimeError: If Flask-Mail has not been initialised on the app.
-    """
-    mail = current_app.extensions.get("mail")
-    if mail is None:
-        raise RuntimeError("flask-mail not initialised")
-    msg = Message(
-        subject="Runnify Password Reset",
-        recipients=[to_email],
-        body=f"""Hello,
+    """Email a password-reset link."""
+    send_email(
+        to_email,
+        "Runnify Password Reset",
+        f"""Hello,
 
 We received a request to reset your Runnify password.
 
@@ -110,7 +103,6 @@ To reset your password, click the link below:
 
 If you didn't request this, please ignore this email.""",
     )
-    mail.send(msg)
 
 
 @bp.route("/forgot", methods=["GET", "POST"])

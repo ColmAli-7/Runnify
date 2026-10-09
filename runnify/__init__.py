@@ -10,14 +10,15 @@ development server from the repository root with::
 from pathlib import Path
 
 from flask import Flask, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from runnify.config import Config
+from runnify.config import get_config, validate_production_config
 from runnify.extensions import db, login_manager, mail, migrate
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 
 
-def create_app(config_object=Config):
+def create_app(config_object=None):
     """Create and configure a Runnify application.
 
     The database schema is managed by Alembic migrations (``flask db upgrade``),
@@ -25,13 +26,26 @@ def create_app(config_object=Config):
 
     Args:
         config_object: Object (or import path) whose upper-case attributes are
-            loaded into ``app.config``. Defaults to :class:`runnify.config.Config`.
+            loaded into ``app.config``. Defaults to the profile named by the
+            ``APP_ENV`` environment variable (see :func:`runnify.config.get_config`).
 
     Returns:
         The configured :class:`flask.Flask` application.
+
+    Raises:
+        RuntimeError: In production, when the configuration is unsafe.
     """
     app = Flask(__name__)
-    app.config.from_object(config_object)
+    app.config.from_object(config_object or get_config())
+
+    if app.config["ENV_NAME"] == "production":
+        problems = validate_production_config(app.config)
+        if problems:
+            raise RuntimeError("Refusing to start in production:\n- " + "\n- ".join(problems))
+
+    if proxies := app.config["PROXY_COUNT"]:
+        # trust X-Forwarded-For / -Proto from exactly the proxies we run behind
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxies, x_proto=proxies)
 
     db.init_app(app)
     migrate.init_app(app, db, directory=str(MIGRATIONS_DIR), render_as_batch=True)

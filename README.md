@@ -80,14 +80,19 @@ the project root. [`.env.example`](.env.example) lists every variable with comme
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `SECRET_KEY` | **Yes** in production | `runnify-secret-key` | Signs session cookies and password-reset tokens |
-| `DATABASE_URL` | Recommended | `sqlite:///runnify.db` (in `runnify/instance/`) | SQLAlchemy database URL. Use PostgreSQL in production |
-| `FERNET_KEY` | **Yes** | none | Encrypts stored Garmin passwords. **The app will not start without it** |
+| `APP_ENV` | No | `development` | `production` enables secure cookies and refuses to start with unsafe settings |
+| `SECRET_KEY` | **Yes** in production | random per process (dev only) | Signs session cookies and security tokens (32+ characters) |
+| `DATABASE_URL` | **Yes** in production | `sqlite:///runnify.db` (in `runnify/instance/`) | Database URL; PostgreSQL in production (`postgres://` URLs are accepted) |
+| `PUBLIC_BASE_URL` | **Yes** in production | none | Public `https://` origin used for links in emails |
+| `ALLOWED_HOSTS` | **Yes** in production | none | Comma-separated host names; any other `Host` header is rejected |
+| `PROXY_COUNT` | No | `0` dev / `1` prod | Reverse proxies whose `X-Forwarded-*` headers are trusted |
+| `MAX_UPLOAD_MB` | No | `100` | Maximum upload size |
+| `FERNET_KEY` | **Yes** | none | Encrypts stored third-party credentials (required to link Garmin) |
 | `SPOTIFY_CLIENT_ID` | For Spotify login | none | Spotify app client ID |
 | `SPOTIFY_CLIENT_SECRET` | For Spotify login | none | Spotify app client secret |
 | `SPOTIFY_REDIRECT_URI` | For Spotify login | none | Must exactly match the redirect URI registered in the Spotify dashboard, e.g. `http://127.0.0.1:5000/spotify/callback` |
 | `SPOTIFY_SCOPE` | For Spotify login | none | Space-separated OAuth scopes |
-| `MAIL_SERVER` | For password reset | `smtp.gmail.com` | SMTP host |
+| `MAIL_SERVER` | For real email | none (emails are logged) | SMTP host |
 | `MAIL_PORT` | For password reset | `587` | SMTP port |
 | `MAIL_USE_TLS` | For password reset | `True` | Use STARTTLS |
 | `MAIL_USE_SSL` | For password reset | `False` | Use implicit SSL |

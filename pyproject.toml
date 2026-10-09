@@ -59,4 +59,5 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]  # asserts and dummy secrets are expected in tests
+"tests/**" = ["S101", "S105", "S106", "RUF012"]  # asserts and dummy secrets are expected in tests
+"runnify/config.py" = ["RUF012"]  # Flask config classes are plain attribute bags
