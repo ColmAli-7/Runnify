@@ -5,8 +5,9 @@ Archives are checked with :func:`inspect_archive` before anything is parsed
 refused), then streamed with ``ijson`` so multi-hundred-MB histories never
 need to fit in memory. Each music play is turned into a ``[start, end)``
 interval (Spotify's ``ts`` is when playback *stopped*), intersected with every
-run interval, and stored as ``UserSongHistory`` rows. Performance scores are
-then computed per play and stored as ``RunSongAnalysis`` rows.
+run interval, and stored as ``UserSongHistory`` rows, noting whether the track
+was skipped. Plays that ran to the end teach the catalogue each track's length.
+Scoring happens afterwards, in :mod:`runnify.services.analysis`.
 """
 
 import datetime as dt
@@ -151,6 +152,26 @@ def _iter_json_rows(file_like):
         return
 
 
+def _was_skipped(row: dict[str, Any]):
+    """``True``/``False`` when the export says whether the track was skipped, else ``None``."""
+    if row.get("skipped") is True or row.get("reason_end") == "fwdbtn":
+        return True
+    if row.get("reason_end") == "trackdone":
+        return False
+    return row.get("skipped")
+
+
+def _full_length_seconds(row: dict[str, Any]):
+    """The track's length when this play ran to the end (``None`` otherwise)."""
+    if row.get("reason_end") != "trackdone":
+        return None
+    try:
+        seconds = int(row.get("ms_played") or 0) // 1000
+    except (TypeError, ValueError):
+        return None
+    return seconds if seconds >= 30 else None
+
+
 def import_history_zip_overlapping_runs(
     *,
     zip_file,
@@ -159,52 +180,58 @@ def import_history_zip_overlapping_runs(
     RunModel,
     SongModel,
     UserSongHistoryModel,
-    RunSongAnalysisModel,
-    read_series,
-    score_segment,
     batch_size: int = 500,
     min_overlap_seconds: int = 1,
 ):
-    """Import a Spotify history zip, link plays to runs and score them.
+    """Import a Spotify history zip and link each music play to the runs it overlapped.
 
-    Models and helpers are injected so this module stays free of app imports.
+    Scoring is a separate step (:mod:`runnify.services.analysis`). Models are
+    injected so this module stays free of app imports.
 
     Args:
         zip_file: Path or seekable binary file of the ``my_spotify_data.zip``
             export, already checked with :func:`inspect_archive`.
         user_id: The user the history belongs to.
         db: Flask-SQLAlchemy ``db`` instance.
-        RunModel, SongModel, UserSongHistoryModel, RunSongAnalysisModel:
-            The model classes to read and write.
-        read_series: Callable returning a run's :class:`~runnify.services.fit.Series`
-            of samples (empty when none were recorded).
-        score_segment: Callable that scores one song segment of a run.
+        RunModel, SongModel, UserSongHistoryModel: The model classes to use.
         batch_size: How many rows to add before each commit.
-        min_overlap_seconds: Plays overlapping a run by less than this are
-            ignored.
+        min_overlap_seconds: Plays overlapping a run by less than this are ignored.
 
     Returns:
-        A stats dict with counts for ``files``, ``json_files``, ``rows``,
-        ``saved``, ``skipped`` and ``errors``, plus an optional ``note``.
+        A stats dict: ``files``, ``json_files``, ``rows``, ``saved`` (plays linked to
+        runs), ``ignored`` (podcasts, videos, unusable rows), ``skipped_during_runs``,
+        ``errors``, ``run_ids`` (runs that gained plays) and an optional ``note``.
     """
     stats = {
         "files": 0,
         "json_files": 0,
         "rows": 0,
         "saved": 0,
-        "skipped": 0,
+        "ignored": 0,
+        "skipped_during_runs": 0,
         "errors": 0,
+        "run_ids": set(),
         "note": None,
     }
     run_intervals = _collect_run_intervals(db, RunModel, user_id)
     if not run_intervals:
         return {**stats, "note": "User has no runs"}
 
-    run_data_cache = {}  # store fit data to avoid rereading
-    user_songs_to_add = []
+    pending = []
     seen_songs = set()
+    lengths = {}  # track id -> longest complete play, in seconds
 
-    # process all spotify json files in the uploaded zip
+    def flush():
+        if not pending:
+            return
+        try:
+            db.session.add_all(pending)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            stats["errors"] += 1
+        pending.clear()
+
     with zipfile.ZipFile(zip_file) as zf:
         names = zf.namelist()
         stats["files"] = len(names)
@@ -215,21 +242,14 @@ def import_history_zip_overlapping_runs(
             with zf.open(name, "r") as f:
                 for row in _iter_json_rows(f):
                     stats["rows"] += 1
-                    if _is_podcast_or_video(row):  # ignore podcasts
-                        stats["skipped"] += 1
+                    track_id = None if _is_podcast_or_video(row) else _spotify_track_id(row)
+                    interval = _row_interval(row) if track_id else None
+                    if not interval:
+                        stats["ignored"] += 1
                         continue
-                    track_id = _spotify_track_id(row)
-                    if not track_id:  # ignore missing track ids
-                        stats["skipped"] += 1
-                        continue
-                    iv = _row_interval(row)
-                    if not iv:
-                        stats["skipped"] += 1
-                        continue
-                    ev_start, ev_end = iv
-
-                    # ensure track exists in db
-                    if track_id not in seen_songs:
+                    if (length := _full_length_seconds(row)) is not None:
+                        lengths[track_id] = max(length, lengths.get(track_id, 0))
+                    if track_id not in seen_songs:  # make sure the track is in the catalogue
                         seen_songs.add(track_id)
                         if not db.session.get(SongModel, track_id):
                             track, artist, _album = _names(row)
@@ -238,22 +258,21 @@ def import_history_zip_overlapping_runs(
                                     id=track_id,
                                     name=track,
                                     artist=artist,
-                                    duration=None,
                                     spotify_url=f"https://open.spotify.com/track/{track_id}",
-                                    tempo=None,
                                 )
                             )
 
-                    # check overlap between song playback and each run
+                    play_start, play_end = interval
+                    skipped = _was_skipped(row)
                     for run_id, run_start, run_end in run_intervals:
-                        ov = _overlap(ev_start, ev_end, run_start, run_end)
-                        if not ov:
+                        overlap = _overlap(play_start, play_end, run_start, run_end)
+                        if not overlap:
                             continue
-                        seg_start, seg_end = ov
-                        secs = _seconds(seg_end - seg_start)
-                        if secs < min_overlap_seconds:
+                        seg_start, seg_end = overlap
+                        seconds = _seconds(seg_end - seg_start)
+                        if seconds < min_overlap_seconds:
                             continue
-                        exists = (
+                        already = (
                             db.session.query(UserSongHistoryModel.id)
                             .filter_by(
                                 user_id=user_id,
@@ -263,89 +282,28 @@ def import_history_zip_overlapping_runs(
                             )
                             .first()
                         )
-                        if exists:
+                        if already:
                             continue
-                        user_songs_to_add.append(
+                        pending.append(
                             UserSongHistoryModel(
                                 user_id=user_id,
                                 song_id=track_id,
                                 played_at=seg_start,
-                                time_played=secs,
+                                time_played=seconds,
                                 run_id=run_id,
+                                skipped=skipped,
                             )
                         )
                         stats["saved"] += 1
-                        if len(user_songs_to_add) >= batch_size:
-                            try:
-                                db.session.add_all(user_songs_to_add)
-                                db.session.commit()
-                                user_songs_to_add.clear()
-                            except Exception:
-                                db.session.rollback()
-                                stats["errors"] += 1
+                        stats["skipped_during_runs"] += bool(skipped)
+                        stats["run_ids"].add(run_id)
+                        if len(pending) >= batch_size:
+                            flush()
+    flush()
 
-    # commit remaining song entries
-    if user_songs_to_add:
-        try:
-            db.session.add_all(user_songs_to_add)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            stats["errors"] += 1
-
-    # calculate performance scores per song-run pair
-    try:
-        for run_id, _, _ in run_intervals:
-            run = db.session.get(RunModel, run_id)
-            run_data_cache[run_id] = read_series(run).as_tuple() if run else ([], [], [])
-
-        user_songs = (
-            db.session.query(UserSongHistoryModel)
-            .filter_by(user_id=user_id)
-            .filter(UserSongHistoryModel.run_id.isnot(None))
-            .all()
-        )
-
-        analyses_to_add = []
-        for user_song in user_songs:
-            timestamps, hr, pace_s_per_km = run_data_cache.get(user_song.run_id, ([], [], []))
-            seg = {
-                "start_time": user_song.played_at,
-                "end_time": user_song.played_at + dt.timedelta(seconds=user_song.time_played),
-            }
-            score = score_segment(seg, timestamps, pace_s_per_km, hr)
-
-            if score is None or (isinstance(score, float) and (score != score)):  # skip invalid
-                continue
-            exists = (
-                db.session.query(RunSongAnalysisModel.id)
-                .filter_by(run_id=user_song.run_id, user_song_id=user_song.id)
-                .first()
-            )
-            if exists:
-                continue
-
-            analyses_to_add.append(
-                RunSongAnalysisModel(
-                    run_id=user_song.run_id,
-                    user_song_id=user_song.id,
-                    performance_score=score,
-                    user_id=user_id,
-                )
-            )
-
-            if len(analyses_to_add) >= batch_size:
-                db.session.add_all(analyses_to_add)
-                db.session.commit()
-                analyses_to_add.clear()
-
-        if analyses_to_add:
-            db.session.add_all(analyses_to_add)
-            db.session.commit()
-
-    except Exception as e:
-        db.session.rollback()
-        stats["errors"] += 1
-        stats["note"] = f"Error during score calculation: {e}"
-
-    return stats  # stats
+    for track_id, length in lengths.items():  # learn track lengths for playlist building
+        song = db.session.get(SongModel, track_id)
+        if song is not None and (song.duration or 0) < length:
+            song.duration = length
+    db.session.commit()
+    return stats

@@ -14,14 +14,13 @@ from pathlib import Path
 from flask import current_app
 
 from runnify.extensions import db
-from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory, utcnow
+from runnify.models import Run, Song, User, UserSongHistory, utcnow
+from runnify.services.analysis import rescore_runs
 from runnify.services.history_import import (
     HistoryArchiveError,
     import_history_zip_overlapping_runs,
     inspect_archive,
 )
-from runnify.services.scoring import score_segment
-from runnify.services.streams import load_series
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +62,11 @@ def run_import(user_id, path):
             RunModel=Run,
             SongModel=Song,
             UserSongHistoryModel=UserSongHistory,
-            RunSongAnalysisModel=RunSongAnalysis,
-            read_series=load_series,
-            score_segment=score_segment,
             batch_size=current_app.config["HISTORY_BATCH_SIZE"],
             min_overlap_seconds=current_app.config["HISTORY_MIN_OVERLAP_SECONDS"],
         )
+        scored = rescore_runs(stats["run_ids"])
+        db.session.commit()
     except HistoryArchiveError as error:
         user.history_import_state, user.history_import_message = "failed", str(error)
     except Exception:
@@ -80,8 +78,9 @@ def run_import(user_id, path):
     else:
         saved = stats["saved"]
         user.history_import_state = "ok"
-        user.history_import_message = (
-            stats["note"] or f"Matched {saved} song play{'s' if saved != 1 else ''} to your runs."
+        user.history_import_message = stats["note"] or (
+            f"Matched {saved} song play{'s' if saved != 1 else ''} to your runs "
+            f"and scored {scored}."
         )
         user.history_imported_at = utcnow()
     finally:

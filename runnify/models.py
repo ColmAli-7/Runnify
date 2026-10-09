@@ -134,7 +134,7 @@ class Run(db.Model):
     __tablename__ = "runs"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     activity_id = db.Column(db.String, nullable=False)
     date_time = db.Column(db.DateTime, default=utcnow)
     distance = db.Column(db.Float)
@@ -148,7 +148,11 @@ class Run(db.Model):
 
 
 class Song(db.Model):
-    """A Spotify track, keyed by its Spotify track id."""
+    """A Spotify track, keyed by its Spotify track id.
+
+    ``duration`` (seconds) is learned from plays that ran to the end of the
+    track; it is used to fit playlists to a target length.
+    """
 
     __tablename__ = "songs"
 
@@ -168,17 +172,19 @@ class UserSongHistory(db.Model):
     """One song play from a user's Spotify history that overlapped a run.
 
     ``played_at`` is the (UTC) start of the overlapping segment and
-    ``time_played`` its length in seconds.
+    ``time_played`` its length in seconds. ``skipped`` records whether the
+    runner skipped the track (``None`` when Spotify didn't say).
     """
 
     __tablename__ = "user_song_history"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     song_id = db.Column(db.String, db.ForeignKey("songs.id"))
     played_at = db.Column(db.DateTime)
     time_played = db.Column(db.Integer)
-    run_id = db.Column(db.Integer, db.ForeignKey("runs.id"))
+    run_id = db.Column(db.Integer, db.ForeignKey("runs.id"), index=True)
+    skipped = db.Column(db.Boolean)
 
     user = db.relationship("User", back_populates="song_history")
     song = db.relationship("Song", back_populates="song_history")
@@ -188,19 +194,27 @@ class UserSongHistory(db.Model):
 
 
 class RunSongAnalysis(db.Model):
-    """The performance score (0-100) of one song play within one run.
+    """The measured effect of one song play within one run (see ``services/scoring.py``).
 
-    50 means the user ran at their average pace for that run; higher means
-    faster. See ``docs/scoring.md``.
+    ``performance_score`` is 0-100, where 50 is the runner's usual pace at that
+    point of the run; ``pace_delta`` is the same effect in seconds per km
+    (positive = faster), ``hr_delta`` the heart-rate change in bpm, ``seconds``
+    the moving time measured and ``position`` where in the run the song started
+    (0 to 1). ``method_version`` identifies the scoring method that produced it.
     """
 
     __tablename__ = "run_song_analysis"
 
     id = db.Column(db.Integer, primary_key=True)
-    run_id = db.Column(db.Integer, db.ForeignKey("runs.id"))
+    run_id = db.Column(db.Integer, db.ForeignKey("runs.id"), index=True)
     user_song_id = db.Column(db.Integer, db.ForeignKey("user_song_history.id"))
     performance_score = db.Column(db.Float)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    pace_delta = db.Column(db.Float)
+    hr_delta = db.Column(db.Float)
+    seconds = db.Column(db.Integer)
+    position = db.Column(db.Float)
+    method_version = db.Column(db.Integer)
 
     run = db.relationship("Run", back_populates="analysis")
     user_song = db.relationship(

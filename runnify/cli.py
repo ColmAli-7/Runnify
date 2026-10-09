@@ -27,6 +27,22 @@ def backfill_streams():
     click.echo(f"Stored streams for {created} run{'s' if created != 1 else ''}.")
 
 
+scores_cli = AppGroup("scores", help="Manage stored song effects.")
+
+
+@scores_cli.command("rebuild")
+@click.option("--user", "user_id", type=int, help="Only rebuild this user's runs.")
+def rebuild_scores(user_id):
+    """Recompute every song's effect with the current scoring method."""
+    from runnify.services.analysis import rescore_run
+
+    runs = Run.query.filter_by(user_id=user_id) if user_id else Run.query
+    total = sum(rescore_run(run) for run in runs.all())
+    db.session.commit()
+    click.echo(f"Scored {total} song play{'s' if total != 1 else ''}.")
+
+
 def register_cli(app: Flask):
     """Attach the maintenance command groups to ``app``."""
     app.cli.add_command(streams_cli)
+    app.cli.add_command(scores_cli)

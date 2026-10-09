@@ -115,7 +115,7 @@ def test_upload_imports_in_the_background_and_deletes_the_file(
     with app.app_context():
         account = db.session.get(User, user)
         assert account.history_import_state == "ok"
-        assert account.history_import_message == "Matched 1 song play to your runs."
+        assert account.history_import_message == "Matched 1 song play to your runs and scored 0."
         assert UserSongHistory.query.count() == 1
     assert list(pathlib.Path(app.config["UPLOAD_TMP_DIR"]).iterdir()) == []
 
