@@ -33,7 +33,7 @@
           <tr>
             <th scope="col">Pos</th>
             <th scope="col">Runner</th>
-            <th scope="col" class="is-numeric">Runs</th>
+            <th scope="col" class="is-numeric results__optional">Runs</th>
             <th scope="col" class="is-numeric">Distance <span class="results__unit">km</span></th>
             <th scope="col"><span class="visually-hidden">Actions</span></th>
           </tr>
@@ -46,13 +46,13 @@
               <td class="results__track">
                 <span class="runner"><span class="avatar avatar--sm" aria-hidden="true">{{ person.name|initials }}</span>{{ person.name }}{% if me %} <span class="tag">You</span>{% endif %}</span>
               </td>
-              <td class="is-numeric">{{ runs }}</td>
+              <td class="is-numeric results__optional">{{ runs }}</td>
               <td class="is-numeric">{{ metres|km(1) }}</td>
               <td class="is-numeric">
                 {% if not me %}
                   <form method="post" action="{{ url_for('friends.remove', user_id=person.id) }}" class="inline-form" data-confirm="Remove {{ person.name }} as a friend?">
                     {{ csrf() }}
-                    <button class="btn btn--quiet btn--sm" type="submit">Remove<span class="visually-hidden"> {{ person.name }}</span></button>
+                    <button class="btn btn--quiet btn--sm friends__remove" type="submit">{{ icon("close") }}<span class="friends__remove-text">Remove</span><span class="visually-hidden"> {{ person.name }}</span></button>
                   </form>
                 {% endif %}
               </td>

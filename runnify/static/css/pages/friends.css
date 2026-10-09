@@ -39,6 +39,22 @@
     background: var(--paper);
   }
 
+  /* on phones the remove button shows its icon only; the words stay for screen readers */
+  @media (max-width: 559px) {
+    .friends__remove {
+      padding-inline: var(--s-2);
+    }
+
+    .friends__remove-text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
   .people {
     padding: 0;
     list-style: none;
