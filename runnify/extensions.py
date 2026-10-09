@@ -8,6 +8,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import MetaData
 
 # Deterministic constraint names, so Alembic migrations can reliably alter or drop them.
@@ -21,6 +22,7 @@ NAMING_CONVENTION = {
 
 db = SQLAlchemy(metadata=MetaData(naming_convention=NAMING_CONVENTION))
 migrate = Migrate()
+csrf = CSRFProtect()
 mail = Mail()
 
 login_manager = LoginManager()

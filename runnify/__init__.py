@@ -9,11 +9,13 @@ development server from the repository root with::
 
 from pathlib import Path
 
-from flask import Flask, render_template
+from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_wtf.csrf import CSRFError
+from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from runnify.config import get_config, validate_production_config
-from runnify.extensions import db, login_manager, mail, migrate
+from runnify.extensions import csrf, db, login_manager, mail, migrate
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 
@@ -49,6 +51,7 @@ def create_app(config_object=None):
 
     db.init_app(app)
     migrate.init_app(app, db, directory=str(MIGRATIONS_DIR), render_as_batch=True)
+    csrf.init_app(app)
     mail.init_app(app)
     login_manager.init_app(app)
 
@@ -62,5 +65,16 @@ def create_app(config_object=None):
     def page_not_found(error):
         """Render the custom 404 page."""
         return render_template("404.html"), 404
+
+    @app.errorhandler(CSRFError)
+    def csrf_failed(error):
+        """A form arrived without a valid CSRF token: send the visitor back to try again."""
+        flash("That form expired before it was sent. Please try again.", "error")
+        try:  # back to the same page when it can be shown with GET, else home
+            app.url_map.bind_to_environ(request.environ).match(request.path, method="GET")
+            target = request.path
+        except HTTPException:
+            target = url_for("main.home")
+        return redirect(target, code=303)
 
     return app

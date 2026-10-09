@@ -11,6 +11,7 @@
     <!-- form for connecting user's Garmin account -->
     <h2>Connect Garmin</h2>
     <form method="POST" action="{{ url_for('garmin.garmin') }}" class="auth-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="email" name="email" placeholder="Garmin Email" required>
       <input type="password" name="password" placeholder="Garmin Password" required>
       <button type="submit">Connect Garmin</button>

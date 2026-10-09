@@ -94,6 +94,9 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_SECURE = False
 
+    # CSRF tokens are tied to the session, so they need no separate expiry
+    WTF_CSRF_TIME_LIMIT = None
+
     # uploads and imports
     MAX_CONTENT_LENGTH = env_int("MAX_UPLOAD_MB", 100) * 1024 * 1024
     HISTORY_BATCH_SIZE = 1000  # rows per commit for bulk inserts
@@ -147,6 +150,7 @@ class TestConfig(Config):
     SPOTIFY_REDIRECT_URI = "http://127.0.0.1:5000/spotify/callback"
     SPOTIFY_SCOPE = "user-read-email"
     MAIL_SUPPRESS_SEND = True
+    WTF_CSRF_ENABLED = False  # tests post forms directly; test_csrf.py turns it back on
 
 
 CONFIGS = {

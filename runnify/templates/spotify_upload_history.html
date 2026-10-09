@@ -12,6 +12,7 @@
             action="{{ url_for('spotify.upload_history') }}"
             method="post"
             enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
         <!-- file dropzone area -->
         <div id="dropzone" class="dropzone">

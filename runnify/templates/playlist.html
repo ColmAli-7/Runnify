@@ -37,6 +37,7 @@
   <section class="playlist-builder">
     <h2>🎧 Playlist Builder</h2>
     <form method="POST" class="builder-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="type">Run Type</label>
       <select id="type" name="type" required>
         <option value="">Select run type...</option>

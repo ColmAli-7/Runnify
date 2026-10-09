@@ -13,6 +13,7 @@
 
       <!-- form for user login or registration -->
       <form method="POST" class="auth-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if form_type == 'register' %}
           <!-- name field shown only during registration -->
           <input type="text" name="name" placeholder="Full Name" required>

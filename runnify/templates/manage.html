@@ -12,6 +12,7 @@
 
     <!-- form for changing password -->
     <form method="POST" class="auth-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="password-field">
             <input type="password" name="password" placeholder="Current Password" required>
             <button type="button" class="show-btn" onclick="togglePassword(this)">●</button>
@@ -36,6 +37,7 @@
 
     <!-- form for changing display name -->
     <form method="POST" class="auth-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="change_name">
       <input type="password" name="password" placeholder="Current Password" required>
       <input type="text" name="new_name" value="{{ current_user.name }}" placeholder="New Name" required>
