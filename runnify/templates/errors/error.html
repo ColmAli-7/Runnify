@@ -1,9 +1,25 @@
-{% extends "base.html" %}
-{% block title %}Runnify | {{ title }}{% endblock %}
+{% extends "layouts/public.html" %}
+
+{% block title %}{{ title }} | Runnify{% endblock %}
+{% block body_class %}page-error{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/error.css') }}">
+{% endblock %}
+
 {% block content %}
-  <main class="error-container">
-    <h1>{{ title }}</h1>
-    <p>{{ message }}</p>
-    <a href="{{ url_for('main.home') }}">Go back to Home</a>
-  </main>
+<div class="container error-page">
+  <p class="error-page__code" aria-hidden="true">{{ code }}</p>
+  <div class="error-page__body">
+    <h1 class="error-page__title">{{ title }}</h1>
+    <p class="error-page__message">{{ message }}</p>
+    <p class="error-page__actions">
+      {% if current_user.is_authenticated %}
+        <a class="btn btn--primary" href="{{ url_for('dashboard.index') }}">Go to your dashboard</a>
+      {% else %}
+        <a class="btn btn--primary" href="{{ url_for('main.home') }}">Go to the home page</a>
+      {% endif %}
+    </p>
+  </div>
+</div>
 {% endblock %}

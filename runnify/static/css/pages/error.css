@@ -1,0 +1,46 @@
+/* Error pages: the status code printed like a race number. */
+
+@layer pages {
+  .error-page {
+    display: grid;
+    gap: var(--s-6);
+    align-items: end;
+    padding-block: var(--s-9) var(--s-10);
+  }
+
+  .error-page__code {
+    justify-self: start;
+    padding: var(--s-2) var(--s-5);
+    border: 4px solid var(--ink);
+    font-size: clamp(4.5rem, 2.5rem + 9vw, 10rem);
+    font-weight: 800;
+    letter-spacing: -0.06em;
+    line-height: 0.9;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .error-page__title {
+    font-size: var(--text-3xl);
+    font-weight: 750;
+    letter-spacing: -0.04em;
+  }
+
+  .error-page__message {
+    max-width: 44ch;
+    margin-top: var(--s-3);
+    font-size: var(--text-lg);
+    color: var(--ink-2);
+  }
+
+  .error-page__actions {
+    margin-top: var(--s-6);
+  }
+
+  @media (min-width: 900px) {
+    .error-page {
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: var(--s-8);
+      padding-block: var(--s-10);
+    }
+  }
+}

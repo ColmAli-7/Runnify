@@ -90,16 +90,33 @@ def create_app(config_object=None):
             }
         }
 
+    def error_page(code, title, message):
+        return render_template("errors/error.html", code=code, title=title, message=message), code
+
     @app.errorhandler(404)
     def page_not_found(error):
-        """Render the custom 404 page."""
-        return render_template("404.html"), 404
+        """No page at this address."""
+        return error_page(
+            404,
+            "Off course",
+            "We can't find that page. It may have moved, or the link may be wrong.",
+        )
 
     @app.errorhandler(429)
     def too_many_requests(error):
         """A rate limit was hit: explain, without revealing which limit or account."""
-        message = "Too many attempts. Please wait a few minutes and try again."
-        return render_template("errors/error.html", title="Slow down", message=message), 429
+        return error_page(
+            429, "Slow down", "Too many attempts. Please wait a few minutes and try again."
+        )
+
+    @app.errorhandler(500)
+    def server_error(error):
+        """Something failed on the server; the details stay in the log."""
+        return error_page(
+            500,
+            "Something went wrong",
+            "Something failed on our side. Please try again in a moment.",
+        )
 
     @app.errorhandler(CSRFError)
     def csrf_failed(error):
