@@ -4,9 +4,11 @@ from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from runnify.extensions import db, limiter
+from runnify.filters import lift_number
 from runnify.forms import PlaylistForm, first_error
 from runnify.models import Playlist
 from runnify.security.rate_limits import limit_from_config, user_or_ip
+from runnify.services import charts
 from runnify.services import playlists as playlist_service
 
 bp = Blueprint("playlists", __name__)
@@ -41,14 +43,29 @@ def index():
     saved = (
         Playlist.query.filter_by(user_id=current_user.id).order_by(Playlist.created_at.desc()).all()
     )
-    return render_template("playlist.html", form=form, saved=saved)
+    return render_template("playlists/index.html", form=form, saved=saved)
 
 
 @bp.route("/playlists/<int:playlist_id>")
 @login_required
 def detail(playlist_id):
-    """Show one playlist's tracks and the evidence behind each."""
-    return render_template("playlist_detail.html", playlist=_own_playlist(playlist_id))
+    """Show one playlist's tracks, when each starts, and the evidence behind each."""
+    playlist = _own_playlist(playlist_id)
+    starts, clock = [], 0
+    for track in playlist.tracks:
+        starts.append(clock)
+        clock += track.seconds
+    ramp = charts.bar_chart(
+        [(str(track.position + 1), track.lift) for track in playlist.tracks],
+        value_format=lift_number,
+    )
+    return render_template(
+        "playlists/detail.html",
+        playlist=playlist,
+        starts=starts,
+        ramp=ramp,
+        spotify_linked=bool(current_user.spotify_refresh_token),
+    )
 
 
 @bp.route("/playlists/<int:playlist_id>/spotify", methods=["POST"])

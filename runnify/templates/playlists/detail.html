@@ -1,0 +1,79 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, lift, csrf %}
+{% from "macros/charts.html" import bar_chart %}
+
+{% block title %}{{ playlist.name }} | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/playlists.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="page-head__crumb"><a href="{{ url_for('playlists.index') }}">{{ icon("arrow-left") }}All playlists</a></p>
+    <h1>{{ playlist.name }}</h1>
+    <p class="page-head__meta">{{ playlist.tracks|length|plural("track") }}, {{ playlist.total_seconds|duration }}, built {{ playlist.created_at|day }}.</p>
+  </div>
+  <div class="page-head__actions">
+    {% if playlist.spotify_url %}
+      <a class="btn btn--primary" href="{{ playlist.spotify_url }}" rel="noopener noreferrer" target="_blank">Open in Spotify{{ icon("external") }}<span class="visually-hidden"> (opens in a new tab)</span></a>
+    {% elif spotify_linked %}
+      <form method="post" action="{{ url_for('playlists.send_to_spotify', playlist_id=playlist.id) }}" class="inline-form">
+        {{ csrf() }}
+        <button class="btn btn--primary" type="submit">Save to Spotify</button>
+      </form>
+    {% else %}
+      <a class="btn btn--primary" href="{{ url_for('connections.index') }}">Connect Spotify to save it</a>
+    {% endif %}
+    <form method="post" action="{{ url_for('playlists.delete', playlist_id=playlist.id) }}" class="inline-form" data-confirm="Delete this playlist from Runnify? A copy already saved in Spotify is kept.">
+      {{ csrf() }}
+      <button class="btn btn--quiet" type="submit">{{ icon("trash") }}Delete</button>
+    </form>
+  </div>
+</header>
+
+<div class="playlist">
+  <section class="sheet" aria-labelledby="shape-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="shape-title">The shape of the run</h2>
+      <p class="sheet__meta">Each track's lift, in playing order</p>
+    </header>
+    <div class="sheet__body">
+      {{ bar_chart(ramp, "Each track's lift in playing order: " ~ (playlist.tracks|map(attribute="lift")|map("lift")|join(", ")) ~ ".", class="chart--ramp") }}
+    </div>
+  </section>
+
+  <section class="sheet" aria-labelledby="tracks-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="tracks-title">Tracks</h2>
+      <p class="sheet__meta">Lift is the song's effect on your pace across your runs</p>
+    </header>
+    <div class="table-wrap">
+      <table class="results">
+        <caption class="visually-hidden">Tracks in playing order</caption>
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Track</th>
+            <th scope="col" class="is-numeric">Starts</th>
+            <th scope="col" class="is-numeric results__optional">Evidence</th>
+            <th scope="col" class="is-numeric">Lift <span class="results__unit">s/km</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for track in playlist.tracks %}
+            <tr{% if loop.last and playlist.session in ("tempo", "long", "race") %} class="is-best"{% endif %}>
+              <td class="results__pos">{{ loop.index }}</td>
+              <td class="results__track">{{ track.song.name or "Unknown track" }}<span class="results__sub">{{ track.song.artist }}</span></td>
+              <td class="is-numeric">{{ starts[loop.index0]|duration }}</td>
+              <td class="is-numeric results__optional">{{ track.plays|plural("play") if track.plays else "-" }}</td>
+              <td class="is-numeric">{{ lift(track.lift, unit=False) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

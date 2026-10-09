@@ -1,0 +1,86 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, check %}
+
+{% block title %}Playlists | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/playlists.css') }}">
+{% endblock %}
+
+{#- How each session is shaped (see runnify/services/playlists.py), and a sketch of
+    the energy through it: bar heights from 1 (calm) to 5 (strongest). -#}
+{% set sessions = {
+  "easy": ("Steady throughout, and light on songs that push your heart rate up.", [3, 3, 3, 3, 3, 3, 3, 3]),
+  "tempo": ("Builds, so your strongest songs arrive as the effort rises.", [1, 1, 2, 2, 3, 3, 4, 5]),
+  "long": ("Steady, with your strongest songs held back for the final stretch.", [2, 3, 2, 3, 2, 3, 4, 5]),
+  "race": ("Strong from the gun, with your very best saved for the finish.", [4, 4, 4, 4, 4, 4, 5, 5]),
+  "intervals": ("Alternates your hardest-working songs for efforts with calmer ones for recoveries.", [5, 1, 5, 1, 5, 1, 5, 1]),
+} %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Playlists</h1>
+    <p class="page-head__meta">Built from the songs that have actually lifted your pace, shaped for the run you're about to do.</p>
+  </div>
+</header>
+
+<div class="playlists">
+  <section class="sheet builder" aria-labelledby="builder-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="builder-title">Build a playlist</h2>
+    </header>
+    <form class="sheet__body form" method="post" novalidate>
+      {{ form.csrf_token }}
+      <fieldset class="choices">
+        <legend class="field__label">What are you running?</legend>
+        <div class="choices__grid">
+          {% for value, label in form.session.choices %}
+            {% set text, shape = sessions[value] %}
+            <label class="choice">
+              <input type="radio" name="{{ form.session.name }}" value="{{ value }}"{% if form.session.data == value %} checked{% endif %}>
+              <span class="choice__body">
+                <span class="choice__title">{{ label }}</span>
+                <svg class="choice__shape" aria-hidden="true" focusable="false">
+                  {% for level in shape %}<rect x="{{ loop.index0 * 12.5 + 1.5 }}%" y="{{ 100 - level * 20 }}%" width="9.5%" height="{{ level * 20 }}%"></rect>{% endfor %}
+                </svg>
+                <span class="choice__text">{{ text }}</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="builder__row">
+        <div class="field builder__length">
+          <label class="field__label" for="{{ form.minutes.id }}">{{ form.minutes.label.text }}</label>
+          {{ form.minutes(class_="select") }}
+        </div>
+        {{ check(form.include_untested) }}
+      </div>
+      <p><button class="btn btn--primary btn--lg" type="submit">Build playlist</button></p>
+    </form>
+  </section>
+
+  <section class="sheet" aria-labelledby="saved-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="saved-title">Your playlists</h2>
+      {% if saved %}<p class="sheet__meta">{{ saved|length|plural("playlist") }}</p>{% endif %}
+    </header>
+    {% if saved %}
+      <ul class="saved">
+        {% for playlist in saved %}
+          <li class="saved__item">
+            <a class="saved__link" href="{{ url_for('playlists.detail', playlist_id=playlist.id) }}">
+              <span class="saved__name">{{ playlist.name }}</span>
+              <span class="saved__meta">{{ playlist.tracks|length|plural("track") }}, {{ playlist.total_seconds|duration }}, built {{ playlist.created_at|short_day }}</span>
+            </a>
+            {% if playlist.spotify_url %}<span class="tag tag--go">In Spotify</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Playlists you build are kept here, so you can open them again or save them to Spotify.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
