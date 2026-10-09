@@ -9,6 +9,7 @@ from flask_login import current_user, login_required
 
 from runnify.extensions import db, limiter
 from runnify.forms import GarminCodeForm, GarminConnectForm, first_error
+from runnify.security import audit
 from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services import garmin as garmin_service
 
@@ -27,6 +28,7 @@ def _render(form=None, code_form=None, awaiting_code=False):
 
 
 def _linked():
+    audit.record(current_user, "garmin_linked")
     db.session.commit()
     garmin_service.start_background_sync(current_app._get_current_object(), current_user.id)
     flash("Garmin connected. Your runs are syncing in the background.", "success")
@@ -95,6 +97,7 @@ def sync_now():
 def disconnect():
     """Unlink Garmin. Runs already imported are kept."""
     garmin_service.unlink(current_user)
+    audit.record(current_user, "garmin_unlinked")
     db.session.commit()
     flash("Garmin disconnected. Runs you already imported are kept.", "info")
     return redirect(url_for("garmin.garmin"))

@@ -43,6 +43,14 @@
       <input type="text" name="new_name" value="{{ current_user.name }}" placeholder="New Name" required>
       <button type="submit">Change Name</button>
     </form>
+    <h3>Recent security activity</h3>
+    <ul class="security-activity">
+      {% for event, description in activity %}
+        <li>{{ description }} &middot; {{ event.created_at.strftime("%d %b %Y, %H:%M") }} UTC{% if event.ip_prefix %} &middot; network {{ event.ip_prefix }}{% endif %}</li>
+      {% else %}
+        <li>No activity recorded yet.</li>
+      {% endfor %}
+    </ul>
   </div>
 </body>
 {% endblock %}

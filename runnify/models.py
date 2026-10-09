@@ -246,3 +246,22 @@ class RecoveryCode(db.Model):
     )
     code_hash = db.Column(db.String(64), nullable=False)
     used_at = db.Column(db.DateTime)
+
+
+class SecurityEvent(db.Model):
+    """A security-relevant event on an account (sign-ins, password and 2FA changes, ...).
+
+    IP addresses are stored truncated (IPv4 /24, IPv6 /48) and user agents
+    shortened, so the log can't pinpoint anyone; entries expire after 90 days.
+    """
+
+    __tablename__ = "security_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind = db.Column(db.String(40), nullable=False)
+    ip_prefix = db.Column(db.String(45))
+    user_agent = db.Column(db.String(160))
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow, index=True)

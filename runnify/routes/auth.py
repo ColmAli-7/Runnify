@@ -24,6 +24,7 @@ from runnify.forms import (
     first_error,
 )
 from runnify.models import User, utcnow
+from runnify.security import audit
 from runnify.security.lockout import clear_failures, is_locked, record_failure
 from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config
@@ -80,8 +81,8 @@ def login():
                 }
                 return redirect(url_for("auth.verify_two_factor"))
             return _complete_login(user, form.remember.data, next_url)
-        if user and record_failure(user):
-            send_lockout_notice(user)
+        if user:
+            _record_failed_sign_in(user)
         db.session.commit()
         flash(LOGIN_FAILED, "error")
     elif form.errors:
@@ -89,9 +90,18 @@ def login():
     return render_template("login.html", form_type="login", form=form)
 
 
+def _record_failed_sign_in(user):
+    """Count a failed password or code, log it, and lock + notify when the threshold is hit."""
+    audit.record(user, "sign_in_failed")
+    if record_failure(user):
+        audit.record(user, "account_locked")
+        send_lockout_notice(user)
+
+
 def _complete_login(user, remember, next_url):
     """Start the session once every sign-in step has passed."""
     clear_failures(user)
+    audit.record(user, "sign_in")
     user.last_login_at = utcnow()
     db.session.commit()
     session.clear()  # nothing from before sign-in carries over into the session
@@ -136,11 +146,12 @@ def verify_two_factor():
         if not accept_code(user, form.code.data):
             used_recovery = use_recovery_code(user, form.code.data)
             if not used_recovery:
-                if record_failure(user):
-                    send_lockout_notice(user)
+                _record_failed_sign_in(user)
                 db.session.commit()
                 flash("That code didn't work.", "error")
                 return render_template("two_factor_verify.html", form=form)
+        if used_recovery:
+            audit.record(user, "recovery_code_used")
         response = _complete_login(user, pending["remember"], pending["next"])
         if used_recovery:
             left = remaining_recovery_codes(user)
@@ -245,6 +256,7 @@ def choose_new_password():
             user.password_hash = hash_password(form.password.data)
             clear_failures(user)  # a reset also lifts any lockout
             user.rotate_session_token()  # signs out every device and voids the reset link
+            audit.record(user, "password_reset")
             db.session.commit()
             session.pop(RESET_TOKEN_KEY, None)
             send_password_changed(user)

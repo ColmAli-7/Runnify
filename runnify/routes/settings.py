@@ -12,7 +12,7 @@ from runnify.forms import (
     TwoFactorEnableForm,
     first_error,
 )
-from runnify.security import two_factor
+from runnify.security import audit, two_factor
 from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services.notifications import send_password_changed, send_two_factor_changed
@@ -29,6 +29,7 @@ def managing():
     """Show account settings; on POST, change name or password after re-checking the current password."""
     name_form, password_form = ChangeNameForm(), ChangePasswordForm()
     if request.method == "POST" and request.form.get("action") == "sign_out_everywhere":
+        audit.record(current_user, "sessions_revoked")
         _restart_sessions()
         flash("You've been signed out on every other device.", "success")
         return redirect(url_for("manage.managing"))
@@ -48,11 +49,17 @@ def managing():
             flash(problems[0], "error")
         else:
             current_user.password_hash = hash_password(form.new_password.data)
+            audit.record(current_user, "password_changed")
             _restart_sessions()
             send_password_changed(current_user)
             flash("Password updated. You've been signed out on every other device.", "success")
         return redirect(url_for("manage.managing"))
-    return render_template("manage.html", name_form=name_form, password_form=password_form)
+    return render_template(
+        "manage.html",
+        name_form=name_form,
+        password_form=password_form,
+        activity=audit.recent(current_user),
+    )
 
 
 def _restart_sessions():
@@ -88,6 +95,7 @@ def two_factor_settings():
             flash("That code didn't work. Check your phone sets its time automatically.", "error")
         else:
             codes = two_factor.enable(current_user, secret)
+            audit.record(current_user, "two_factor_enabled")
             session.pop(SETUP_SECRET_KEY, None)
             _restart_sessions()  # also commits
             send_two_factor_changed(current_user, enabled=True)
@@ -121,6 +129,7 @@ def disable_two_factor():
         flash("That code didn't work.", "error")
     else:
         two_factor.disable(current_user)
+        audit.record(current_user, "two_factor_disabled")
         db.session.commit()
         send_two_factor_changed(current_user, enabled=False)
         flash("Two-step verification is off.", "info")
@@ -142,5 +151,6 @@ def new_recovery_codes():
         flash("Your current password is incorrect.", "error")
         return redirect(url_for("manage.two_factor_settings"))
     codes = two_factor.replace_recovery_codes(current_user)
+    audit.record(current_user, "recovery_codes_replaced")
     db.session.commit()
     return render_template("recovery_codes.html", codes=codes)

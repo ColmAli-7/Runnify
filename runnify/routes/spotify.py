@@ -23,6 +23,7 @@ from flask_login import current_user, login_required
 
 from runnify.extensions import db, limiter
 from runnify.models import Run
+from runnify.security import audit
 from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services import imports
 from runnify.services import spotify as spotify_service
@@ -69,6 +70,7 @@ def callback():
         flash("Spotify couldn't be connected right now. Please try again later.", "error")
         return redirect(url_for("dash.dashboard"))
     spotify_service.save_tokens(current_user, token_info)
+    audit.record(current_user, "spotify_linked")
     db.session.commit()
     flash("Spotify connected.", "success")
     return redirect(url_for("dash.dashboard"))
