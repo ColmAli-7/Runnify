@@ -1,0 +1,107 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, field, csrf %}
+
+{% block title %}Connections | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/connect.css') }}">
+{% endblock %}
+
+{% set garmin_linked = current_user.garmin_tokens or current_user.garmin_password %}
+{% set spotify_linked = current_user.spotify_refresh_token %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Connections</h1>
+    <p class="page-head__meta">Runnify reads your runs from Garmin and your songs from the history Spotify sends you.</p>
+  </div>
+</header>
+
+<div class="connections">
+  <section class="sheet service" aria-labelledby="garmin-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="garmin-title">{{ icon("watch") }}Garmin Connect</h2>
+      {% if garmin_linked %}<span class="tag tag--go">Connected</span>{% elif awaiting_code %}<span class="tag">Waiting for code</span>{% else %}<span class="tag">Not connected</span>{% endif %}
+    </header>
+    <div class="sheet__body service__body">
+      {% if awaiting_code %}
+        <p>Garmin sent you a verification code by email or text. Enter it to finish connecting.</p>
+        <form class="form" method="post" action="{{ url_for('connections.verify_garmin') }}" novalidate>
+          {{ code_form.csrf_token }}
+          {{ field(code_form.code, input_class="input input--code", autocomplete="one-time-code", inputmode="numeric") }}
+          <p class="cluster"><button class="btn btn--primary" type="submit">Finish connecting</button></p>
+        </form>
+      {% elif garmin_linked %}
+        <dl class="facts">
+          <dt>Account</dt><dd>{{ current_user.garmin_username }}</dd>
+          <dt>Last sync</dt><dd>{{ current_user.garmin_last_synced_at|ago }}</dd>
+          {% if current_user.garmin_sync_state == "syncing" %}
+            <dt>Status</dt><dd>Syncing your runs now</dd>
+          {% elif current_user.garmin_sync_message %}
+            <dt>Status</dt><dd{% if current_user.garmin_sync_state == "failed" %} class="service__failed"{% endif %}>{{ current_user.garmin_sync_message }}</dd>
+          {% endif %}
+        </dl>
+        <div class="cluster">
+          <form method="post" action="{{ url_for('connections.sync_garmin') }}" class="inline-form">
+            {{ csrf() }}
+            <button class="btn btn--primary" type="submit"{% if current_user.garmin_sync_state == "syncing" %} aria-disabled="true" disabled{% endif %}>{{ icon("sync") }}Sync now</button>
+          </form>
+          <form method="post" action="{{ url_for('connections.disconnect_garmin') }}" class="inline-form" data-confirm="Disconnect Garmin? Runs you have already imported are kept.">
+            {{ csrf() }}
+            <button class="btn btn--quiet" type="submit">Disconnect</button>
+          </form>
+        </div>
+      {% else %}
+        <p>Sign in with your Garmin Connect account. Runnify brings in each run with its second-by-second pace and heart rate.</p>
+        <form class="form" method="post" action="{{ url_for('connections.link_garmin') }}" novalidate>
+          {{ form.csrf_token }}
+          {{ field(form.email, autocomplete="off", spellcheck="false", autocapitalize="none") }}
+          {{ field(form.password, reveal=True, autocomplete="off") }}
+          <p class="service__note">{{ icon("lock") }}<span>Your Garmin password is used once, to sign in, and never stored. Runnify keeps an encrypted session token instead.</span></p>
+          <p><button class="btn btn--primary" type="submit">Connect Garmin</button></p>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="sheet service" aria-labelledby="spotify-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="spotify-title">{{ icon("disc") }}Spotify</h2>
+      {% if spotify_linked %}<span class="tag tag--go">Connected</span>{% else %}<span class="tag">Not connected</span>{% endif %}
+    </header>
+    <div class="sheet__body service__body">
+      <p>Only needed to save the playlists you build to your Spotify library. Your listening history comes from the file Spotify emails you, not from this connection.</p>
+      {% if spotify_linked %}
+        <form method="post" action="{{ url_for('connections.disconnect_spotify') }}" class="inline-form" data-confirm="Disconnect Spotify? Your imported history and playlists are kept.">
+          {{ csrf() }}
+          <button class="btn" type="submit">Disconnect Spotify</button>
+        </form>
+      {% else %}
+        <p><a class="btn" href="{{ url_for('spotify.login_spotify') }}">Connect Spotify</a></p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="sheet service" aria-labelledby="history-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="history-title">{{ icon("music") }}Listening history</h2>
+      {% if current_user.history_import_state == "ok" %}<span class="tag tag--go">Imported</span>
+      {% elif current_user.history_import_state == "importing" %}<span class="tag">Importing</span>
+      {% elif current_user.history_import_state == "failed" %}<span class="tag tag--pen">Failed</span>
+      {% else %}<span class="tag">Not uploaded</span>{% endif %}
+    </header>
+    <div class="sheet__body service__body">
+      {% if current_user.history_import_state %}
+        <dl class="facts">
+          {% if current_user.history_imported_at %}<dt>Last upload</dt><dd>{{ current_user.history_imported_at|ago }}</dd>{% endif %}
+          {% if current_user.history_import_message %}<dt>Result</dt><dd{% if current_user.history_import_state == "failed" %} class="service__failed"{% endif %}>{{ current_user.history_import_message }}</dd>{% endif %}
+        </dl>
+      {% else %}
+        <p>Spotify's extended streaming history tells Runnify which songs played during your runs.</p>
+      {% endif %}
+      <p><a class="btn" href="{{ url_for('imports.index') }}">{{ icon("upload") }}{{ "Upload newer history" if current_user.history_import_state == "ok" else "Upload your history" }}</a></p>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, csrf %}
+
+{% block title %}Import Spotify history | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/connect.css') }}">
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="{{ url_for('static', filename='js/pages/upload.js') }}"></script>
+{% endblock %}
+
+{% set state = current_user.history_import_state %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Import your Spotify history</h1>
+    <p class="page-head__meta">Spotify keeps a record of everything you've played. Runnify uses it to find the songs that played during your runs.</p>
+  </div>
+</header>
+
+<div class="import">
+  <section class="sheet" aria-labelledby="guide-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="guide-title">Get the file from Spotify</h2>
+      <p class="sheet__meta">Spotify can take up to 30 days to send it</p>
+    </header>
+    <ol class="steps import__steps">
+      <li class="step">
+        <span class="step__mark" aria-hidden="true"></span>
+        <div class="step__body">
+          <p class="step__title">Open Spotify's privacy settings</p>
+          <p>Sign in at <a href="https://www.spotify.com/account/privacy/" rel="noopener noreferrer" target="_blank">spotify.com/account/privacy<span class="visually-hidden"> (opens in a new tab)</span></a> and find <strong>Download your data</strong>.</p>
+        </div>
+      </li>
+      <li class="step">
+        <span class="step__mark" aria-hidden="true"></span>
+        <div class="step__body">
+          <p class="step__title">Ask for your extended streaming history</p>
+          <p>Tick <strong>Extended streaming history</strong>, not just account data, then request it and confirm from the email Spotify sends.</p>
+        </div>
+      </li>
+      <li class="step">
+        <span class="step__mark" aria-hidden="true"></span>
+        <div class="step__body">
+          <p class="step__title">Wait for Spotify's email</p>
+          <p>It usually arrives within a few days and can take up to 30. Keep running with music in the meantime: your new runs are matched later.</p>
+        </div>
+      </li>
+      <li class="step">
+        <span class="step__mark" aria-hidden="true"></span>
+        <div class="step__body">
+          <p class="step__title">Download the zip and upload it here</p>
+          <p>Upload the file exactly as Spotify sends it. There's no need to unzip it.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="sheet upload" aria-labelledby="upload-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="upload-title">Upload the zip</h2>
+      {% if state == "ok" %}<span class="tag tag--go">Imported</span>{% elif state == "importing" %}<span class="tag">Importing</span>{% elif state == "failed" %}<span class="tag tag--pen">Failed</span>{% endif %}
+    </header>
+    <div class="sheet__body">
+      {% if state == "importing" %}
+        <p class="upload__status" role="status">Importing your history now. Matched songs appear on your runs as soon as it finishes. You can leave this page.</p>
+      {% elif current_user.history_import_message %}
+        <p class="upload__status{% if state == 'failed' %} upload__status--failed{% endif %}">{{ current_user.history_import_message }}{% if current_user.history_imported_at %} <span class="muted">({{ current_user.history_imported_at|ago }})</span>{% endif %}</p>
+      {% endif %}
+
+      {% if not has_runs %}
+        <div class="empty upload__blocked">
+          <p class="empty__title">Connect Garmin first</p>
+          <p>Songs are matched to your runs, so Runnify needs your runs before it can read your history. You can request the file from Spotify now.</p>
+          <a class="btn btn--primary" href="{{ url_for('connections.index') }}">Connect Garmin</a>
+        </div>
+      {% else %}
+        <form class="form" method="post" enctype="multipart/form-data" data-upload>
+          {{ csrf() }}
+          <label class="dropzone" data-dropzone>
+            <input class="dropzone__input" type="file" name="history_zip" accept=".zip,application/zip" required data-file>
+            {{ icon("upload", class="dropzone__icon") }}
+            <span class="dropzone__title" data-file-name>Choose the .zip file</span>
+            <span class="dropzone__hint">or drop it here. Up to {{ config.MAX_CONTENT_LENGTH // (1024 * 1024) }} MB.</span>
+          </label>
+          <p><button class="btn btn--primary btn--lg" type="submit"{% if state == "importing" %} disabled{% endif %}>Upload and import</button></p>
+        </form>
+      {% endif %}
+
+      <ul class="upload__promises">
+        <li>{{ icon("check") }}<span>Only songs that played during your runs are kept. Podcasts and everything else are ignored.</span></li>
+        <li>{{ icon("check") }}<span>The uploaded file is deleted as soon as it has been read.</span></li>
+        <li>{{ icon("check") }}<span>Uploading a newer file later adds your newer runs without duplicating anything.</span></li>
+      </ul>
+    </div>
+  </section>
+</div>
+{% endblock %}

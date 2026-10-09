@@ -19,7 +19,7 @@ def index():
     """Show how to get the Spotify export and the upload form; on POST, import it in the background."""
     has_runs = Run.query.filter_by(user_id=current_user.id).first() is not None
     if request.method == "GET":
-        return render_template("spotify_upload_history.html", has_runs=has_runs)
+        return render_template("imports/index.html", has_runs=has_runs)
 
     file = request.files.get("history_zip")
     if not file or not file.filename or not file.filename.lower().endswith(".zip"):

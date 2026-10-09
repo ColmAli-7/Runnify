@@ -1,0 +1,166 @@
+/* Connections and importing the Spotify history. */
+
+@layer pages {
+  .connections {
+    display: grid;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  @media (min-width: 1024px) {
+    .connections {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .connections > :first-child {
+      grid-row: span 2;
+    }
+  }
+
+  .service .sheet__title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+
+  .service__body {
+    display: grid;
+    gap: var(--s-5);
+    color: var(--ink-2);
+  }
+
+  .service__body .facts dd {
+    color: var(--ink);
+  }
+
+  .service__failed {
+    color: var(--pen);
+  }
+
+  .service__note {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    background: var(--board);
+    font-size: var(--text-sm);
+  }
+
+  .service__note .icon {
+    margin-top: 2px;
+    color: var(--ink);
+  }
+
+  /* import */
+  .import {
+    display: grid;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  @media (min-width: 1024px) {
+    .import {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+  }
+
+  .import__steps {
+    padding-inline: var(--s-5);
+  }
+
+  .upload .sheet__body {
+    display: grid;
+    gap: var(--s-5);
+  }
+
+  .upload__status {
+    padding: var(--s-3) var(--s-4);
+    border-left: 4px solid var(--ink);
+    background: var(--board);
+    font-size: var(--text-sm);
+    font-weight: 550;
+  }
+
+  .upload__status--failed {
+    border-left-color: var(--pen);
+    background: var(--pen-soft);
+  }
+
+  .upload__blocked {
+    padding: 0;
+  }
+
+  .dropzone {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: var(--s-2);
+    padding: var(--s-7) var(--s-5);
+    border: 2px dashed var(--field);
+    border-radius: var(--radius);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+  }
+
+  .dropzone:hover,
+  .dropzone.is-over {
+    border-color: var(--ink);
+    background: var(--highlight-soft);
+  }
+
+  .dropzone:has(.dropzone__input:focus-visible) {
+    outline: 3px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  .dropzone.has-file {
+    border-style: solid;
+    border-color: var(--ink);
+  }
+
+  .dropzone__input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .dropzone__icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .dropzone__title {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .dropzone__hint {
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+  }
+
+  .upload__promises {
+    display: grid;
+    gap: var(--s-3);
+    padding: var(--s-4) 0 0;
+    border-top: var(--hair);
+    list-style: none;
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+
+  .upload__promises li {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+
+  .upload__promises .icon {
+    margin-top: 2px;
+    color: var(--go);
+  }
+}

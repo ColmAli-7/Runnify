@@ -22,7 +22,7 @@ PENDING_KEY = "garmin_pending_login"
 
 def _render(form=None, code_form=None, awaiting_code=False):
     return render_template(
-        "garmin.html",
+        "connections/index.html",
         form=form or GarminConnectForm(),
         code_form=code_form or GarminCodeForm(),
         awaiting_code=awaiting_code,
