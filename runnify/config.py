@@ -35,8 +35,10 @@ def env_list(name):
 
 
 def database_url():
-    """Return ``DATABASE_URL`` with PostgreSQL URLs pinned to the installed psycopg2 driver.
+    """Return ``DATABASE_URL``; SQLite (``runnify/instance/runnify.db``) when unset.
 
+    SQLite is the default while Runnify is being tested; PostgreSQL works too.
+    PostgreSQL URLs are pinned to the installed psycopg2 driver:
     Hosts hand out ``postgres://`` or ``postgresql://`` URLs; SQLAlchemy 2.1
     maps a bare ``postgresql://`` to psycopg 3, which is not installed.
     """
@@ -211,8 +213,6 @@ def validate_production_config(config):
         Fernet((config.get("FERNET_KEY") or "").encode())
     except ValueError:
         problems.append("FERNET_KEY must be set to a valid Fernet key")
-    if config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
-        problems.append("DATABASE_URL must point at PostgreSQL, not SQLite")
     if not (config.get("PUBLIC_BASE_URL") or "").startswith("https://"):
         problems.append("PUBLIC_BASE_URL must be the site's https:// origin")
     if not config.get("TRUSTED_HOSTS"):

@@ -56,8 +56,10 @@ export UV_SYSTEM_CERTS=true
 1. `uv sync`
 2. `cp .env.example .env` and fill in at least `SECRET_KEY` and `FERNET_KEY`
    (the app will not start without `FERNET_KEY`).
-3. Optionally point `DATABASE_URL` at PostgreSQL. Without it, a SQLite file is
-   created at `runnify/instance/runnify.db`.
+3. The database is a SQLite file at `runnify/instance/runnify.db` by default
+   (the setup used for testing for now). To use PostgreSQL instead, set
+   `DATABASE_URL`; connections are tuned for SQLite automatically (WAL mode,
+   a busy timeout and enforced foreign keys).
 4. `uv run flask --app runnify db upgrade` to create the database tables.
 5. `uv run flask --app runnify run --debug` from the repository root.
 

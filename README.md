@@ -39,7 +39,7 @@ with the rest of that run, so you can see which tracks actually push your pace.
 | Layer | Technology |
 |---|---|
 | Backend | Python 3.13+, Flask, Flask-Login, Flask-Mail |
-| Database | PostgreSQL (SQLite fallback for local dev) via SQLAlchemy / Flask-SQLAlchemy |
+| Database | SQLite by default (PostgreSQL supported) via SQLAlchemy / Flask-SQLAlchemy, Alembic migrations |
 | Integrations | `garminconnect`, `spotipy`, `fitparse`, `ijson` |
 | Security | Werkzeug password hashing, `itsdangerous` reset tokens, Fernet-encrypted Garmin passwords |
 | Frontend | Jinja2 templates, CSS, vanilla JavaScript, Chart.js, Bootstrap, Font Awesome |
@@ -48,7 +48,7 @@ with the rest of that run, so you can see which tracks actually push your pace.
 ## Quick start
 
 **Prerequisites:** [uv](https://docs.astral.sh/uv/getting-started/installation/),
-plus a PostgreSQL database if you want the Music Insights page. uv installs the
+Nothing else is needed: the database is a local SQLite file by default. uv installs the
 pinned Python version for you if it is missing.
 
 ```bash
@@ -82,7 +82,7 @@ the project root. [`.env.example`](.env.example) lists every variable with comme
 |---|---|---|---|
 | `APP_ENV` | No | `development` | `production` enables secure cookies and refuses to start with unsafe settings |
 | `SECRET_KEY` | **Yes** in production | random per process (dev only) | Signs session cookies and security tokens (32+ characters) |
-| `DATABASE_URL` | **Yes** in production | `sqlite:///runnify.db` (in `runnify/instance/`) | Database URL; PostgreSQL in production (`postgres://` URLs are accepted) |
+| `DATABASE_URL` | No | SQLite file `runnify/instance/runnify.db` | Database URL. SQLite is the default for now; PostgreSQL works too (`postgres://` URLs are accepted) |
 | `PUBLIC_BASE_URL` | **Yes** in production | none | Public `https://` origin used for links in emails |
 | `ALLOWED_HOSTS` | **Yes** in production | none | Comma-separated host names; any other `Host` header is rejected |
 | `PROXY_COUNT` | No | `0` dev / `1` prod | Reverse proxies whose `X-Forwarded-*` headers are trusted |

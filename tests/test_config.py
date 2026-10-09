@@ -55,7 +55,7 @@ def test_production_refuses_to_start_with_unsafe_settings():
     with pytest.raises(RuntimeError) as excinfo:
         create_app(UnsafeConfig)
     message = str(excinfo.value)
-    for setting in ("SECRET_KEY", "FERNET_KEY", "DATABASE_URL", "PUBLIC_BASE_URL", "ALLOWED_HOSTS"):
+    for setting in ("SECRET_KEY", "FERNET_KEY", "PUBLIC_BASE_URL", "ALLOWED_HOSTS"):
         assert setting in message
 
 
@@ -93,3 +93,21 @@ def test_proxy_headers_are_trusted_only_in_production():
         },
     )
     assert seen == {"ip": "203.0.113.7", "scheme": "https"}
+
+
+def test_production_runs_on_sqlite_with_a_warning(caplog):
+    class SQLiteProduction(SafeProductionConfig):
+        SQLALCHEMY_DATABASE_URI = "sqlite://"
+
+    create_app(SQLiteProduction)
+    assert "SQLite" in caplog.text
+
+
+def test_sqlite_connections_are_tuned(app):
+    from sqlalchemy import text
+
+    from runnify.extensions import db
+
+    with app.app_context():
+        assert db.session.execute(text("PRAGMA foreign_keys")).scalar() == 1
+        assert db.session.execute(text("PRAGMA busy_timeout")).scalar() == 15000

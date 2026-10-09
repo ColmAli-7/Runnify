@@ -107,6 +107,11 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        if connection.dialect.name == "sqlite":
+            # batch migrations rebuild tables (create copy, drop original, rename); with
+            # foreign keys enforced, dropping a referenced table would cascade-delete rows
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()  # end the auto-begun transaction; Alembic opens its own
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),

@@ -45,6 +45,11 @@ def create_app(config_object=None):
         problems = validate_production_config(app.config)
         if problems:
             raise RuntimeError("Refusing to start in production:\n- " + "\n- ".join(problems))
+        if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+            app.logger.warning(
+                "Running in production on SQLite: the database file only survives restarts "
+                "and redeploys if it is on a persistent disk."
+            )
 
     for setting, folder in (("FIT_STORAGE_DIR", "fit_files"), ("UPLOAD_TMP_DIR", "uploads")):
         if not app.config.get(setting):
