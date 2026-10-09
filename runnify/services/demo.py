@@ -79,10 +79,10 @@ def _song_id(title, artist):
 def _run_profile(rng, kind):
     """Base pace (s/km), distance (m) and base heart rate for a kind of run."""
     if kind == "tempo":
-        return rng.uniform(268, 284), rng.uniform(7000, 10000), 162
+        return rng.uniform(268, 284), rng.uniform(7000, 10000), 150
     if kind == "long":
-        return rng.uniform(312, 330), rng.uniform(15000, 21100), 148
-    return rng.uniform(318, 340), rng.uniform(5000, 9000), 142
+        return rng.uniform(312, 330), rng.uniform(15000, 21100), 138
+    return rng.uniform(318, 340), rng.uniform(5000, 9000), 132
 
 
 def _simulate(rng, start, kind, songs):
@@ -114,6 +114,7 @@ def _simulate(rng, start, kind, songs):
             song_end = second + length
         _song, _length, effect, hr_effect = queue[index]
         effect = 0 if plays[-1][3] else effect  # a skipped song has no time to work
+        effect *= 0.7 + 0.8 * metres / target_m  # this runner gets more from music when tired
         km = metres / 1000
         pace = (
             base_pace
@@ -136,9 +137,7 @@ def _simulate(rng, start, kind, songs):
         timestamps.append(start + timedelta(seconds=second))
         second += 1
 
-    plays[-1][2] = min(
-        plays[-1][2], second - plays[-1][1]
-    )  # the last song is cut off by the finish
+    plays[-1][2] = min(plays[-1][2], second - plays[-1][1])  # the finish cuts off the last song
     series = Series(timestamps=timestamps, heart_rates=heart_rates, paces=paces)
     return series, plays, metres, second, round(sum(heart_rates) / len(heart_rates))
 
