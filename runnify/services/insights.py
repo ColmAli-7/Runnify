@@ -242,14 +242,12 @@ class Overview:
     songs: int
     runs_with_music: int
     music_seconds: int
-    average_lift: float | None
     power_songs: list
     drag_songs: list
     top_artists: list
     phases: list  # Phase for the start, middle and finish
     heart_raisers: list
     most_skipped: list
-    monthly: list  # (YYYY-MM, weighted lift, plays)
     with_music_pace: float | None
     without_music_pace: float | None
 
@@ -287,11 +285,6 @@ def overview(user_id, range_key=DEFAULT_RANGE):
     )
     artists = aggregate(rows, lambda s: (s.artist or "").strip() or None, lambda s: s.artist)
 
-    monthly = defaultdict(list)
-    for analysis, _play, _song, run in rows:
-        weight = max(analysis.seconds or 0, 1)
-        monthly[run.date_time.strftime("%Y-%m")].append((analysis.pace_delta, weight))
-
     with_music, without_music = _run_paces(user_id, since)
     return Overview(
         range_key=range_key,
@@ -300,7 +293,6 @@ def overview(user_id, range_key=DEFAULT_RANGE):
         songs=len(songs),
         runs_with_music=len({run.id for *_, run in rows}),
         music_seconds=sum(analysis.seconds or 0 for analysis, *_ in rows),
-        average_lift=_weighted_mean([(a.pace_delta, max(a.seconds or 0, 1)) for a, *_ in rows]),
         power_songs=ranked(songs, best=True),
         drag_songs=ranked(songs, best=False),
         top_artists=ranked(artists, best=True),
@@ -309,9 +301,6 @@ def overview(user_id, range_key=DEFAULT_RANGE):
         ),
         heart_raisers=heart_raisers(songs),
         most_skipped=most_skipped(songs),
-        monthly=[
-            (month, _weighted_mean(pairs), len(pairs)) for month, pairs in sorted(monthly.items())
-        ],
         with_music_pace=with_music,
         without_music_pace=without_music,
     )

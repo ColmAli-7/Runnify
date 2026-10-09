@@ -94,19 +94,3 @@ def song_effect(series, start, end):
         seconds=len(song_paces),
         position=round(position, 3),
     )
-
-
-def score_segment(seg, timestamps, pace_s_per_km, hr=None):
-    """Score one segment given as ``{"start_time", "end_time"}`` (kept for older callers).
-
-    Returns:
-        The 0-100 score, or ``None`` when there isn't enough data.
-    """
-    from runnify.services.fit import Series
-
-    series = Series(
-        timestamps=list(timestamps),
-        heart_rates=list(hr) if hr else [None] * len(timestamps),
-        paces=list(pace_s_per_km),
-    )
-    return song_effect(series, seg["start_time"], seg["end_time"]).score
