@@ -17,9 +17,9 @@ CONSENT_EXEMPT = {
     "legal.cookies",
     "legal.consent",
     "auth.logout",
-    "manage.export_data",
-    "manage.delete_account",
-    "manage.managing",
+    "settings.export_data",
+    "settings.delete_account",
+    "settings.index",
 }
 
 
@@ -58,12 +58,12 @@ def require_current_consent():
 def consent():
     """Ask an existing user to agree to the current terms and data processing."""
     if current_user.has_current_consent:
-        return redirect(url_for("dash.dashboard"))
+        return redirect(url_for("dashboard.index"))
     form = ConsentForm()
     if form.validate_on_submit():
         current_user.record_consent()
         db.session.commit()
-        return redirect(safe_next_url(request.args.get("next")) or url_for("dash.dashboard"))
+        return redirect(safe_next_url(request.args.get("next")) or url_for("dashboard.index"))
     if form.errors:
         flash(first_error(form), "error")
     return render_template("legal/consent.html", form=form)

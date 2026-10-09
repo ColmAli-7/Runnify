@@ -13,7 +13,7 @@
     </form>
     {% if saved %}
       <h3>Your playlists</h3>
-      <ul>{% for p in saved %}<li><a href="{{ url_for('playlist.detail', playlist_id=p.id) }}">{{ p.name }}</a></li>{% endfor %}</ul>
+      <ul>{% for p in saved %}<li><a href="{{ url_for('playlists.detail', playlist_id=p.id) }}">{{ p.name }}</a></li>{% endfor %}</ul>
     {% endif %}
   </div>
 {% endblock %}

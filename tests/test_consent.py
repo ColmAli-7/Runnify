@@ -44,7 +44,7 @@ def test_accounts_without_consent_are_asked_first(auth_client, unconsented):
     assert response.headers["Location"].startswith("/consent?next=/dashboard")
 
 
-@pytest.mark.parametrize("path", ["/privacy", "/terms", "/cookies", "/consent", "/manage"])
+@pytest.mark.parametrize("path", ["/privacy", "/terms", "/cookies", "/consent", "/settings"])
 def test_policies_and_account_exits_stay_reachable(auth_client, unconsented, path):
     assert auth_client.get(path).status_code == 200
 

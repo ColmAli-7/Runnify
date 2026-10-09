@@ -16,9 +16,9 @@ def _make_user(app, email, name):
 
 
 def test_state_changing_friend_actions_reject_get(auth_client):
-    assert auth_client.get("/friends/send/2").status_code == 405
-    assert auth_client.get("/friends/accept/1").status_code == 405
-    assert auth_client.get("/friends/decline/1").status_code == 405
+    assert auth_client.get("/friends/2/request").status_code == 405
+    assert auth_client.get("/friends/requests/1/accept").status_code == 405
+    assert auth_client.get("/friends/requests/1/decline").status_code == 405
 
 
 def test_logout_requires_post(auth_client):
@@ -29,17 +29,17 @@ def test_logout_requires_post(auth_client):
 
 def test_request_accept_flow(app, auth_client, user):
     other = _make_user(app, "friend@example.com", "Friend")
-    auth_client.post(f"/friends/send/{other}")
+    auth_client.post(f"/friends/{other}/request")
     with app.app_context():
         request_id = FriendRequest.query.one().id
 
     # only the receiver may accept: the sender cannot accept their own request
-    auth_client.post(f"/friends/accept/{request_id}")
+    auth_client.post(f"/friends/requests/{request_id}/accept")
     with app.app_context():
         assert db.session.get(FriendRequest, request_id).status == "pending"
 
     sign_in_as(auth_client, other)
-    auth_client.post(f"/friends/accept/{request_id}")
+    auth_client.post(f"/friends/requests/{request_id}/accept")
     with app.app_context():
         assert db.session.get(FriendRequest, request_id).status == "accepted"
         assert [f.id for f in db.session.get(User, user).friends] == [other]

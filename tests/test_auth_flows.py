@@ -20,9 +20,9 @@ def test_failed_login_message_does_not_reveal_whether_the_account_exists(client,
 
 def test_login_follows_a_local_next_path(client, user):
     response = client.post(
-        "/login?next=/music-insights", data={"email": "runner@example.com", "password": PASSWORD}
+        "/login?next=/insights", data={"email": "runner@example.com", "password": PASSWORD}
     )
-    assert response.headers["Location"] == "/music-insights"
+    assert response.headers["Location"] == "/insights"
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,7 @@ def test_registration_rejects_duplicate_email(client, user):
 
 def test_password_change_requires_the_current_password(auth_client):
     response = auth_client.post(
-        "/manage",
+        "/settings",
         data={
             "password": "wrong",
             "new_password": "a brand new passphrase",
@@ -84,7 +84,7 @@ def test_password_change_requires_the_current_password(auth_client):
 
 def test_password_change_with_mismatched_confirmation(auth_client):
     response = auth_client.post(
-        "/manage",
+        "/settings",
         data={
             "password": PASSWORD,
             "new_password": "a brand new passphrase",

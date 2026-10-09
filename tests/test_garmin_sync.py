@@ -155,9 +155,9 @@ def test_unreadable_fit_data_still_saves_the_run(app, user, monkeypatch):
 
 def test_linking_stores_tokens_never_the_password(app, auth_client, user, syncs):
     response = auth_client.post(
-        "/garmin", data={"email": "g@example.com", "password": "garmin-secret"}
+        "/connections/garmin", data={"email": "g@example.com", "password": "garmin-secret"}
     )
-    assert response.headers["Location"] == "/garmin"
+    assert response.headers["Location"] == "/connections"
     with app.app_context():
         account = db.session.get(User, user)
         assert account.garmin_tokens == TOKENS
@@ -166,16 +166,20 @@ def test_linking_stores_tokens_never_the_password(app, auth_client, user, syncs)
 
 
 def test_wrong_garmin_password_shows_an_error(auth_client, syncs):
-    response = auth_client.post("/garmin", data={"email": "g@example.com", "password": "nope"})
+    response = auth_client.post(
+        "/connections/garmin", data={"email": "g@example.com", "password": "nope"}
+    )
     assert b"accept that sign-in" in response.data
     assert syncs == []
 
 
 def test_two_step_verification(app, auth_client, user, syncs):
     FakeGarmin.needs_mfa = True
-    page = auth_client.post("/garmin", data={"email": "g@example.com", "password": "garmin-secret"})
+    page = auth_client.post(
+        "/connections/garmin", data={"email": "g@example.com", "password": "garmin-secret"}
+    )
     assert b"verification code" in page.data
-    auth_client.post("/garmin/verify", data={"code": "123456"})
+    auth_client.post("/connections/garmin/verify", data={"code": "123456"})
     with app.app_context():
         assert db.session.get(User, user).garmin_tokens == TOKENS
     assert syncs == [user]
@@ -183,9 +187,13 @@ def test_two_step_verification(app, auth_client, user, syncs):
 
 def test_wrong_verification_code_fails_and_ends_the_attempt(app, auth_client, user, syncs):
     FakeGarmin.needs_mfa = True
-    auth_client.post("/garmin", data={"email": "g@example.com", "password": "garmin-secret"})
-    auth_client.post("/garmin/verify", data={"code": "000000"})
-    retry = auth_client.post("/garmin/verify", data={"code": "123456"}, follow_redirects=True)
+    auth_client.post(
+        "/connections/garmin", data={"email": "g@example.com", "password": "garmin-secret"}
+    )
+    auth_client.post("/connections/garmin/verify", data={"code": "000000"})
+    retry = auth_client.post(
+        "/connections/garmin/verify", data={"code": "123456"}, follow_redirects=True
+    )
     assert b"timed out" in retry.data
     assert syncs == []
 
@@ -197,7 +205,7 @@ def test_pending_sign_ins_belong_to_one_user():
 
 def test_disconnect_forgets_garmin(app, auth_client, user):
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
-    auth_client.post("/garmin/disconnect")
+    auth_client.post("/connections/garmin/disconnect")
     with app.app_context():
         account = db.session.get(User, user)
         assert (account.garmin_username, account.garmin_tokens) == (None, None)

@@ -13,7 +13,7 @@ bp = Blueprint("friends", __name__)  # blueprint for friend system
 
 @bp.route("/friends")
 @login_required
-def friends_page():
+def index():
     """List friends with their total distance, plus pending incoming and outgoing requests."""
     friends = current_user.friends  # get all accepted friends
     friends_data = []
@@ -39,17 +39,17 @@ def friends_page():
     )
 
 
-@bp.route("/friends/send/<int:user_id>", methods=["POST"])
+@bp.route("/friends/<int:user_id>/request", methods=["POST"])
 @login_required
 def send_request(user_id):
     """Send a friend request to ``user_id`` unless already friends or one is pending."""
     if user_id == current_user.id:  # prevent adding self
         flash("You can't add yourself.", "error")
-        return redirect(url_for("friends.friends_page"))
+        return redirect(url_for("friends.index"))
     user = db.get_or_404(User, user_id)
     if user in current_user.friends:  # already friends
         flash("You are already friends.", "info")
-        return redirect(url_for("friends.friends_page"))
+        return redirect(url_for("friends.index"))
     existing = FriendRequest.query.filter(
         ((FriendRequest.sender_id == current_user.id) & (FriendRequest.receiver_id == user_id))
         | ((FriendRequest.sender_id == user_id) & (FriendRequest.receiver_id == current_user.id)),
@@ -57,35 +57,35 @@ def send_request(user_id):
     ).first()  # check if a pending request exists
     if existing:
         flash("A request is already pending.", "info")
-        return redirect(url_for("friends.friends_page"))
+        return redirect(url_for("friends.index"))
     new_request = FriendRequest(
         sender_id=current_user.id, receiver_id=user_id
     )  # create new request
     db.session.add(new_request)
     db.session.commit()
     flash("Friend request sent!", "success")
-    return redirect(url_for("friends.friends_page"))
+    return redirect(url_for("friends.index"))
 
 
-@bp.route("/friends/accept/<int:request_id>", methods=["POST"])
+@bp.route("/friends/requests/<int:request_id>/accept", methods=["POST"])
 @login_required
-def accept_request(request_id):
+def accept(request_id):
     """Accept a friend request addressed to the current user (adds the friendship both ways)."""
     fr = db.get_or_404(FriendRequest, request_id)
     if fr.receiver_id != current_user.id:  # only receiver can accept
         flash("Not authorised.", "error")
-        return redirect(url_for("friends.friends_page"))
+        return redirect(url_for("friends.index"))
     fr.status = "accepted"
     fr.sender.friends.append(fr.receiver)  # add both directions
     fr.receiver.friends.append(fr.sender)
     db.session.commit()
     flash(f"You are now friends with {fr.sender.name}", "success")
-    return redirect(url_for("friends.friends_page"))
+    return redirect(url_for("friends.index"))
 
 
-@bp.route("/friends/decline/<int:request_id>", methods=["POST"])
+@bp.route("/friends/requests/<int:request_id>/decline", methods=["POST"])
 @login_required
-def decline_request(request_id):
+def decline(request_id):
     """Decline a friend request addressed to the current user."""
     fr = db.get_or_404(FriendRequest, request_id)
     if fr.receiver_id != current_user.id:  # prevent others from declining
@@ -94,13 +94,13 @@ def decline_request(request_id):
         fr.status = "declined"  # update status
         db.session.commit()
         flash("Friend request declined.", "info")
-    return redirect(url_for("friends.friends_page"))
+    return redirect(url_for("friends.index"))
 
 
 @bp.route("/friends/search", methods=["GET", "POST"])
 @login_required
 @limiter.limit(limit_from_config("SEARCH"), key_func=user_or_ip)
-def search_users():
+def search():
     """Search users by name (case-insensitive substring match on ``?q=``)."""
     query = request.args.get("q", "")  # search input
     results = []

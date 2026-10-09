@@ -50,9 +50,9 @@ def test_lockout_is_logged(app, client, user):
 def test_password_change_and_revocation_are_logged(app, auth_client, user):
     new = "a completely new passphrase"
     auth_client.post(
-        "/manage", data={"password": PASSWORD, "new_password": new, "confirm_password": new}
+        "/settings", data={"password": PASSWORD, "new_password": new, "confirm_password": new}
     )
-    auth_client.post("/manage", data={"action": "sign_out_everywhere"})
+    auth_client.post("/settings", data={"action": "sign_out_everywhere"})
     assert _kinds(app, user) == ["password_changed", "sessions_revoked"]
 
 
@@ -60,7 +60,7 @@ def test_settings_show_recent_activity(app, auth_client, user):
     with app.app_context():
         audit.record(db.session.get(User, user), "password_changed")
         db.session.commit()
-    assert b"Password changed" in auth_client.get("/manage").data
+    assert b"Password changed" in auth_client.get("/settings").data
 
 
 def test_old_events_expire(app, user):

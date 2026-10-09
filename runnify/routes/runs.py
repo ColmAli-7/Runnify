@@ -9,12 +9,12 @@ from runnify.services.scoring import score_segment
 from runnify.services.segments import load_song_segments
 from runnify.services.streams import load_series
 
-bp = Blueprint("activities", __name__)  # blueprint for activity routes
+bp = Blueprint("runs", __name__)  # blueprint for activity routes
 
 
-@bp.route("/activities")
+@bp.route("/runs")
 @login_required
-def activities():
+def index():
     """List the user's runs, newest first; ``?music_only=true`` keeps only runs with matched songs."""
     music_only = request.args.get("music_only", "false") == "true"  # toggle for music-linked runs
     query = Run.query.filter_by(user_id=current_user.id)
@@ -31,9 +31,9 @@ def activities():
     return render_template("activities.html", runs=runs, music_only=music_only)
 
 
-@bp.route("/activity/<int:run_id>")
+@bp.route("/runs/<int:run_id>")
 @login_required
-def activity_detail(run_id):
+def detail(run_id):
     """Render the analysis page for one run.
 
     Parses the run's FIT file, finds the songs played during it, scores each

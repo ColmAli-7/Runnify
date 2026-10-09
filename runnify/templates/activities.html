@@ -23,7 +23,7 @@
       {% if runs %}
         <!-- loop through all user's runs -->
         {% for run in runs %}
-          <a href="{{ url_for('activities.activity_detail', run_id=run.id) }}" class="activity-card-link">
+          <a href="{{ url_for('runs.detail', run_id=run.id) }}" class="activity-card-link">
             <div class="activity-card">
               <div class="activity-meta">
                 <!-- display distance and date -->

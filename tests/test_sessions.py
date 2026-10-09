@@ -31,7 +31,7 @@ def test_password_change_signs_out_other_devices_but_not_this_one(app, user):
     sign_in_as(other_device, user)
 
     this_device.post(
-        "/manage",
+        "/settings",
         data={"password": PASSWORD, "new_password": NEW_PASSWORD, "confirm_password": NEW_PASSWORD},
     )
 
@@ -44,7 +44,7 @@ def test_sign_out_everywhere(app, user):
     sign_in_as(this_device, user)
     sign_in_as(other_device, user)
 
-    this_device.post("/manage", data={"action": "sign_out_everywhere"})
+    this_device.post("/settings", data={"action": "sign_out_everywhere"})
 
     assert this_device.get("/dashboard").status_code == 200
     assert other_device.get("/dashboard").status_code == 302

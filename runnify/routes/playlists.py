@@ -9,7 +9,7 @@ from runnify.models import Playlist
 from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services import playlists as playlist_service
 
-bp = Blueprint("playlist", __name__)
+bp = Blueprint("playlists", __name__)
 
 
 def _own_playlist(playlist_id):
@@ -21,7 +21,7 @@ def _own_playlist(playlist_id):
 
 @bp.route("/playlists", methods=["GET", "POST"])
 @login_required
-def playlists():
+def index():
     """Show the builder and saved playlists; on POST, build and save a new playlist."""
     form = PlaylistForm()
     if form.validate_on_submit():
@@ -35,7 +35,7 @@ def playlists():
             db.session.commit()
             if result.note:
                 flash(result.note, "info")
-            return redirect(url_for("playlist.detail", playlist_id=playlist.id))
+            return redirect(url_for("playlists.detail", playlist_id=playlist.id))
     elif form.errors:
         flash(first_error(form), "error")
     saved = (
@@ -64,7 +64,7 @@ def send_to_spotify(playlist_id):
     else:
         db.session.commit()
         flash("Saved to your Spotify library as a private playlist.", "success")
-    return redirect(url_for("playlist.detail", playlist_id=playlist.id))
+    return redirect(url_for("playlists.detail", playlist_id=playlist.id))
 
 
 @bp.route("/playlists/<int:playlist_id>/delete", methods=["POST"])
@@ -74,4 +74,4 @@ def delete(playlist_id):
     db.session.delete(_own_playlist(playlist_id))
     db.session.commit()
     flash("Playlist deleted.", "info")
-    return redirect(url_for("playlist.playlists"))
+    return redirect(url_for("playlists.index"))

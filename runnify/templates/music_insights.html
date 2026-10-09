@@ -30,7 +30,7 @@
 			<div class="section-card p-3 p-sm-4 d-inline-block">
 				<div class="d-flex align-items-center gap-2 justify-content-center flex-wrap">
 					<label for="range" class="form-label mb-0">Date range:</label>
-					<form method="get" action="{{ url_for('music_insights.music_insights_page') }}" class="d-flex gap-2">
+					<form method="get" action="{{ url_for('insights.index') }}" class="d-flex gap-2">
 						<select id="range" class="form-select" name="range" style="max-width: 200px">
 							{% set chosen = request.args.get('range', 'Last 30 days') %}
 							{% for opt in ['Last 7 days','Last 30 days','Last 90 days','Year to date','All time'] %}

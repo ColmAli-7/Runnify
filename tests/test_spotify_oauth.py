@@ -40,7 +40,7 @@ def test_login_redirects_to_spotify_with_a_state(auth_client):
 def test_callback_with_matching_state_stores_tokens(app, auth_client, user, exchanges):
     state = _start(auth_client)
     response = auth_client.get(f"/spotify/callback?code=abc&state={state}")
-    assert response.headers["Location"] == "/dashboard"
+    assert response.headers["Location"] == "/connections"
     assert exchanges == ["abc"]
     with app.app_context():
         account = db.session.get(User, user)

@@ -10,7 +10,7 @@ from sqlalchemy import func
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory, utcnow
 
-bp = Blueprint("music_insights", __name__)  # blueprint for music insights
+bp = Blueprint("insights", __name__)  # blueprint for music insights
 
 
 def _date_bounds(label: str):
@@ -28,9 +28,9 @@ def _date_bounds(label: str):
         return None, None  # all time
 
 
-@bp.route("/music-insights")
+@bp.route("/insights")
 @login_required
-def music_insights_page():
+def index():
     """Render Music Insights for the ``?range=`` window (default ``Last 30 days``).
 
     Includes average score, best and most-played songs, distinct song count,

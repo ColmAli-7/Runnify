@@ -43,7 +43,7 @@ LOGIN_FAILED = "That email and password combination didn't work."
 
 
 def _home():
-    return url_for("dash.dashboard")
+    return url_for("dashboard.index")
 
 
 @bp.route("/login", methods=["GET", "POST"])

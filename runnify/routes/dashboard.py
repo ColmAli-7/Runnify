@@ -9,12 +9,12 @@ from sqlalchemy import func
 from runnify.extensions import db
 from runnify.models import Run, Song, UserSongHistory
 
-bp = Blueprint("dash", __name__)  # dashboard blueprint
+bp = Blueprint("dashboard", __name__)  # dashboard blueprint
 
 
 @bp.route("/dashboard")
 @login_required
-def dashboard():
+def index():
     """Render the dashboard.
 
     Shows total runs, songs and distance, favourite artist, last run,

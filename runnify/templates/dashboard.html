@@ -18,11 +18,11 @@
           <a href="/music-insights">Music Insights</a>
           <a href="/friends">Friends</a>
           {% if current_user.garmin_username %}
-            <a href="{{ url_for('garmin.garmin') }}">Garmin Connected</a>
+            <a href="{{ url_for('connections.index') }}">Garmin Connected</a>
           {% else %}
-            <a href="{{ url_for('garmin.garmin') }}">Connect Garmin</a>
+            <a href="{{ url_for('connections.index') }}">Connect Garmin</a>
           {% endif %}
-          <a href="{{ url_for('spotify.upload_history') }}">Upload history</a>
+          <a href="{{ url_for('imports.index') }}">Upload history</a>
         </nav>
       </aside>
 

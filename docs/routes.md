@@ -1,46 +1,70 @@
 # Route reference
 
-Generated from `uv run flask --app runnify routes`, with each route's
-purpose taken from the source. Routes under "Logged-in users" are decorated
-with `@login_required`; anonymous users are redirected to the login page.
+Every URL Runnify serves (`uv run flask --app runnify routes` prints the same
+table). Pages under "Signed in" need an account; anonymous visitors are sent
+to the sign-in page and back afterwards. Every `POST` needs a CSRF token, and
+signed-in users who haven't agreed to the current policies are asked to first
+(see [Consent](#consent)).
 
 ## Public
 
 | Method | URL | Endpoint | Purpose |
 |---|---|---|---|
-| GET | `/` | `main.home` | Landing page, personalised when logged in |
-| GET, POST | `/login` | `auth.login` | Log in. Form: `email`, `password` |
-| GET, POST | `/register` | `auth.register` | Create an account. Form: `name`, `email`, `password` (strength rules apply) |
-| GET, POST | `/forgot` | `auth.forgot_password` | Email a password-reset link; same response whether or not the account exists. Form: `email` |
-| GET | `/reset/<token>` | `auth.reset_password` | Emailed link: validates the single-use token (30 min), stores it in the session and redirects to `/reset` |
-| GET, POST | `/reset` | `auth.choose_new_password` | Choose a new password for the account in the session's reset token. Form: `password`, `confirm` |
-| GET | `/static/<path:filename>` | `static` | CSS and JS assets |
+| GET | `/` | `main.home` | Landing page (signed-in users go to the dashboard) |
+| GET, POST | `/login` | `auth.login` | Sign in. Form: `email`, `password`, `remember` |
+| GET, POST | `/login/verify` | `auth.verify_two_factor` | Second sign-in step when two-step verification is on. Form: `code` (authenticator or recovery code) |
+| GET, POST | `/register` | `auth.register` | Create an account. Form: `name`, `email`, `password`, `accept_terms`, `data_consent` |
+| GET, POST | `/forgot` | `auth.forgot_password` | Email a single-use reset link; same answer whether or not the account exists. Form: `email` |
+| GET | `/reset/<token>` | `auth.reset_password` | The emailed link: checks the token, moves it into the session and redirects to `/reset` |
+| GET, POST | `/reset` | `auth.choose_new_password` | Choose a new password. Form: `password`, `confirm` |
+| GET | `/privacy`, `/terms`, `/cookies` | `legal.*` | Privacy policy, terms of use, cookie policy |
+| GET | `/static/<path>` | `static` | CSS, JavaScript, fonts and images |
 
-## Logged-in users
+## Signed in
 
 | Method | URL | Endpoint | Purpose |
 |---|---|---|---|
-| POST | `/logout` | `auth.logout` | End the session |
-| GET | `/dashboard` | `dash.dashboard` | Headline stats and monthly mileage chart |
-| GET | `/activities` | `activities.activities` | List runs, newest first. Query: `music_only=true` to show only runs with matched songs |
-| GET | `/activity/<int:run_id>` | `activities.activity_detail` | Pace/HR timeline with song segments and per-song scores for one of your runs |
-| GET, POST | `/garmin` | `garmin.garmin` | Link Garmin Connect and start the background sync. Form: `email`, `password` |
-| GET | `/spotify/login` | `spotify.login_spotify` | Start Spotify OAuth |
-| GET | `/spotify/callback` | `spotify.callback` | Spotify OAuth redirect target; stores tokens |
-| GET, POST | `/spotify/history/upload` | `spotify.upload_history` | Upload Spotify extended streaming history. Form file: `history_zip` (`.zip`) |
-| GET | `/help/spotify-upload-guide` | `help.spotify_upload_guide` | How to request and upload Spotify history |
-| GET | `/music-insights` | `music_insights.music_insights_page` | Aggregate song performance. Query: `range` = `Last 7 days`, `Last 30 days` (default), `Last 90 days`, `Year to date`, any other value = all time |
-| GET | `/friends` | `friends.friends_page` | Friends leaderboard (total km) and pending requests |
-| GET, POST | `/friends/search` | `friends.search_users` | Search users by name. Query: `q` |
-| POST | `/friends/send/<int:user_id>` | `friends.send_request` | Send a friend request |
-| POST | `/friends/accept/<int:request_id>` | `friends.accept_request` | Accept a request addressed to you |
-| POST | `/friends/decline/<int:request_id>` | `friends.decline_request` | Decline a request addressed to you |
-| GET, POST | `/manage` | `manage.managing` | Change name (`action=change_name`, `new_name`) or password (`new_password`, `confirm_password`). Always requires current `password` |
-| GET, POST | `/playlist` | `playlist.playlists` | Playlist generator form (`type`, `pace`, `length`, `mood`). Work in progress |
+| POST | `/logout` | `auth.logout` | Sign out |
+| GET | `/dashboard` | `dashboard.index` | Set-up progress, totals, latest run, top songs and weekly distance |
+| GET | `/runs` | `runs.index` | Every run, newest first. Query: `music_only=true` |
+| GET | `/runs/<id>` | `runs.detail` | One run: pace and heart rate with the songs played, and each song's effect |
+| GET | `/insights` | `insights.index` | Findings across runs. Query: `range` = `30d`, `90d` (default), `year` or `all` |
+| GET, POST | `/playlists` | `playlists.index` | Saved playlists, and the builder. Form: `session`, `minutes`, `include_untested` |
+| GET | `/playlists/<id>` | `playlists.detail` | A playlist's tracks and the evidence behind each |
+| POST | `/playlists/<id>/spotify` | `playlists.send_to_spotify` | Save the playlist to Spotify as a private playlist |
+| POST | `/playlists/<id>/delete` | `playlists.delete` | Delete the playlist from Runnify |
+| GET | `/friends` | `friends.index` | Distance leaderboard and friend requests |
+| GET, POST | `/friends/search` | `friends.search` | Find people by name. Query: `q` |
+| POST | `/friends/<user_id>/request` | `friends.send_request` | Send a friend request |
+| POST | `/friends/requests/<id>/accept` | `friends.accept` | Accept a request sent to you |
+| POST | `/friends/requests/<id>/decline` | `friends.decline` | Decline a request sent to you |
+| GET | `/connections` | `connections.index` | Garmin and Spotify status |
+| POST | `/connections/garmin` | `connections.link_garmin` | Sign in to Garmin once to link it (the password is never stored). Form: `email`, `password` |
+| POST | `/connections/garmin/verify` | `connections.verify_garmin` | Garmin's two-step verification code. Form: `code` |
+| POST | `/connections/garmin/sync` | `connections.sync_garmin` | Fetch new runs now |
+| POST | `/connections/garmin/disconnect` | `connections.disconnect_garmin` | Unlink Garmin (imported runs are kept) |
+| POST | `/connections/spotify/disconnect` | `connections.disconnect_spotify` | Forget the Spotify connection |
+| GET | `/spotify/login` | `spotify.login_spotify` | Start Spotify sign-in (with an anti-CSRF `state`) |
+| GET | `/spotify/callback` | `spotify.callback` | Spotify's redirect target; must match `SPOTIFY_REDIRECT_URI` |
+| GET, POST | `/import` | `imports.index` | How to get the Spotify export, and the upload. Form file: `history_zip` |
+| GET, POST | `/settings` | `settings.index` | Name, password, sessions, your data and security activity |
+| GET, POST | `/settings/two-factor` | `settings.two_factor` | Set up or manage two-step verification |
+| POST | `/settings/two-factor/disable` | `settings.disable_two_factor` | Turn it off (password plus a code) |
+| POST | `/settings/two-factor/recovery-codes` | `settings.new_recovery_codes` | Replace the recovery codes (password) |
+| POST | `/settings/export` | `settings.export_data` | Download your data as JSON (password) |
+| POST | `/settings/delete` | `settings.delete_account` | Delete your account and all of its data (password and confirmation) |
 
-## Error handling
+## Consent
 
-| Status | Handler | Behaviour |
-|---|---|---|
-| 404 | `app.page_not_found` | Renders `templates/404.html` |
-| 400 | `abort(400)` in activity/upload views | Missing FIT file, empty FIT file, or non-zip upload |
+| Method | URL | Endpoint | Purpose |
+|---|---|---|---|
+| GET, POST | `/consent` | `legal.consent` | Agree to the current terms and data processing. While consent is missing, only the policies, sign-out, settings (download or delete your data) and this page are reachable |
+
+## Errors
+
+| Status | When |
+|---|---|
+| 400 | Malformed requests, such as a Spotify callback without a code |
+| 404 | Unknown pages, and anything belonging to another user |
+| 429 | A rate limit was reached |
+| CSRF failure | The form is shown again with a "form expired" message |

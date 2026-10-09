@@ -10,6 +10,6 @@
       <label class="check">{{ form.data_consent() }} {{ form.data_consent.label.text }}</label>
       <button type="submit">Agree and continue</button>
     </form>
-    <p>Prefer not to? You can <a href="{{ url_for('manage.managing') }}">download your data or delete your account</a> instead.</p>
+    <p>Prefer not to? You can <a href="{{ url_for('settings.index') }}">download your data or delete your account</a> instead.</p>
   </main>
 {% endblock %}

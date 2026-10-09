@@ -5,17 +5,16 @@ import pytest
 PUBLIC_PAGES = ["/", "/login", "/register", "/forgot"]
 PROTECTED_PAGES = [
     "/dashboard",
-    "/activities",
-    "/activity/1",
-    "/music-insights",
+    "/runs",
+    "/runs/1",
+    "/insights",
     "/friends",
     "/friends/search",
-    "/manage",
+    "/settings",
     "/playlists",
-    "/garmin",
+    "/connections",
     "/spotify/login",
-    "/spotify/history/upload",
-    "/help/spotify-upload-guide",
+    "/import",
 ]
 
 
@@ -36,8 +35,6 @@ def test_protected_pages_redirect_anonymous_users_to_login(client, path):
     assert response.headers["Location"].startswith("/login")
 
 
-@pytest.mark.parametrize(
-    "path", ["/dashboard", "/activities", "/music-insights", "/friends", "/manage"]
-)
+@pytest.mark.parametrize("path", ["/dashboard", "/runs", "/insights", "/friends", "/settings"])
 def test_signed_in_pages_render(auth_client, path):
     assert auth_client.get(path).status_code == 200

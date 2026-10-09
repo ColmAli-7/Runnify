@@ -1,7 +1,8 @@
-"""Garmin Connect account linking and syncing.
+"""Connections: linking Garmin and Spotify, and the status of each.
 
 The Garmin password is used once, to sign in, and is never stored; see
-:mod:`runnify.services.garmin`.
+:mod:`runnify.services.garmin`. Spotify's sign-in flow lives in
+:mod:`runnify.routes.spotify` because its callback URL is registered with Spotify.
 """
 
 from flask import Blueprint, current_app, flash, redirect, render_template, session, url_for
@@ -12,8 +13,9 @@ from runnify.forms import GarminCodeForm, GarminConnectForm, first_error
 from runnify.security import audit
 from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services import garmin as garmin_service
+from runnify.services import spotify as spotify_service
 
-bp = Blueprint("garmin", __name__)  # garmin connection routes
+bp = Blueprint("connections", __name__)
 
 PENDING_KEY = "garmin_pending_login"
 
@@ -32,38 +34,44 @@ def _linked():
     db.session.commit()
     garmin_service.start_background_sync(current_app._get_current_object(), current_user.id)
     flash("Garmin connected. Your runs are syncing in the background.", "success")
-    return redirect(url_for("garmin.garmin"))
+    return redirect(url_for("connections.index"))
 
 
-@bp.route("/garmin", methods=["GET", "POST"])
+@bp.route("/connections")
 @login_required
-@limiter.limit(limit_from_config("GARMIN_CONNECT"), methods=["POST"], key_func=user_or_ip)
-def garmin():
-    """Show Garmin status; on POST, sign in to Garmin to link the account.
+def index():
+    """Show the status of Garmin, Spotify and the history import."""
+    return _render()
+
+
+@bp.route("/connections/garmin", methods=["POST"])
+@login_required
+@limiter.limit(limit_from_config("GARMIN_CONNECT"), key_func=user_or_ip)
+def link_garmin():
+    """Sign in to Garmin to link the account.
 
     If Garmin asks for a two-step verification code, the code form is shown and
     the sign-in waits (for five minutes) in :data:`garmin_service.pending_logins`.
     """
     form = GarminConnectForm()
-    if form.validate_on_submit():
-        try:
-            pending = garmin_service.begin_link(current_user, form.email.data, form.password.data)
-        except garmin_service.GarminError as error:
-            flash(str(error), "error")
-            return _render(form)
-        if pending:
-            session[PENDING_KEY] = pending
-            return _render(awaiting_code=True)
-        return _linked()
-    if form.errors:
+    if not form.validate_on_submit():
         flash(first_error(form), "error")
-    return _render(form)
+        return _render(form)
+    try:
+        pending = garmin_service.begin_link(current_user, form.email.data, form.password.data)
+    except garmin_service.GarminError as error:
+        flash(str(error), "error")
+        return _render(form)
+    if pending:
+        session[PENDING_KEY] = pending
+        return _render(awaiting_code=True)
+    return _linked()
 
 
-@bp.route("/garmin/verify", methods=["POST"])
+@bp.route("/connections/garmin/verify", methods=["POST"])
 @login_required
 @limiter.limit(limit_from_config("GARMIN_CONNECT"), key_func=user_or_ip)
-def verify():
+def verify_garmin():
     """Finish linking with Garmin's two-step verification code."""
     code_form = GarminCodeForm()
     if not code_form.validate_on_submit():
@@ -73,14 +81,14 @@ def verify():
         garmin_service.finish_link(current_user, session.pop(PENDING_KEY, ""), code_form.code.data)
     except garmin_service.GarminError as error:
         flash(str(error), "error")
-        return redirect(url_for("garmin.garmin"))
+        return redirect(url_for("connections.index"))
     return _linked()
 
 
-@bp.route("/garmin/sync", methods=["POST"])
+@bp.route("/connections/garmin/sync", methods=["POST"])
 @login_required
 @limiter.limit(limit_from_config("GARMIN_SYNC"), key_func=user_or_ip)
-def sync_now():
+def sync_garmin():
     """Start a fresh sync of new Garmin runs."""
     if not (current_user.garmin_tokens or current_user.garmin_password):
         flash("Connect Garmin first.", "error")
@@ -89,15 +97,26 @@ def sync_now():
     else:
         garmin_service.start_background_sync(current_app._get_current_object(), current_user.id)
         flash("Syncing new runs from Garmin.", "success")
-    return redirect(url_for("garmin.garmin"))
+    return redirect(url_for("connections.index"))
 
 
-@bp.route("/garmin/disconnect", methods=["POST"])
+@bp.route("/connections/garmin/disconnect", methods=["POST"])
 @login_required
-def disconnect():
+def disconnect_garmin():
     """Unlink Garmin. Runs already imported are kept."""
     garmin_service.unlink(current_user)
     audit.record(current_user, "garmin_unlinked")
     db.session.commit()
     flash("Garmin disconnected. Runs you already imported are kept.", "info")
-    return redirect(url_for("garmin.garmin"))
+    return redirect(url_for("connections.index"))
+
+
+@bp.route("/connections/spotify/disconnect", methods=["POST"])
+@login_required
+def disconnect_spotify():
+    """Forget the Spotify connection. Imported history and playlists are kept."""
+    spotify_service.disconnect(current_user)
+    audit.record(current_user, "spotify_unlinked")
+    db.session.commit()
+    flash("Spotify disconnected. Your imported history and playlists are kept.", "info")
+    return redirect(url_for("connections.index"))

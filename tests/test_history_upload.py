@@ -74,7 +74,7 @@ def inline_threads(monkeypatch):
 
 def _upload(client, archive, filename="my_spotify_data.zip"):
     return client.post(
-        "/spotify/history/upload",
+        "/import",
         data={"history_zip": (archive, filename)},
         content_type="multipart/form-data",
         follow_redirects=True,

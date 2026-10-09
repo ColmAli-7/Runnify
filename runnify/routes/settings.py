@@ -25,22 +25,22 @@ from runnify.services.notifications import (
     send_two_factor_changed,
 )
 
-bp = Blueprint("manage", __name__)  # user account management routes
+bp = Blueprint("settings", __name__)  # user account management routes
 
 SETUP_SECRET_KEY = "two_factor_setup_secret"  # noqa: S105  (a session key name, not a secret)
 
 
-@bp.route("/manage", methods=["GET", "POST"])
+@bp.route("/settings", methods=["GET", "POST"])
 @login_required
 @limiter.limit(limit_from_config("ACCOUNT_CHANGE"), methods=["POST"], key_func=user_or_ip)
-def managing():
+def index():
     """Show account settings; on POST, change name or password after re-checking the current password."""
     name_form, password_form = ChangeNameForm(), ChangePasswordForm()
     if request.method == "POST" and request.form.get("action") == "sign_out_everywhere":
         audit.record(current_user, "sessions_revoked")
         _restart_sessions()
         flash("You've been signed out on every other device.", "success")
-        return redirect(url_for("manage.managing"))
+        return redirect(url_for("settings.index"))
     if request.method == "POST":
         form = name_form if request.form.get("action") == "change_name" else password_form
         if not form.validate():
@@ -61,7 +61,7 @@ def managing():
             _restart_sessions()
             send_password_changed(current_user)
             flash("Password updated. You've been signed out on every other device.", "success")
-        return redirect(url_for("manage.managing"))
+        return redirect(url_for("settings.index"))
     return render_template(
         "manage.html",
         name_form=name_form,
@@ -79,7 +79,7 @@ def _restart_sessions():
     login_user(current_user._get_current_object())
 
 
-@bp.route("/settings/two-factor", methods=["GET", "POST"])
+@bp.route("/settings/two-factor", methods=["GET", "POST"], endpoint="two_factor")
 @login_required
 @limiter.limit(limit_from_config("ACCOUNT_CHANGE"), methods=["POST"], key_func=user_or_ip)
 def two_factor_settings():
@@ -143,7 +143,7 @@ def disable_two_factor():
         db.session.commit()
         send_two_factor_changed(current_user, enabled=False)
         flash("Two-step verification is off.", "info")
-    return redirect(url_for("manage.two_factor_settings"))
+    return redirect(url_for("settings.two_factor"))
 
 
 @bp.route("/settings/two-factor/recovery-codes", methods=["POST"])
@@ -152,14 +152,14 @@ def disable_two_factor():
 def new_recovery_codes():
     """Replace the recovery codes (password required); the new ones are shown once."""
     if not current_user.two_factor_enabled:
-        return redirect(url_for("manage.two_factor_settings"))
+        return redirect(url_for("settings.two_factor"))
     form = PasswordConfirmForm()
     if (
         not form.validate_on_submit()
         or not verify_password(current_user.password_hash, form.password.data)[0]
     ):
         flash("Your current password is incorrect.", "error")
-        return redirect(url_for("manage.two_factor_settings"))
+        return redirect(url_for("settings.two_factor"))
     codes = two_factor.replace_recovery_codes(current_user)
     audit.record(current_user, "recovery_codes_replaced")
     db.session.commit()
@@ -177,7 +177,7 @@ def export_data():
         or not verify_password(current_user.password_hash, form.password.data)[0]
     ):
         flash("Your current password is incorrect.", "error")
-        return redirect(url_for("manage.managing"))
+        return redirect(url_for("settings.index"))
     payload = account_service.export_data(current_user)
     audit.record(current_user, "data_exported")
     db.session.commit()
@@ -196,10 +196,10 @@ def delete_account():
     form = DeleteAccountForm()
     if not form.validate_on_submit():
         flash(first_error(form), "error")
-        return redirect(url_for("manage.managing"))
+        return redirect(url_for("settings.index"))
     if not verify_password(current_user.password_hash, form.password.data)[0]:
         flash("Your current password is incorrect.", "error")
-        return redirect(url_for("manage.managing"))
+        return redirect(url_for("settings.index"))
     user = current_user._get_current_object()
     send_account_deleted(user)
     account_service.delete_account(user)

@@ -6,6 +6,6 @@
     <h2>Save your recovery codes</h2>
     <p>Each code signs you in once if you lose your phone. They won't be shown again.</p>
     <ul class="recovery-codes">{% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
-    <div class="switch-mode"><a href="{{ url_for('manage.managing') }}">I've saved them</a></div>
+    <div class="switch-mode"><a href="{{ url_for('settings.index') }}">I've saved them</a></div>
   </div>
 {% endblock %}

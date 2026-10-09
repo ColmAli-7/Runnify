@@ -10,7 +10,7 @@
 
     <!-- search form for finding users -->
     <h2>Find Friends</h2>
-    <form method="get" action="{{ url_for('friends.search_users') }}" class="search-form">
+    <form method="get" action="{{ url_for('friends.search') }}" class="search-form">
       <input type="text" name="q" placeholder="Search by name" value="{{ query }}" required>
       <button type="submit" class="btn">Search</button>
     </form>
@@ -37,7 +37,7 @@
 
     <!-- back navigation to main friends page -->
     <div class="search-link">
-      <a href="{{ url_for('friends.friends_page') }}" class="btn">Back to Friends</a>
+      <a href="{{ url_for('friends.index') }}" class="btn">Back to Friends</a>
     </div>
   </div>
 </body>
