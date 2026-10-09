@@ -54,7 +54,7 @@ erDiagram
 | Table | Holds |
 |---|---|
 | `users` | Name, email, Argon2id password hash, encrypted Garmin and Spotify tokens, sync and import status, consent timestamps and policy version, lockout counters, the session token, the encrypted two-step secret |
-| `runs` | One Garmin run: start (UTC), distance in metres, duration in seconds, average heart rate and pace |
+| `runs` | One Garmin run: start (UTC) and the runner's UTC offset at the time, distance in metres, duration in seconds, average heart rate and pace |
 | `run_streams` | The run's samples (offsets, pace to 0.1 s/km, heart rate), zlib-compressed JSON; about 15 KB for an hour |
 | `songs` | Spotify track id, name, artist and a learned track length |
 | `user_song_history` | A play that overlapped a run: when it started, seconds played, whether it was skipped |
@@ -64,7 +64,7 @@ erDiagram
 | `security_events` | Sign-ins and account changes with a truncated IP prefix and a short user agent; kept 90 days |
 | `friends`, `friend_requests` | Friendships (stored in both directions) and pending requests |
 
-All timestamps are naive UTC. Alembic revisions in `migrations/versions/` create
+All timestamps are naive UTC; pages show a run's start on its own clock (`Run.local_start`). Alembic revisions in `migrations/versions/` create
 and evolve the schema; a test fails if the models and migrations ever drift apart.
 
 ## Pipeline 1: Garmin sync
