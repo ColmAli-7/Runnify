@@ -1,6 +1,16 @@
 /* Page shells: containers, the public and app headers, navigation, footer, page headers. */
 
 @layer layout {
+  /* the footer sits at the bottom of short pages */
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body > main {
+    flex: 1 0 auto;
+  }
+
   .container {
     width: 100%;
     max-width: var(--page-max);
