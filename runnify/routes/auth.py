@@ -1,5 +1,7 @@
 """Authentication: login, registration, logout and password reset by email."""
 
+import time
+
 from flask import (
     Blueprint,
     current_app,
@@ -18,6 +20,7 @@ from runnify.forms import (
     LoginForm,
     RegisterForm,
     ResetPasswordForm,
+    TwoFactorLoginForm,
     first_error,
 )
 from runnify.models import User, utcnow
@@ -26,6 +29,7 @@ from runnify.security.passwords import hash_password, password_problems, verify_
 from runnify.security.rate_limits import limit_from_config
 from runnify.security.redirects import safe_next_url
 from runnify.security.tokens import make_reset_token, user_from_reset_token
+from runnify.security.two_factor import accept_code, remaining_recovery_codes, use_recovery_code
 from runnify.services.notifications import (
     send_lockout_notice,
     send_password_changed,
@@ -64,11 +68,18 @@ def login():
         if matches:
             if needs_rehash:  # upgrade legacy or outdated hashes now that we know the password
                 user.password_hash = hash_password(form.password.data)
-            clear_failures(user)
-            user.last_login_at = utcnow()
-            db.session.commit()
-            login_user(user, remember=form.remember.data)
-            return redirect(safe_next_url(request.args.get("next")) or _home())
+            next_url = safe_next_url(request.args.get("next"))
+            if user.two_factor_enabled:
+                db.session.commit()
+                session[PENDING_2FA_KEY] = {
+                    "uid": user.id,
+                    "token": user.session_token,
+                    "remember": bool(form.remember.data),
+                    "next": next_url,
+                    "expires": time.time() + PENDING_2FA_SECONDS,
+                }
+                return redirect(url_for("auth.verify_two_factor"))
+            return _complete_login(user, form.remember.data, next_url)
         if user and record_failure(user):
             send_lockout_notice(user)
         db.session.commit()
@@ -76,6 +87,68 @@ def login():
     elif form.errors:
         flash(first_error(form), "error")
     return render_template("login.html", form_type="login", form=form)
+
+
+def _complete_login(user, remember, next_url):
+    """Start the session once every sign-in step has passed."""
+    clear_failures(user)
+    user.last_login_at = utcnow()
+    db.session.commit()
+    session.clear()  # nothing from before sign-in carries over into the session
+    login_user(user, remember=remember)
+    return redirect(next_url or _home())
+
+
+PENDING_2FA_KEY = "pending_two_factor"
+PENDING_2FA_SECONDS = 300
+
+
+def _pending_two_factor_user():
+    """The user who passed the password step and owes a code, if still valid."""
+    pending = session.get(PENDING_2FA_KEY)
+    if not pending or pending.get("expires", 0) < time.time():
+        return None, None
+    user = db.session.get(User, pending.get("uid"))
+    if user is None or user.session_token != pending.get("token") or not user.two_factor_enabled:
+        return None, None
+    return user, pending
+
+
+@bp.route("/login/verify", methods=["GET", "POST"])
+@limiter.limit(limit_from_config("LOGIN"), methods=["POST"])
+def verify_two_factor():
+    """Second sign-in step: a code from the authenticator app, or a recovery code.
+
+    Wrong codes count towards the account lockout, so the six digits can't be
+    brute-forced.
+    """
+    user, pending = _pending_two_factor_user()
+    if user is None:
+        session.pop(PENDING_2FA_KEY, None)
+        flash("Your sign-in timed out. Please sign in again.", "info")
+        return redirect(url_for("auth.login"))
+    form = TwoFactorLoginForm()
+    if form.validate_on_submit():
+        if is_locked(user):
+            flash("That code didn't work.", "error")
+            return render_template("two_factor_verify.html", form=form)
+        used_recovery = False
+        if not accept_code(user, form.code.data):
+            used_recovery = use_recovery_code(user, form.code.data)
+            if not used_recovery:
+                if record_failure(user):
+                    send_lockout_notice(user)
+                db.session.commit()
+                flash("That code didn't work.", "error")
+                return render_template("two_factor_verify.html", form=form)
+        response = _complete_login(user, pending["remember"], pending["next"])
+        if used_recovery:
+            left = remaining_recovery_codes(user)
+            flash(f"You used a recovery code; {left} left. Create new ones in Settings.", "info")
+        return response
+    if form.errors:
+        flash(first_error(form), "error")
+    return render_template("two_factor_verify.html", form=form)
 
 
 @bp.route("/register", methods=["GET", "POST"])

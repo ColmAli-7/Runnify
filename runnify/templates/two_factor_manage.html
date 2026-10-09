@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Two-step verification{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+{% block content %}
+  <div class="auth-container">
+    <h2>Two-step verification is on</h2>
+    <p>You have {{ remaining }} unused recovery code{{ "" if remaining == 1 else "s" }}.</p>
+    <form method="POST" action="{{ url_for('manage.new_recovery_codes') }}" class="auth-form">
+      {{ codes_form.csrf_token }}
+      <input type="password" name="password" autocomplete="current-password" placeholder="Current password" required>
+      <button type="submit">Create new recovery codes</button>
+    </form>
+    <form method="POST" action="{{ url_for('manage.disable_two_factor') }}" class="auth-form">
+      {{ disable_form.csrf_token }}
+      <input type="password" name="password" autocomplete="current-password" placeholder="Current password" required>
+      <input type="text" name="code" autocomplete="one-time-code" placeholder="Code or recovery code" required>
+      <button type="submit">Turn off</button>
+    </form>
+    <div class="switch-mode"><a href="{{ url_for('manage.managing') }}">Back to settings</a></div>
+  </div>
+{% endblock %}

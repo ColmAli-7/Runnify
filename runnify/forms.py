@@ -123,6 +123,36 @@ class GarminCodeForm(FlaskForm):
     )
 
 
+def _code_field(message="Enter the 6-digit code from your authenticator app."):
+    return StringField("Code", filters=[strip], validators=[DataRequired(message), Length(max=20)])
+
+
+class TwoFactorLoginForm(FlaskForm):
+    """Second sign-in step: an authenticator code or a recovery code."""
+
+    code = _code_field()
+
+
+class TwoFactorEnableForm(FlaskForm):
+    """Confirm the authenticator app works, and re-enter the password."""
+
+    code = _code_field()
+    password = _password_field("Current password", "Enter your current password.")
+
+
+class TwoFactorDisableForm(FlaskForm):
+    """Turn two-step verification off: password plus a current or recovery code."""
+
+    password = _password_field("Current password", "Enter your current password.")
+    code = _code_field("Enter a code from your authenticator app or a recovery code.")
+
+
+class PasswordConfirmForm(FlaskForm):
+    """Re-enter the password before a sensitive action."""
+
+    password = _password_field("Current password", "Enter your current password.")
+
+
 def first_error(form):
     """Return the first validation message on ``form``, for a flash message."""
     for errors in form.errors.values():

@@ -66,3 +66,18 @@ away: {external_url("auth.forgot_password")}
 If it wasn't you, someone may be trying to guess your password. Your account is
 safe while sign-in is paused; consider choosing a new, unique password.""",
     )
+
+
+def send_two_factor_changed(user, enabled):
+    """Tell ``user`` that two-step verification was turned on or off."""
+    state = "turned on" if enabled else "turned off"
+    send_email(
+        user.email,
+        f"Two-step verification {state} for Runnify",
+        f"""Hello {user.name},
+
+Two-step verification was just {state} for your Runnify account.
+
+If this wasn't you, reset your password straight away:
+{external_url("auth.forgot_password")}""",
+    )

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Set up two-step verification{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+{% block content %}
+  <div class="auth-container">
+    <h2>Set up two-step verification</h2>
+    <p>Scan this code with an authenticator app, such as 1Password, Google Authenticator or Microsoft Authenticator.</p>
+    <div class="qr">{{ qr_svg|safe }}</div>
+    <p>Or enter this key by hand: <code>{{ secret }}</code></p>
+    <form method="POST" class="auth-form">
+      {{ form.csrf_token }}
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required>
+      <input type="password" name="password" autocomplete="current-password" placeholder="Current password" required>
+      <button type="submit">Turn on</button>
+    </form>
+    <div class="switch-mode"><a href="{{ url_for('manage.managing') }}">Back to settings</a></div>
+  </div>
+{% endblock %}

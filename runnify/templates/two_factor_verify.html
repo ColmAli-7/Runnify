@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Two-step verification{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+{% block content %}
+  <div class="auth-container">
+    <h2>Two-step verification</h2>
+    <p>Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+    <form method="POST" class="auth-form">
+      {{ form.csrf_token }}
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code" required autofocus>
+      <button type="submit">Verify</button>
+    </form>
+    <div class="switch-mode"><a href="{{ url_for('auth.login') }}">Start over</a></div>
+  </div>
+{% endblock %}

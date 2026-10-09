@@ -71,6 +71,13 @@ class User(db.Model, UserMixin):
     # part of every session and remember-me cookie; rotating it signs out every device
     session_token = db.Column(db.String(64), nullable=False, default=new_session_token)
 
+    # two-step verification (authenticator app); see runnify.security.two_factor
+    totp_secret = db.Column(EncryptedString)
+    totp_enabled_at = db.Column(db.DateTime)
+    totp_last_step = db.Column(
+        db.Integer
+    )  # last accepted 30-second step, so codes can't be replayed
+
     runs = db.relationship("Run", back_populates="user")  # link to user runs
     song_history = db.relationship(
         "UserSongHistory", back_populates="user"
@@ -97,6 +104,11 @@ class User(db.Model, UserMixin):
     def rotate_session_token(self):
         """Invalidate every existing session for this user."""
         self.session_token = new_session_token()
+
+    @property
+    def two_factor_enabled(self):
+        """Whether sign-in needs an authenticator code as well as the password."""
+        return self.totp_enabled_at is not None and bool(self.totp_secret)
 
 
 @login_manager.user_loader
@@ -221,3 +233,16 @@ class FriendRequest(db.Model):
     receiver = db.relationship(
         "User", foreign_keys=[receiver_id], backref="received_requests"
     )  # link receiver
+
+
+class RecoveryCode(db.Model):
+    """A single-use two-step-verification recovery code, stored as a SHA-256 hash."""
+
+    __tablename__ = "recovery_codes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code_hash = db.Column(db.String(64), nullable=False)
+    used_at = db.Column(db.DateTime)
