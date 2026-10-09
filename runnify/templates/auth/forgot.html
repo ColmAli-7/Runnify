@@ -1,0 +1,27 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field %}
+
+{% block title %}Reset your password | Runnify{% endblock %}
+{% block heading %}Reset your password{% endblock %}
+{% block intro %}<p class="auth__intro">Enter the email you signed up with and we'll send you a link to choose a new password.</p>{% endblock %}
+
+{% block form %}
+<form class="form" method="post" novalidate>
+  {{ form.csrf_token }}
+  {{ field(form.email, autocomplete="email", spellcheck="false", autocapitalize="none") }}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">Send reset link</button>
+</form>
+{% endblock %}
+
+{% block after %}
+<p class="auth__switch"><a href="{{ url_for('auth.login') }}">Back to sign in</a></p>
+{% endblock %}
+
+{% block aside %}
+<h2 class="auth__aside-title" id="auth-aside-title">If the email doesn't arrive</h2>
+<ul class="auth__points auth__points--plain">
+  <li>The link works once and expires after {{ config.PASSWORD_RESET_MAX_AGE // 60 }} minutes. Request another if it has.</li>
+  <li>Check your spam folder for a message from Runnify.</li>
+  <li>Still stuck? Email <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a> from the address on your account.</li>
+</ul>
+{% endblock %}

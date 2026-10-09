@@ -41,6 +41,26 @@ def test_signed_in_users_skip_the_login_page(auth_client):
     assert auth_client.get("/login").headers["Location"] == "/dashboard"
 
 
+def test_registration_signs_the_new_runner_in(app, client):
+    response = client.post(
+        "/register",
+        data={
+            "accept_terms": "y",
+            "data_consent": "y",
+            "name": "New Runner",
+            "email": "new@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+    assert response.headers["Location"] == "/dashboard"
+    assert client.get("/dashboard").status_code == 200
+    with app.app_context():
+        from runnify.models import SecurityEvent
+
+        kinds = {event.kind for event in SecurityEvent.query.all()}
+        assert {"account_created", "sign_in"} <= kinds
+
+
 def test_registration_rejects_invalid_email(client):
     response = client.post(
         "/register",

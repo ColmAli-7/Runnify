@@ -1,0 +1,23 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field %}
+
+{% block title %}Choose a new password | Runnify{% endblock %}
+{% block heading %}Choose a new password{% endblock %}
+
+{% block form %}
+<form class="form" method="post" novalidate>
+  {{ form.csrf_token }}
+  {{ field(form.password, hint="At least 12 characters. A few unrelated words work well.", reveal=True, autocomplete="new-password") }}
+  {{ field(form.confirm, reveal=True, autocomplete="new-password") }}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">Save new password</button>
+</form>
+{% endblock %}
+
+{% block aside %}
+<h2 class="auth__aside-title" id="auth-aside-title">What this changes</h2>
+<ul class="auth__points auth__points--plain">
+  <li>Every device signed in to your account is signed out.</li>
+  <li>This reset link stops working.</li>
+  <li>We email you to confirm the change.</li>
+</ul>
+{% endblock %}

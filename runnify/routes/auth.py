@@ -62,7 +62,7 @@ def login():
         if user and is_locked(user):
             verify_password(None, form.password.data)  # same timing; the password is not checked
             flash(LOGIN_FAILED, "error")
-            return render_template("login.html", form_type="login", form=form)
+            return render_template("auth/login.html", form=form)
         matches, needs_rehash = verify_password(
             user.password_hash if user else None, form.password.data
         )
@@ -87,7 +87,7 @@ def login():
         flash(LOGIN_FAILED, "error")
     elif form.errors:
         flash(first_error(form), "error")
-    return render_template("login.html", form_type="login", form=form)
+    return render_template("auth/login.html", form=form)
 
 
 def _record_failed_sign_in(user):
@@ -141,7 +141,7 @@ def verify_two_factor():
     if form.validate_on_submit():
         if is_locked(user):
             flash("That code didn't work.", "error")
-            return render_template("two_factor_verify.html", form=form)
+            return render_template("auth/two_factor.html", form=form)
         used_recovery = False
         if not accept_code(user, form.code.data):
             used_recovery = use_recovery_code(user, form.code.data)
@@ -149,7 +149,7 @@ def verify_two_factor():
                 _record_failed_sign_in(user)
                 db.session.commit()
                 flash("That code didn't work.", "error")
-                return render_template("two_factor_verify.html", form=form)
+                return render_template("auth/two_factor.html", form=form)
         if used_recovery:
             audit.record(user, "recovery_code_used")
         response = _complete_login(user, pending["remember"], pending["next"])
@@ -159,7 +159,7 @@ def verify_two_factor():
         return response
     if form.errors:
         flash(first_error(form), "error")
-    return render_template("two_factor_verify.html", form=form)
+    return render_template("auth/two_factor.html", form=form)
 
 
 @bp.route("/register", methods=["GET", "POST"])
@@ -180,20 +180,22 @@ def register():
             )
             user.record_consent()
             db.session.add(user)
-            db.session.commit()
-            flash("Account created! You can now log in.", "success")
-            return redirect(url_for("auth.login"))
+            db.session.flush()
+            audit.record(user, "account_created")
+            response = _complete_login(user, remember=False, next_url=None)
+            flash("Welcome to Runnify. Start by connecting Garmin.", "success")
+            return response
     elif form.errors:
         flash(first_error(form), "error")
-    return render_template("login.html", form_type="register", form=form)
+    return render_template("auth/register.html", form=form)
 
 
 @bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
-    """End the current session and return to the login page."""
-    logout_user()  # end session
-    flash("You have been logged out.", "info")
+    """End the current session and return to the sign-in page."""
+    logout_user()
+    flash("You're signed out.", "info")
     return redirect(url_for("auth.login"))
 
 
@@ -222,7 +224,7 @@ def forgot_password():
         return redirect(url_for("auth.login"))
     if form.errors:
         flash(first_error(form), "error")
-    return render_template("forgot.html", form=form)
+    return render_template("auth/forgot.html", form=form)
 
 
 @bp.route("/reset/<token>")
@@ -265,4 +267,4 @@ def choose_new_password():
             return redirect(url_for("auth.login"))
     elif form.errors:
         flash(first_error(form), "error")
-    return render_template("reset.html", form=form)
+    return render_template("auth/reset.html", form=form)

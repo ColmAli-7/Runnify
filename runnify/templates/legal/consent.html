@@ -1,15 +1,43 @@
-{% extends "base.html" %}
-{% block title %}Runnify | Before you continue{% endblock %}
-{% block content %}
-  <main class="auth-container" id="main">
-    <h1>Before you continue</h1>
-    <p>Runnify needs your agreement to the current terms, and your consent to analyse your runs, before you carry on.</p>
-    <form method="POST" class="auth-form" novalidate>
-      {{ form.csrf_token }}
-      <label class="check">{{ form.accept_terms() }} I agree to the <a href="{{ url_for('legal.terms') }}">Terms</a> and the <a href="{{ url_for('legal.privacy') }}">Privacy policy</a></label>
-      <label class="check">{{ form.data_consent() }} {{ form.data_consent.label.text }}</label>
-      <button type="submit">Agree and continue</button>
-    </form>
-    <p>Prefer not to? You can <a href="{{ url_for('settings.index') }}">download your data or delete your account</a> instead.</p>
-  </main>
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import check, csrf %}
+
+{% block title %}Before you continue | Runnify{% endblock %}
+{% block heading %}Before you continue{% endblock %}
+{% block intro %}<p class="auth__intro">Our terms or privacy policy changed on {{ site.policy_updated }}. Please read them and confirm you're happy to carry on.</p>{% endblock %}
+
+{% block form %}
+<form class="form" method="post" novalidate>
+  {{ form.csrf_token }}
+  <fieldset class="consent">
+    <legend class="consent__legend">Your agreement</legend>
+    {% call check(form.accept_terms) -%}
+      I agree to the <a href="{{ url_for('legal.terms') }}" target="_blank" rel="noopener">Terms<span class="visually-hidden"> (opens in a new tab)</span></a>
+      and the <a href="{{ url_for('legal.privacy') }}" target="_blank" rel="noopener">Privacy policy<span class="visually-hidden"> (opens in a new tab)</span></a>
+    {%- endcall %}
+    {% call check(form.data_consent) -%}
+      I consent to Runnify processing my runs and heart-rate data to produce my insights
+      <span class="check__hint">Heart rate counts as health data, so this is asked for separately.</span>
+    {%- endcall %}
+  </fieldset>
+  <button class="btn btn--primary btn--lg btn--block" type="submit">Agree and continue</button>
+</form>
+{% endblock %}
+
+{% block after %}
+<div class="auth__switch">
+  <p>Rather not? You can <a href="{{ url_for('settings.index') }}#data">download your data or delete your account</a>, or sign out.</p>
+  <form method="post" action="{{ url_for('auth.logout') }}" class="inline-form">
+    {{ csrf() }}
+    <button class="btn btn--quiet" type="submit">Sign out</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block aside %}
+<h2 class="auth__aside-title" id="auth-aside-title">What you're agreeing to</h2>
+<ul class="auth__points auth__points--plain">
+  <li>Runnify stores your runs and the songs that played during them, and nothing else from your listening history.</li>
+  <li>Your data is only used to work out your own results. It is never sold or used for advertising.</li>
+  <li>You can download everything, or delete your account, at any time.</li>
+</ul>
 {% endblock %}

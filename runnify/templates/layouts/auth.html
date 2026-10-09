@@ -1,0 +1,26 @@
+{#- Sign-in, sign-up and other account steps: the form on the left, context beside it. -#}
+{% extends "layouts/public.html" %}
+{% from "macros/ui.html" import notices %}
+
+{% block body_class %}page-auth{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/auth.css') }}">
+{% endblock %}
+
+{% block notices %}{% endblock %}
+
+{% block content %}
+<div class="container auth">
+  <div class="auth__panel">
+    <h1 class="auth__title">{% block heading %}{% endblock %}</h1>
+    {% block intro %}{% endblock %}
+    {{ notices() }}
+    <div class="auth__form">{% block form %}{% endblock %}</div>
+    {% block after %}{% endblock %}
+  </div>
+  <aside class="auth__aside" aria-labelledby="auth-aside-title">
+    {% block aside %}{% endblock %}
+  </aside>
+</div>
+{% endblock %}

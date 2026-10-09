@@ -11,6 +11,7 @@ from runnify.models import SecurityEvent, utcnow
 RETENTION = timedelta(days=90)
 
 DESCRIPTIONS = {
+    "account_created": "Account created",
     "sign_in": "Signed in",
     "sign_in_failed": "Failed sign-in attempt",
     "account_locked": "Sign-in paused after failed attempts",

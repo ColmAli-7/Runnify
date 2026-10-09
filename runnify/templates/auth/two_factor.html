@@ -1,0 +1,26 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field %}
+
+{% block title %}Enter your code | Runnify{% endblock %}
+{% block heading %}Enter your code{% endblock %}
+{% block intro %}<p class="auth__intro">Open your authenticator app and enter the 6-digit code it shows for Runnify.</p>{% endblock %}
+
+{% block form %}
+<form class="form" method="post" novalidate>
+  {{ form.csrf_token }}
+  {{ field(form.code, input_class="input input--code", autocomplete="one-time-code", autocapitalize="none", spellcheck="false", autofocus=True) }}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">Continue</button>
+</form>
+{% endblock %}
+
+{% block after %}
+<p class="auth__switch">Not you, or want to start again? <a href="{{ url_for('auth.login') }}">Sign in again</a></p>
+{% endblock %}
+
+{% block aside %}
+<h2 class="auth__aside-title" id="auth-aside-title">No phone to hand?</h2>
+<ul class="auth__points auth__points--plain">
+  <li>Enter one of the recovery codes you saved when you turned on two-step verification. Each one works once.</li>
+  <li>Lost them too? Email <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a> from the address on your account.</li>
+</ul>
+{% endblock %}

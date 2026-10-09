@@ -1,0 +1,59 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field, check %}
+
+{% block title %}Create your account | Runnify{% endblock %}
+{% block description %}Create a free Runnify account and find out which songs make you run faster.{% endblock %}
+{% block heading %}Create your account{% endblock %}
+{% block intro %}<p class="auth__intro">It's free. Next you'll connect Garmin and add your Spotify listening history.</p>{% endblock %}
+
+{% block form %}
+<form class="form" method="post" novalidate>
+  {{ form.csrf_token }}
+  {{ field(form.name, autocomplete="name") }}
+  {{ field(form.email, autocomplete="email", spellcheck="false", autocapitalize="none") }}
+  {{ field(form.password, hint="At least 12 characters. A few unrelated words work well.", reveal=True, autocomplete="new-password") }}
+  <fieldset class="consent">
+    <legend class="consent__legend">Your agreement</legend>
+    {% call check(form.accept_terms) -%}
+      I agree to the <a href="{{ url_for('legal.terms') }}" target="_blank" rel="noopener">Terms<span class="visually-hidden"> (opens in a new tab)</span></a>
+      and the <a href="{{ url_for('legal.privacy') }}" target="_blank" rel="noopener">Privacy policy<span class="visually-hidden"> (opens in a new tab)</span></a>
+    {%- endcall %}
+    {% call check(form.data_consent) -%}
+      I consent to Runnify processing my runs and heart-rate data to produce my insights
+      <span class="check__hint">Heart rate counts as health data, so this is asked for separately. Deleting your account withdraws it.</span>
+    {%- endcall %}
+  </fieldset>
+  <button class="btn btn--primary btn--lg btn--block" type="submit">Create account</button>
+</form>
+{% endblock %}
+
+{% block after %}
+<p class="auth__switch">Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+{% endblock %}
+
+{% block aside %}
+<h2 class="auth__aside-title" id="auth-aside-title">What happens next</h2>
+<ol class="steps">
+  <li class="step">
+    <span class="step__mark" aria-hidden="true"></span>
+    <div class="step__body">
+      <p class="step__title">Connect Garmin</p>
+      <p>Sign in to Garmin Connect once. Your runs come in with second-by-second pace and heart rate.</p>
+    </div>
+  </li>
+  <li class="step">
+    <span class="step__mark" aria-hidden="true"></span>
+    <div class="step__body">
+      <p class="step__title">Request your Spotify history</p>
+      <p>Spotify emails it to you, which can take up to 30 days. Ask for it today.</p>
+    </div>
+  </li>
+  <li class="step">
+    <span class="step__mark" aria-hidden="true"></span>
+    <div class="step__body">
+      <p class="step__title">Upload it and read your results</p>
+      <p>Every run gets a results sheet showing how each song changed your pace.</p>
+    </div>
+  </li>
+</ol>
+{% endblock %}
