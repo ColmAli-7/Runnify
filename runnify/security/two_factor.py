@@ -68,9 +68,8 @@ def accept_code(user, code, secret=None):
     if not secret or len(code) != 6 or not code.isdigit():
         return False
     totp = pyotp.TOTP(secret)
-    now_step = totp.timecode(
-        datetime.now(UTC)
-    )  # must be timezone-aware: pyotp reads naive times as local
+    # must be timezone-aware: pyotp reads naive times as local
+    now_step = totp.timecode(datetime.now(UTC))
     for step in range(now_step - VALID_WINDOW, now_step + VALID_WINDOW + 1):
         if user.totp_last_step is not None and step <= user.totp_last_step:
             continue  # this code (or an earlier one) was already used

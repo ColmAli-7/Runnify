@@ -58,10 +58,7 @@ def send_request(user_id):
     if existing:
         flash("A request is already pending.", "info")
         return redirect(url_for("friends.index"))
-    new_request = FriendRequest(
-        sender_id=current_user.id, receiver_id=user_id
-    )  # create new request
-    db.session.add(new_request)
+    db.session.add(FriendRequest(sender_id=current_user.id, receiver_id=user_id))
     db.session.commit()
     flash("Friend request sent!", "success")
     return redirect(url_for("friends.index"))

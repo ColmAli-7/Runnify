@@ -80,14 +80,12 @@ class User(db.Model, UserMixin):
     # two-step verification (authenticator app); see runnify.security.two_factor
     totp_secret = db.Column(EncryptedString)
     totp_enabled_at = db.Column(db.DateTime)
-    totp_last_step = db.Column(
-        db.Integer
-    )  # last accepted 30-second step, so codes can't be replayed
+    # last accepted 30-second step, so codes can't be replayed
+    totp_last_step = db.Column(db.Integer)
 
     runs = db.relationship("Run", back_populates="user")  # link to user runs
-    song_history = db.relationship(
-        "UserSongHistory", back_populates="user"
-    )  # link to user song history
+    # link to user song history
+    song_history = db.relationship("UserSongHistory", back_populates="user")
 
     # friend relationship through association table
     friends = db.relationship(
@@ -186,9 +184,8 @@ class Song(db.Model):
     spotify_url = db.Column(db.String)
     tempo = db.Column(db.Float)
 
-    song_history = db.relationship(
-        "UserSongHistory", back_populates="song"
-    )  # link song to user song history
+    # link song to user song history
+    song_history = db.relationship("UserSongHistory", back_populates="song")
 
 
 class UserSongHistory(db.Model):
@@ -211,9 +208,8 @@ class UserSongHistory(db.Model):
 
     user = db.relationship("User", back_populates="song_history")
     song = db.relationship("Song", back_populates="song_history")
-    analysis = db.relationship(
-        "RunSongAnalysis", back_populates="user_song"
-    )  # link to analysis table
+    # link to analysis table
+    analysis = db.relationship("RunSongAnalysis", back_populates="user_song")
 
 
 class RunSongAnalysis(db.Model):
@@ -240,9 +236,8 @@ class RunSongAnalysis(db.Model):
     method_version = db.Column(db.Integer)
 
     run = db.relationship("Run", back_populates="analysis")
-    user_song = db.relationship(
-        "UserSongHistory", back_populates="analysis"
-    )  # connect analysis to song history
+    # connect analysis to song history
+    user_song = db.relationship("UserSongHistory", back_populates="analysis")
 
 
 # association table for user friendships
@@ -264,12 +259,10 @@ class FriendRequest(db.Model):
     status = db.Column(db.String, default="pending")  # pending, accepted, or rejected
     timestamp = db.Column(db.DateTime, default=utcnow)
 
-    sender = db.relationship(
-        "User", foreign_keys=[sender_id], backref="sent_requests"
-    )  # link sender
-    receiver = db.relationship(
-        "User", foreign_keys=[receiver_id], backref="received_requests"
-    )  # link receiver
+    # link sender
+    sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_requests")
+    # link receiver
+    receiver = db.relationship("User", foreign_keys=[receiver_id], backref="received_requests")
 
 
 class RecoveryCode(db.Model):

@@ -70,9 +70,8 @@ def song_effect(series, start, end):
         return SongEffect(None, None, None, len(song_paces), round(position, 3))
 
     context_paces = [paces[i] for i in near if paces[i] is not None]
-    if (
-        len(context_paces) < MIN_CONTEXT_SAMPLES
-    ):  # e.g. a song at the very start: use the rest of the run
+    # e.g. a song at the very start: use the rest of the run
+    if len(context_paces) < MIN_CONTEXT_SAMPLES:
         inside_set = set(inside)
         near = [i for i in range(len(timestamps)) if i not in inside_set]
         context_paces = [paces[i] for i in near if paces[i] is not None]

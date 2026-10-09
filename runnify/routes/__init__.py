@@ -27,9 +27,8 @@ def register_blueprints(app):
     mounted at the site root.
     """
     app.register_blueprint(auth.bp)  # login, registration and password reset
-    app.register_blueprint(
-        spotify.bp, url_prefix="/spotify"
-    )  # spotify oauth (callback registered with spotify)
+    # spotify oauth (callback registered with spotify)
+    app.register_blueprint(spotify.bp, url_prefix="/spotify")
     app.register_blueprint(connections.bp)  # garmin and spotify connections
     app.register_blueprint(imports.bp)  # spotify history import
     app.register_blueprint(runs.bp)  # run list and per-run analysis
