@@ -87,11 +87,43 @@ def test_rankings_need_repeated_evidence(app, seeded):
         assert boost.shrunk_lift == pytest.approx(12.0 * 4 / 6)  # shrunk by two neutral plays
 
 
-def test_phases_show_where_music_helps(app, seeded):
+def test_phases_average_the_songs_in_each_part_of_a_run(app, seeded):
     with app.app_context():
-        phases = {label: lift for label, _, lift in insights.overview(seeded, "90d").phases}
-        assert phases["Finish"] == pytest.approx(12.0)
-        assert phases["Start"] == pytest.approx(-8.0)
+        phases = {p.label: p for p in insights.overview(seeded, "90d").phases}
+        assert phases["Finish"].lift == pytest.approx(12.0)
+        assert phases["Start"].lift == pytest.approx(-8.0)
+        assert phases["Finish"].strength is None  # too few plays to judge
+
+
+def _plays(position, factor, shift=0.0, runs=8):
+    """Songs with usual effects of +8, +4, -4 and -8 s/km, scaled by ``factor`` here."""
+    usual = {"a": 8.0, "b": 4.0, "c": -4.0, "d": -8.0}
+    return [
+        (key, position, value * factor + shift, 180)
+        for _ in range(runs)
+        for key, value in usual.items()
+    ]
+
+
+def test_strength_shows_where_songs_work_hardest():
+    start, middle, finish = insights.phase_summary(
+        _plays(0.05, 0.5) + _plays(0.5, 1.0) + _plays(0.9, 1.5)
+    )
+    assert (start.label, middle.label, finish.label) == ("Start", "Middle", "Finish")
+    assert middle.strength == pytest.approx(1.0)
+    assert start.strength < 0.6 and finish.strength > 1.4  # half as strong, and half as much again
+
+
+def test_strength_ignores_a_shift_that_hits_every_song():
+    steady = insights.phase_summary(_plays(0.05, 1.0) + _plays(0.5, 1.0))
+    warm_up = insights.phase_summary(_plays(0.05, 1.0, shift=-10.0) + _plays(0.5, 1.0))
+    assert warm_up[0].lift == pytest.approx(steady[0].lift - 10.0)
+    assert warm_up[0].strength == pytest.approx(steady[0].strength, rel=0.02)
+
+
+def test_strength_needs_repeated_songs():
+    once_each = [(f"song{i}", 0.5, float(i), 180) for i in range(20)]
+    assert insights.phase_summary(once_each)[1].strength is None
 
 
 def test_heart_rate_and_skips(app, seeded):
