@@ -1,0 +1,113 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, csrf %}
+
+{% block title %}Friends | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/friends.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Friends</h1>
+    <p class="page-head__meta">Friends see your name and your distance on this leaderboard, nothing else.</p>
+  </div>
+  <form class="find" method="get" action="{{ url_for('friends.search') }}" role="search">
+    <label class="visually-hidden" for="find-q">Find people by name</label>
+    <input class="input" id="find-q" type="search" name="q" placeholder="Find people by name" minlength="2" maxlength="80" autocomplete="off">
+    <button class="btn" type="submit">{{ icon("search") }}<span class="visually-hidden">Search</span></button>
+  </form>
+</header>
+
+<div class="friends">
+  <section class="sheet" aria-labelledby="board-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="board-title">{{ month.strftime("%B") }} leaderboard</h2>
+      <p class="sheet__meta">Distance this month</p>
+    </header>
+    <div class="table-wrap">
+      <table class="results">
+        <caption class="visually-hidden">Distance run this month by you and your friends</caption>
+        <thead>
+          <tr>
+            <th scope="col">Pos</th>
+            <th scope="col">Runner</th>
+            <th scope="col" class="is-numeric">Runs</th>
+            <th scope="col" class="is-numeric">Distance <span class="results__unit">km</span></th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for person, runs, metres in board %}
+            {% set me = person.id == current_user.id %}
+            <tr{% if loop.first and metres > 0 %} class="is-best"{% endif %}>
+              <td class="results__pos">{{ loop.index }}</td>
+              <td class="results__track">
+                <span class="runner"><span class="avatar avatar--sm" aria-hidden="true">{{ person.name|initials }}</span>{{ person.name }}{% if me %} <span class="tag">You</span>{% endif %}</span>
+              </td>
+              <td class="is-numeric">{{ runs }}</td>
+              <td class="is-numeric">{{ metres|km(1) }}</td>
+              <td class="is-numeric">
+                {% if not me %}
+                  <form method="post" action="{{ url_for('friends.remove', user_id=person.id) }}" class="inline-form" data-confirm="Remove {{ person.name }} as a friend?">
+                    {{ csrf() }}
+                    <button class="btn btn--quiet btn--sm" type="submit">Remove<span class="visually-hidden"> {{ person.name }}</span></button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if board|length == 1 %}
+      <p class="sheet__foot">Add friends to see how your distance compares. Use the search above to find them by name.</p>
+    {% endif %}
+  </section>
+
+  <div class="friends__side">
+    <section class="sheet" aria-labelledby="incoming-title">
+      <header class="sheet__head">
+        <h2 class="sheet__title" id="incoming-title">Requests for you</h2>
+        {% if incoming %}<span class="tag tag--ink">{{ incoming|length }}</span>{% endif %}
+      </header>
+      {% if incoming %}
+        <ul class="people">
+          {% for friend_request in incoming %}
+            <li class="people__item">
+              <span class="runner"><span class="avatar avatar--sm" aria-hidden="true">{{ friend_request.sender.name|initials }}</span>{{ friend_request.sender.name }}</span>
+              <span class="cluster">
+                <form method="post" action="{{ url_for('friends.accept', request_id=friend_request.id) }}" class="inline-form">
+                  {{ csrf() }}<button class="btn btn--primary btn--sm" type="submit">Accept<span class="visually-hidden"> {{ friend_request.sender.name }}</span></button>
+                </form>
+                <form method="post" action="{{ url_for('friends.decline', request_id=friend_request.id) }}" class="inline-form">
+                  {{ csrf() }}<button class="btn btn--quiet btn--sm" type="submit">Decline<span class="visually-hidden"> {{ friend_request.sender.name }}</span></button>
+                </form>
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty">No requests waiting.</p>
+      {% endif %}
+    </section>
+
+    {% if outgoing %}
+      <section class="sheet" aria-labelledby="outgoing-title">
+        <header class="sheet__head">
+          <h2 class="sheet__title" id="outgoing-title">Waiting for a reply</h2>
+        </header>
+        <ul class="people">
+          {% for friend_request in outgoing %}
+            <li class="people__item">
+              <span class="runner"><span class="avatar avatar--sm" aria-hidden="true">{{ friend_request.receiver.name|initials }}</span>{{ friend_request.receiver.name }}</span>
+              <span class="muted">Sent {{ friend_request.timestamp|ago }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

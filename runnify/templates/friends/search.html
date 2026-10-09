@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, csrf %}
+
+{% block title %}Find people | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/friends.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="page-head__crumb"><a href="{{ url_for('friends.index') }}">{{ icon("arrow-left") }}Friends</a></p>
+    <h1>Find people</h1>
+  </div>
+</header>
+
+<div class="search-page">
+  <form class="find find--wide" method="get" role="search">
+    <label class="field__label" for="search-q">Name</label>
+    <div class="find__row">
+      <input class="input" id="search-q" type="search" name="q" value="{{ query }}" minlength="{{ min_length }}" maxlength="80" autocomplete="off" autofocus>
+      <button class="btn btn--primary" type="submit">Search</button>
+    </div>
+  </form>
+
+  {% if query %}
+    <section class="sheet" aria-labelledby="results-title">
+      <header class="sheet__head">
+        <h2 class="sheet__title" id="results-title">
+          {% if query|length < min_length %}Type at least {{ min_length }} letters{% else %}{{ results|length|plural("person", "people") }} matching &ldquo;{{ query }}&rdquo;{% endif %}
+        </h2>
+      </header>
+      {% if results %}
+        <ul class="people">
+          {% for person in results %}
+            <li class="people__item">
+              <span class="runner"><span class="avatar avatar--sm" aria-hidden="true">{{ person.name|initials }}</span>{{ person.name }}</span>
+              {% if person.id in friends %}
+                <span class="tag tag--go">Friends</span>
+              {% elif person.id in pending %}
+                <span class="tag">Request waiting</span>
+              {% else %}
+                <form method="post" action="{{ url_for('friends.send_request', user_id=person.id) }}" class="inline-form">
+                  {{ csrf() }}
+                  <input type="hidden" name="next" value="{{ request.full_path }}">
+                  <button class="btn btn--sm" type="submit">{{ icon("plus") }}Add friend<span class="visually-hidden">: {{ person.name }}</span></button>
+                </form>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% elif query|length >= min_length %}
+        <p class="empty">Nobody by that name. Check the spelling, or ask them for the name they signed up with.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

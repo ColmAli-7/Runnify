@@ -43,3 +43,35 @@ def test_request_accept_flow(app, auth_client, user):
     with app.app_context():
         assert db.session.get(FriendRequest, request_id).status == "accepted"
         assert [f.id for f in db.session.get(User, user).friends] == [other]
+
+
+def test_removing_a_friend_ends_it_both_ways(app, auth_client, user):
+    other = _make_user(app, "friend@example.com", "Friend")
+    with app.app_context():
+        me, them = db.session.get(User, user), db.session.get(User, other)
+        me.friends.append(them)
+        them.friends.append(me)
+        db.session.commit()
+    assert auth_client.get("/friends/2/remove").status_code == 405
+    auth_client.post(f"/friends/{other}/remove")
+    with app.app_context():
+        assert db.session.get(User, user).friends == []
+        assert db.session.get(User, other).friends == []
+
+
+def test_search_needs_two_characters_and_escapes_wildcards(app, auth_client, user):
+    _make_user(app, "a@example.com", "Aoife Byrne")
+    _make_user(app, "b@example.com", "100% Runner")
+    assert b"Aoife" not in auth_client.get("/friends/search?q=A").data  # too short
+    assert b"Aoife Byrne" in auth_client.get("/friends/search?q=oif").data
+    assert b"100% Runner" in auth_client.get("/friends/search?q=0%25").data
+    # "_" would match any letter if it weren't escaped ("Aoife" has an "fe")
+    assert b"Aoife" not in auth_client.get("/friends/search?q=_e").data
+
+
+def test_a_request_sent_from_search_returns_to_the_search(app, auth_client, user):
+    other = _make_user(app, "friend@example.com", "Friend")
+    response = auth_client.post(f"/friends/{other}/request", data={"next": "/friends/search?q=Fri"})
+    assert response.headers["Location"] == "/friends/search?q=Fri"
+    evil = auth_client.post(f"/friends/{other}/request", data={"next": "https://evil.example"})
+    assert evil.headers["Location"] == "/friends"

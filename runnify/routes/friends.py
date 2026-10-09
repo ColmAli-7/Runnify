@@ -1,41 +1,48 @@
-"""Friends system: search, requests and the distance leaderboard."""
+"""Friends: a monthly distance leaderboard, friend requests and finding people."""
+
+from datetime import datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from runnify.extensions import db, limiter
-from runnify.models import FriendRequest, Run, User
+from runnify.models import FriendRequest, Run, User, utcnow
 from runnify.security.rate_limits import limit_from_config, user_or_ip
+from runnify.security.redirects import safe_next_url
 
-bp = Blueprint("friends", __name__)  # blueprint for friend system
+bp = Blueprint("friends", __name__)
+
+MIN_SEARCH_LENGTH = 2
+MAX_SEARCH_RESULTS = 20
+
+
+def _leaderboard(people, since):
+    """``(person, runs, metres)`` for ``people`` since ``since``, the furthest first."""
+    totals = {
+        user_id: (runs, metres)
+        for user_id, runs, metres in db.session.query(
+            Run.user_id, func.count(Run.id), func.coalesce(func.sum(Run.distance), 0)
+        )
+        .filter(Run.user_id.in_([person.id for person in people]), Run.date_time >= since)
+        .group_by(Run.user_id)
+    }
+    board = [(person, *totals.get(person.id, (0, 0.0))) for person in people]
+    return sorted(board, key=lambda entry: (-entry[2], entry[0].name.lower()))
 
 
 @bp.route("/friends")
 @login_required
 def index():
-    """List friends with their total distance, plus pending incoming and outgoing requests."""
-    friends = current_user.friends  # get all accepted friends
-    friends_data = []
-    for friend in friends:
-        total_distance = (
-            db.session.query(func.sum(Run.distance)).filter(Run.user_id == friend.id).scalar() or 0
-        )
-        total_distance_km = round(total_distance / 1000, 2)  # convert to km
-        friends_data.append(
-            {"id": friend.id, "name": friend.name, "total_distance": total_distance_km}
-        )
-    pending_requests = FriendRequest.query.filter_by(
-        receiver_id=current_user.id, status="pending"
-    ).all()  # incoming requests
-    sent_requests = FriendRequest.query.filter_by(
-        sender_id=current_user.id, status="pending"
-    ).all()  # outgoing requests
+    """The leaderboard for this month, plus requests waiting on either side."""
+    now = utcnow()
+    month_start = datetime(now.year, now.month, 1)
     return render_template(
-        "friends.html",
-        friends=friends_data,
-        pending_requests=pending_requests,
-        sent_requests=sent_requests,
+        "friends/index.html",
+        board=_leaderboard([current_user, *current_user.friends], month_start),
+        month=now,
+        incoming=FriendRequest.query.filter_by(receiver_id=current_user.id, status="pending").all(),
+        outgoing=FriendRequest.query.filter_by(sender_id=current_user.id, status="pending").all(),
     )
 
 
@@ -43,40 +50,41 @@ def index():
 @login_required
 def send_request(user_id):
     """Send a friend request to ``user_id`` unless already friends or one is pending."""
-    if user_id == current_user.id:  # prevent adding self
+    back = redirect(safe_next_url(request.form.get("next")) or url_for("friends.index"))
+    if user_id == current_user.id:
         flash("You can't add yourself.", "error")
-        return redirect(url_for("friends.index"))
+        return back
     user = db.get_or_404(User, user_id)
-    if user in current_user.friends:  # already friends
-        flash("You are already friends.", "info")
-        return redirect(url_for("friends.index"))
+    if user in current_user.friends:
+        flash(f"You're already friends with {user.name}.", "info")
+        return back
     existing = FriendRequest.query.filter(
         ((FriendRequest.sender_id == current_user.id) & (FriendRequest.receiver_id == user_id))
         | ((FriendRequest.sender_id == user_id) & (FriendRequest.receiver_id == current_user.id)),
         FriendRequest.status == "pending",
-    ).first()  # check if a pending request exists
+    ).first()
     if existing:
-        flash("A request is already pending.", "info")
-        return redirect(url_for("friends.index"))
+        flash("There's already a request waiting between you.", "info")
+        return back
     db.session.add(FriendRequest(sender_id=current_user.id, receiver_id=user_id))
     db.session.commit()
-    flash("Friend request sent!", "success")
-    return redirect(url_for("friends.index"))
+    flash(f"Friend request sent to {user.name}.", "success")
+    return back
 
 
 @bp.route("/friends/requests/<int:request_id>/accept", methods=["POST"])
 @login_required
 def accept(request_id):
     """Accept a friend request addressed to the current user (adds the friendship both ways)."""
-    fr = db.get_or_404(FriendRequest, request_id)
-    if fr.receiver_id != current_user.id:  # only receiver can accept
-        flash("Not authorised.", "error")
+    friend_request = db.get_or_404(FriendRequest, request_id)
+    if friend_request.receiver_id != current_user.id or friend_request.status != "pending":
+        flash("That request isn't yours to accept.", "error")
         return redirect(url_for("friends.index"))
-    fr.status = "accepted"
-    fr.sender.friends.append(fr.receiver)  # add both directions
-    fr.receiver.friends.append(fr.sender)
+    friend_request.status = "accepted"
+    friend_request.sender.friends.append(friend_request.receiver)
+    friend_request.receiver.friends.append(friend_request.sender)
     db.session.commit()
-    flash(f"You are now friends with {fr.sender.name}", "success")
+    flash(f"You're now friends with {friend_request.sender.name}.", "success")
     return redirect(url_for("friends.index"))
 
 
@@ -84,23 +92,57 @@ def accept(request_id):
 @login_required
 def decline(request_id):
     """Decline a friend request addressed to the current user."""
-    fr = db.get_or_404(FriendRequest, request_id)
-    if fr.receiver_id != current_user.id:  # prevent others from declining
-        flash("Not authorised.", "error")
+    friend_request = db.get_or_404(FriendRequest, request_id)
+    if friend_request.receiver_id != current_user.id or friend_request.status != "pending":
+        flash("That request isn't yours to decline.", "error")
     else:
-        fr.status = "declined"  # update status
+        friend_request.status = "declined"
         db.session.commit()
         flash("Friend request declined.", "info")
     return redirect(url_for("friends.index"))
 
 
-@bp.route("/friends/search", methods=["GET", "POST"])
+@bp.route("/friends/<int:user_id>/remove", methods=["POST"])
+@login_required
+def remove(user_id):
+    """End a friendship, both ways."""
+    friend = db.get_or_404(User, user_id)
+    if friend in current_user.friends:
+        current_user.friends.remove(friend)
+    if current_user in friend.friends:
+        friend.friends.remove(current_user)
+    db.session.commit()
+    flash(f"{friend.name} is no longer a friend.", "info")
+    return redirect(url_for("friends.index"))
+
+
+@bp.route("/friends/search")
 @login_required
 @limiter.limit(limit_from_config("SEARCH"), key_func=user_or_ip)
 def search():
-    """Search users by name (case-insensitive substring match on ``?q=``)."""
-    query = request.args.get("q", "")  # search input
+    """Find people by name (``?q=``, at least two characters, at most 20 results)."""
+    query = request.args.get("q", "").strip()[:80]
     results = []
-    if query:
-        results = User.query.filter(User.name.ilike(f"%{query}%")).all()  # case-insensitive search
-    return render_template("friend_search.html", results=results, query=query)
+    if len(query) >= MIN_SEARCH_LENGTH:
+        pattern = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        results = (
+            User.query.filter(User.name.ilike(pattern, escape="\\"), User.id != current_user.id)
+            .order_by(User.name)
+            .limit(MAX_SEARCH_RESULTS)
+            .all()
+        )
+    pending = {
+        r.receiver_id
+        for r in FriendRequest.query.filter_by(sender_id=current_user.id, status="pending")
+    } | {
+        r.sender_id
+        for r in FriendRequest.query.filter_by(receiver_id=current_user.id, status="pending")
+    }
+    return render_template(
+        "friends/search.html",
+        query=query,
+        results=results,
+        friends={friend.id for friend in current_user.friends},
+        pending=pending,
+        min_length=MIN_SEARCH_LENGTH,
+    )
