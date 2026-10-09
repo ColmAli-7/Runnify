@@ -1,0 +1,325 @@
+/* Page shells: containers, the public and app headers, navigation, footer, page headers. */
+
+@layer layout {
+  .container {
+    width: 100%;
+    max-width: var(--page-max);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  .container--narrow {
+    max-width: calc(var(--measure) + 2 * var(--gutter));
+  }
+
+  /* ---- wordmark ---------------------------------------------------------- */
+
+  .wordmark {
+    display: inline-flex;
+    align-items: baseline;
+    font-size: 1.375rem;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 1;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .wordmark:hover {
+    background: none;
+  }
+
+  /* "Run" carries a highlighter stroke, like a runner marking their own result */
+  .wordmark__mark {
+    box-shadow: inset 0 -0.38em 0 var(--highlight);
+    padding-inline: 0.04em;
+    margin-inline: -0.04em;
+  }
+
+  /* ---- public header ----------------------------------------------------- */
+
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: var(--hair);
+  }
+
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-5);
+    min-height: var(--header-h);
+  }
+
+  .site-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--s-5);
+    font-size: var(--text-sm);
+    font-weight: 550;
+  }
+
+  .site-nav a:not(.btn) {
+    text-decoration: none;
+  }
+
+  .site-nav a:not(.btn):hover {
+    text-decoration: underline;
+    background: none;
+  }
+
+  .site-nav__extra {
+    display: none;
+  }
+
+  @media (min-width: 760px) {
+    .site-nav__extra {
+      display: inline;
+    }
+  }
+
+  /* ---- app header + navigation ------------------------------------------ */
+
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: var(--hair);
+  }
+
+  .app-header__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--s-6);
+    min-height: var(--header-h);
+  }
+
+  .app-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-left: auto;
+  }
+
+  /* one nav element: a row in the header on wide screens, a tab bar on phones */
+  .app-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--paper);
+    border-top: var(--heavy);
+  }
+
+  .app-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+
+  .app-nav a:hover {
+    background: none;
+    color: var(--ink);
+  }
+
+  .app-nav a[aria-current="page"] {
+    color: var(--ink);
+    box-shadow: inset 0 3px 0 var(--ink);
+  }
+
+  .app-nav .icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .app-main {
+    padding-bottom: calc(var(--tabbar-h) + var(--s-6));
+  }
+
+  @media (min-width: 900px) {
+    .app-nav {
+      position: static;
+      display: flex;
+      gap: var(--s-1);
+      height: auto;
+      padding: 0;
+      background: none;
+      border: 0;
+    }
+
+    .app-nav a {
+      flex-direction: row;
+      gap: var(--s-2);
+      height: var(--header-h);
+      padding-inline: var(--s-3);
+      font-size: var(--text-sm);
+    }
+
+    .app-nav a[aria-current="page"] {
+      box-shadow: inset 0 -3px 0 var(--ink);
+    }
+
+    .app-nav .icon {
+      display: none;
+    }
+
+    .app-main {
+      padding-bottom: var(--s-9);
+    }
+  }
+
+  /* ---- page header ------------------------------------------------------- */
+
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--s-4) var(--s-6);
+    padding-block: var(--s-7) var(--s-5);
+    margin-bottom: var(--s-6);
+    border-bottom: var(--heavy);
+  }
+
+  .page-head__meta {
+    margin-top: var(--s-2);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+
+  .page-head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+  }
+
+  /* ---- grids ------------------------------------------------------------- */
+
+  .stack {
+    display: grid;
+    gap: var(--stack-gap, var(--s-6));
+    align-content: start;
+  }
+
+  .cluster {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--cluster-gap, var(--s-3));
+  }
+
+  .columns {
+    display: grid;
+    gap: var(--s-6);
+  }
+
+  @media (min-width: 960px) {
+    .columns--2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .columns--main-side {
+      grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+    }
+
+    .columns--side-main {
+      grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1.58fr);
+    }
+  }
+
+  /* ---- footer ------------------------------------------------------------ */
+
+  .site-footer {
+    border-top: var(--heavy);
+    padding-block: var(--s-7) var(--s-8);
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+
+  .site-footer__inner {
+    display: grid;
+    gap: var(--s-6);
+  }
+
+  .site-footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  .site-footer__links a {
+    text-decoration: none;
+    font-weight: 550;
+    color: var(--ink);
+  }
+
+  .site-footer__links a:hover {
+    text-decoration: underline;
+  }
+
+  .site-footer__legal {
+    max-width: 70ch;
+    color: var(--ink-3);
+  }
+
+  @media (min-width: 760px) {
+    .site-footer__inner {
+      grid-template-columns: auto 1fr;
+      align-items: start;
+    }
+
+    .site-footer__links {
+      justify-content: flex-end;
+    }
+
+    .site-footer__legal {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .app-footer {
+    padding-block: var(--s-6);
+    border-top: var(--hair);
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+  }
+
+  .app-footer .site-footer__links a {
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+}
+
+@layer layout {
+  /* on narrow screens the Import button shows its icon only; the label stays for screen readers */
+  @media (max-width: 599px) {
+    .app-header__import {
+      padding-inline: var(--s-3);
+    }
+
+    .app-header__import span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+}

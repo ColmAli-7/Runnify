@@ -1,0 +1,84 @@
+{#- Shared building blocks. Import what a page needs:
+    {% from "macros/ui.html" import icon, field, notices %} -#}
+
+{% macro icon(name, label=None, class="") -%}
+<svg class="icon {{ class }}"{% if label %} role="img" aria-label="{{ label }}"{% else %} aria-hidden="true" focusable="false"{% endif %}><use href="{{ url_for('static', filename='img/icons.svg') }}#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro wordmark(href) -%}
+<a class="wordmark" href="{{ href }}"><span class="wordmark__mark">Run</span>nify<span class="visually-hidden"> home</span></a>
+{%- endmacro %}
+
+{#- Flash messages. Errors are announced immediately (role=alert), the rest politely. -#}
+{% macro notices() %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="notices">
+        {% for category, message in messages %}
+          {% set kind = "error" if category in ("error", "danger") else ("success" if category == "success" else "info") %}
+          <div class="notice notice--{{ kind }}" role="{{ 'alert' if kind == 'error' else 'status' }}">
+            {{ icon({"error": "alert", "success": "check"}.get(kind, "info")) }}
+            <p>{{ message }}</p>
+            <button type="button" class="notice__close" data-dismiss aria-label="Dismiss message">{{ icon("close") }}</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+{% endmacro %}
+
+{#- A labelled form field with optional hint and inline error, wired up with aria-describedby.
+    `reveal=True` adds a show/hide button for passwords. -#}
+{% macro field(f, hint=None, reveal=False, input_class="input") %}
+  {%- set hint_id = f.id ~ "-hint" -%}
+  {%- set error_id = f.id ~ "-error" -%}
+  {%- set described = ([hint_id] if hint else []) + ([error_id] if f.errors else []) -%}
+  {%- set attrs = kwargs -%}
+  {%- if described %}{% set _ = attrs.update({"aria-describedby": described|join(" ")}) %}{% endif -%}
+  {%- if f.errors %}{% set _ = attrs.update({"aria-invalid": "true"}) %}{% endif -%}
+  {%- if f.flags.required %}{% set _ = attrs.update({"required": True}) %}{% endif -%}
+  <div class="field">
+    <label class="field__label" for="{{ f.id }}">{{ f.label.text }}</label>
+    {% if hint %}<p class="field__hint" id="{{ hint_id }}">{{ hint }}</p>{% endif %}
+    {% if reveal %}
+      <div class="reveal">
+        {{ f(class_=input_class, **attrs) }}
+        <button type="button" class="reveal__toggle" data-reveal="{{ f.id }}" aria-controls="{{ f.id }}" aria-pressed="false">Show</button>
+      </div>
+    {% else %}
+      {{ f(class_=input_class, **attrs) }}
+    {% endif %}
+    {% if f.errors %}<p class="field__error" id="{{ error_id }}">{{ icon("alert") }}<span>{{ f.errors[0] }}</span></p>{% endif %}
+  </div>
+{% endmacro %}
+
+{#- A checkbox with its label text (which may contain links) passed as the caller body. -#}
+{% macro check(f) %}
+  {%- set error_id = f.id ~ "-error" -%}
+  <div class="field">
+    <label class="check">
+      {{ f(**({"aria-invalid": "true", "aria-describedby": error_id} if f.errors else {})) }}
+      <span>{{ caller() if caller else f.label.text }}</span>
+    </label>
+    {% if f.errors %}<p class="field__error" id="{{ error_id }}">{{ icon("alert") }}<span>{{ f.errors[0] }}</span></p>{% endif %}
+  </div>
+{% endmacro %}
+
+{#- A song's effect on pace, e.g. "+9 s/km faster". -#}
+{% macro lift(value) -%}
+  {%- set kind = value|lift_kind -%}
+  <span class="lift lift--{{ kind }}">
+    {%- if kind == "up" %}{{ icon("arrow-up") }}{% elif kind == "down" %}{{ icon("arrow-down") }}{% endif -%}
+    {{ value|lift }}<span class="visually-hidden">{{ {"up": " faster", "down": " slower"}.get(kind, " no change") }}</span>
+  </span>
+{%- endmacro %}
+
+{#- Hidden CSRF field for small action forms. -#}
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{#- JSON for page scripts. Not executed, so the strict CSP allows it; tojson escapes <, > and &. -#}
+{% macro data_island(id, value) -%}
+<script type="application/json" id="{{ id }}">{{ value|tojson }}</script>
+{%- endmacro %}

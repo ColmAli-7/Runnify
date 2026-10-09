@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Runnify{% endblock %}</title>
+  <meta name="description" content="{% block description %}Runnify lines up your Spotify listening history with your Garmin runs and ranks every song by how it changed your pace.{% endblock %}">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" sizes="any">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/geist/Geist-Variable.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui/tokens.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui/layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ui/components.css') }}">
+  {% block styles %}{% endblock %}
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% block header %}{% endblock %}
+  {% block body %}{% endblock %}
+  {% block footer %}{% endblock %}
+</body>
+</html>

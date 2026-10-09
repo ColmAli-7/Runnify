@@ -1,0 +1,85 @@
+/*
+ * Runnify design tokens: the Official Results Sheet.
+ *
+ * White results paper, near-black print, hairline row rules under heavy header
+ * rules, and two marks a runner makes on posted results: highlighter for the
+ * best row, red pen for the worst. No shadows, glass or gradients.
+ *
+ * Contrast (WCAG 2.2): every text colour below passes AA on --paper, and
+ * --highlight / --pen only ever sit behind or beside ink text, never as the
+ * only signal. Ratios are checked by scripts/check_contrast.py.
+ */
+
+@layer reset, base, layout, components, pages, utilities;
+
+@font-face {
+  font-family: "Geist";
+  src: url("../../fonts/geist/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+
+  /* paper and print */
+  --paper: #ffffff;
+  --board: #eef0f2; /* the noticeboard the sheets are pinned to */
+  --ink: #111111; /* 18.9:1 on paper */
+  --ink-2: #474747; /* secondary text, 9.3:1 */
+  --ink-3: #626262; /* meta text, 6.1:1 on paper, 5.3:1 on board */
+  --rule: #d9dbde; /* hairline row rules (decorative) */
+  --field: #767676; /* form control borders, 4.5:1 */
+
+  /* the runner's marks */
+  --highlight: #e8ff3a; /* highlighter: the best row, lifts, emphasis */
+  --highlight-soft: #f5ffbf;
+  --pen: #c4211a; /* red pen: drags and errors, 6.0:1 on paper */
+  --pen-soft: #fdecea;
+  --go: #0c7238; /* connected, done, 6.2:1 on paper */
+  --go-soft: #e7f3ec;
+
+  /* type */
+  --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: clamp(1.5rem, 1.25rem + 0.9vw, 1.875rem);
+  --text-3xl: clamp(2rem, 1.45rem + 2vw, 3rem);
+  --text-display: clamp(2.6rem, 1.35rem + 4.6vw, 5.4rem);
+  --leading-tight: 1.02;
+  --leading-snug: 1.25;
+  --leading: 1.55;
+
+  /* space, on a 4 px base */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --measure: 66ch;
+  --page-max: 1240px;
+  --header-h: 64px;
+  --tabbar-h: 64px;
+
+  /* edges */
+  --radius: 2px;
+  --hair: 1px solid var(--rule);
+  --heavy: 2px solid var(--ink);
+
+  /* motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --fast: 120ms;
+  --base: 220ms;
+  --slow: 560ms;
+}

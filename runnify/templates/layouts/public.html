@@ -1,0 +1,50 @@
+{% extends "layouts/base.html" %}
+{% from "macros/ui.html" import icon, wordmark, notices %}
+
+{% block header %}
+<header class="site-header">
+  <div class="container site-header__inner">
+    {{ wordmark(url_for("main.home")) }}
+    <nav class="site-nav" aria-label="Main">
+      {% block nav %}
+        <a class="site-nav__extra" href="{{ url_for('main.home') }}#how">How it works</a>
+        <a class="site-nav__extra" href="{{ url_for('main.home') }}#privacy">Privacy</a>
+        {% if current_user.is_authenticated %}
+          <a class="btn btn--primary btn--sm" href="{{ url_for('dashboard.index') }}">Open dashboard</a>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}">Sign in</a>
+          <a class="btn btn--primary btn--sm" href="{{ url_for('auth.register') }}">Create free account</a>
+        {% endif %}
+      {% endblock %}
+    </nav>
+  </div>
+</header>
+{% endblock %}
+
+{% block body %}
+<main id="main" class="{% block main_class %}{% endblock %}">
+  {% block notices %}<div class="container">{{ notices() }}</div>{% endblock %}
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
+
+{% block footer %}
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    {{ wordmark(url_for("main.home")) }}
+    <ul class="site-footer__links">
+      <li><a href="{{ url_for('legal.privacy') }}">Privacy</a></li>
+      <li><a href="{{ url_for('legal.terms') }}">Terms</a></li>
+      <li><a href="{{ url_for('legal.cookies') }}">Cookies</a></li>
+      {% if not current_user.is_authenticated %}
+        <li><a href="{{ url_for('auth.login') }}">Sign in</a></li>
+        <li><a href="{{ url_for('auth.register') }}">Create account</a></li>
+      {% endif %}
+    </ul>
+    <p class="site-footer__legal">
+      Runnify is operated by {{ site.operator }} and is not affiliated with, endorsed or sponsored by Garmin or Spotify.
+      Garmin and Spotify are trademarks of their respective owners.
+    </p>
+  </div>
+</footer>
+{% endblock %}

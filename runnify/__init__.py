@@ -70,10 +70,12 @@ def create_app(config_object=None):
     # imported here so models and routes bind to the extensions above
     from runnify import models  # noqa: F401  (registers the models and the user loader)
     from runnify.cli import register_cli
+    from runnify.filters import init_filters
     from runnify.routes import register_blueprints
 
     register_blueprints(app)
     register_cli(app)
+    init_filters(app)
 
     @app.context_processor
     def site_details():
