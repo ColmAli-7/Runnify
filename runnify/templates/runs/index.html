@@ -1,0 +1,93 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, lift %}
+
+{% block title %}Runs | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/runs.css') }}">
+{% endblock %}
+
+{% set runs = pagination.items %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Runs</h1>
+    <p class="page-head__meta">{{ pagination.total|plural("run") }}{% if music_only %} with music{% endif %}, newest first.</p>
+  </div>
+  <nav class="segmented" aria-label="Show">
+    <a href="{{ url_for('runs.index') }}"{% if not music_only %} aria-current="true"{% endif %}>All runs</a>
+    <a href="{{ url_for('runs.index', music=1) }}"{% if music_only %} aria-current="true"{% endif %}>With music</a>
+  </nav>
+</header>
+
+{% if runs %}
+  <div class="sheet">
+    <div class="table-wrap">
+      <table class="results runs-table">
+        <caption class="visually-hidden">Your runs{% if music_only %} with music{% endif %}, page {{ pagination.page }} of {{ pagination.pages }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Run</th>
+            <th scope="col" class="is-numeric">Distance</th>
+            <th scope="col" class="is-numeric">Time</th>
+            <th scope="col" class="is-numeric">Pace</th>
+            <th scope="col" class="is-numeric runs-table__optional">Heart rate</th>
+            <th scope="col">Best song</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in runs %}
+            {% set summary = summaries[run.id] %}
+            <tr class="is-linked">
+              <td class="results__track">
+                <a class="runs-table__link" href="{{ url_for('runs.detail', run_id=run.id) }}">{{ run.date_time|run_name }}</a>
+                <span class="results__sub">{{ run.date_time|day }}, {{ run.date_time|clock }}</span>
+              </td>
+              <td class="is-numeric">{{ run.distance|km }} <span class="results__unit">km</span></td>
+              <td class="is-numeric">{{ run.duration|duration }}</td>
+              <td class="is-numeric">{{ run.distance|run_pace(run.duration) }} <span class="results__unit">/km</span></td>
+              <td class="is-numeric runs-table__optional">{{ run.avg_hr or "-" }}{% if run.avg_hr %} <span class="results__unit">bpm</span>{% endif %}</td>
+              <td class="runs-table__song">
+                {% if summary.best %}
+                  <span class="runs-table__best">{{ summary.best.name }}</span>
+                  {{ lift(summary.best_lift) }}
+                {% elif summary.songs %}
+                  <span class="muted">{{ summary.songs|plural("song") }}, none measured</span>
+                {% else %}
+                  <span class="muted">No music</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if pagination.pages > 1 %}
+      <nav class="pager" aria-label="Pages">
+        {% if pagination.has_prev %}
+          <a class="btn btn--sm" href="{{ url_for('runs.index', page=pagination.prev_num, music=1 if music_only else None) }}">{{ icon("arrow-left") }}Newer</a>
+        {% else %}<span></span>{% endif %}
+        <p>Page {{ pagination.page }} of {{ pagination.pages }}</p>
+        {% if pagination.has_next %}
+          <a class="btn btn--sm" href="{{ url_for('runs.index', page=pagination.next_num, music=1 if music_only else None) }}">Older{{ icon("arrow-right") }}</a>
+        {% else %}<span></span>{% endif %}
+      </nav>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="sheet">
+    <div class="empty">
+      {% if music_only %}
+        <p class="empty__title">No runs with music yet</p>
+        <p>Upload your Spotify listening history and Runnify will find the songs that played during your runs.</p>
+        <a class="btn btn--primary" href="{{ url_for('imports.index') }}">Upload your history</a>
+      {% else %}
+        <p class="empty__title">No runs yet</p>
+        <p>Connect Garmin and your runs will appear here, newest first.</p>
+        <a class="btn btn--primary" href="{{ url_for('connections.index') }}">Connect Garmin</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,119 @@
+/* The runs list and a run's results page. */
+
+@layer pages {
+  /* ---- runs list ------------------------------------------------------------ */
+
+  .runs-table__link {
+    font-weight: 700;
+  }
+
+  .runs-table__song {
+    min-width: 12rem;
+  }
+
+  .runs-table__best {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 759px) {
+    .runs-table__optional {
+      display: none;
+    }
+  }
+
+  /* ---- a run ------------------------------------------------------------------ */
+
+  .run {
+    display: grid;
+    gap: var(--s-5);
+  }
+
+  .run__charts {
+    display: grid;
+    gap: var(--s-6);
+  }
+
+  .run__chart {
+    display: grid;
+    gap: var(--s-3);
+  }
+
+  .run__chart-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-2) var(--s-5);
+  }
+
+  .run__chart-title {
+    font-size: var(--text-sm);
+    font-weight: 700;
+  }
+
+  /* what the pointer is over: time, pace, heart rate and song */
+  .run__readout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-4);
+    min-height: 1.6em;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .run__readout-song {
+    padding: 0 var(--s-2);
+    background: var(--highlight);
+  }
+
+  .chart {
+    position: relative;
+  }
+
+  .chart__plot {
+    touch-action: pan-y;
+    cursor: crosshair;
+  }
+
+  .chart__guide {
+    position: absolute;
+    top: 0;
+    width: 0;
+    border-left: 1px solid var(--ink);
+    pointer-events: none;
+  }
+
+  .run__unscored {
+    padding: var(--s-4) var(--s-5) var(--s-5);
+    border-top: var(--heavy);
+  }
+
+  .run__subhead {
+    margin-bottom: var(--s-3);
+    font-size: var(--text-md);
+    font-weight: 750;
+  }
+
+  .run__unscored-list {
+    display: grid;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-sm);
+  }
+
+  .run__unscored-list li {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--s-1) var(--s-4);
+    padding: var(--s-3) 0;
+    border-bottom: var(--hair);
+  }
+
+  .run__unscored-song {
+    font-weight: 600;
+  }
+}

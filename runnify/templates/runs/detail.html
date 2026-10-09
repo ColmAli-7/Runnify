@@ -1,0 +1,101 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, lift, data_island %}
+{% from "macros/charts.html" import run_chart %}
+{% from "macros/results.html" import results_table %}
+
+{% set title = run.date_time|run_name %}
+{% block title %}{{ title }}, {{ run.date_time|short_day }} | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/runs.css') }}">
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="{{ url_for('static', filename='js/pages/run.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="page-head__crumb"><a href="{{ url_for('runs.index') }}">{{ icon("arrow-left") }}All runs</a></p>
+    <h1>{{ title }}</h1>
+    <p class="page-head__meta">{{ run.date_time|day }} at {{ run.date_time|clock }}</p>
+  </div>
+  <nav class="page-head__actions" aria-label="Other runs">
+    {% if older %}<a class="btn btn--sm" href="{{ url_for('runs.detail', run_id=older.id) }}" rel="prev">{{ icon("arrow-left") }}Older run</a>{% endif %}
+    {% if newer %}<a class="btn btn--sm" href="{{ url_for('runs.detail', run_id=newer.id) }}" rel="next">Newer run{{ icon("arrow-right") }}</a>{% endif %}
+  </nav>
+</header>
+
+<div class="run">
+  <section class="sheet run__summary" aria-label="Summary">
+    <dl class="stats stats--4 stats--flush">
+      <div class="stat"><dt>Distance</dt><dd><span class="stat__value">{{ run.distance|km }}</span><span class="stat__unit">km</span></dd></div>
+      <div class="stat"><dt>Time</dt><dd><span class="stat__value">{{ run.duration|duration }}</span></dd></div>
+      <div class="stat"><dt>Pace</dt><dd><span class="stat__value">{{ run.distance|run_pace(run.duration) }}</span><span class="stat__unit">/km</span></dd></div>
+      <div class="stat"><dt>Heart rate</dt><dd><span class="stat__value">{{ run.avg_hr or "-" }}</span>{% if run.avg_hr %}<span class="stat__unit">bpm</span>{% endif %}</dd></div>
+    </dl>
+  </section>
+
+  {% if pace_chart.empty %}
+    <section class="sheet">
+      <div class="empty">
+        <p class="empty__title">No second-by-second data for this run</p>
+        <p>Garmin didn't provide a detailed recording for this run, so its songs can't be measured. Runs recorded on the watch with GPS have one.</p>
+      </div>
+    </section>
+  {% else %}
+    <section class="sheet run__trace" aria-labelledby="trace-title">
+      <header class="sheet__head">
+        <h2 class="sheet__title" id="trace-title">Through the run</h2>
+        <ul class="legend">
+          {% if results.best %}<li><span class="legend__swatch legend__swatch--best" aria-hidden="true"></span>Fastest song</li>{% endif %}
+          {% if results.worst %}<li><span class="legend__swatch legend__swatch--worst" aria-hidden="true"></span>Slowest song</li>{% endif %}
+        </ul>
+      </header>
+      <div class="sheet__body run__charts" data-timeline>
+        <div class="run__chart">
+          <div class="run__chart-head">
+            <h3 class="run__chart-title">Pace <span class="results__unit">min/km, faster higher</span></h3>
+            <p class="run__readout" data-readout aria-hidden="true"></p>
+          </div>
+          {{ run_chart(pace_chart, "Pace through the run, faster higher, with a band for each song." ~ (" The fastest stretch was during " ~ results.best.song.name ~ "." if results.best else ""), class="chart--tall") }}
+        </div>
+        {% if not heart_chart.empty %}
+          <div class="run__chart">
+            <h3 class="run__chart-title">Heart rate <span class="results__unit">bpm</span></h3>
+            {{ run_chart(heart_chart, "Heart rate through the run, with a band for each song.", class="chart--compact") }}
+          </div>
+        {% endif %}
+        {{ data_island("timeline-data", timeline) }}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="sheet run__results" aria-labelledby="results-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="results-title">Song results</h2>
+      <p class="sheet__meta">Lift: how much faster you ran during the song than in the five minutes either side.</p>
+    </header>
+    {% if results.ranked %}
+      {{ results_table(results.ranked, "Songs from this run, ranked by how they changed your pace", show_heart=True) }}
+    {% elif not results.rows %}
+      <div class="empty">
+        <p class="empty__title">No songs matched to this run</p>
+        <p>If you listened to Spotify on this run, upload your latest listening history and the songs will appear here.</p>
+        <a class="btn" href="{{ url_for('imports.index') }}">Upload your history</a>
+      </div>
+    {% endif %}
+    {% if results.unscored %}
+      <div class="run__unscored">
+        <h3 class="run__subhead">Not measured</h3>
+        <ul class="run__unscored-list">
+          {% for row in results.unscored %}
+            <li><span class="run__unscored-song">{{ row.song.name or "Unknown track" }}<span class="results__sub">{{ row.song.artist }}</span></span><span class="muted">{{ row.note }}, on at {{ row.start|duration }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
