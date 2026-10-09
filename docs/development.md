@@ -98,6 +98,5 @@ These were found while documenting the code and have **not** been fixed yet.
 
 | # | Where | Issue | Effect |
 |---|---|---|---|
-| 4 | `runnify/config.py` vs `routes/spocon.py` | Config defines `HISTORY_BATCH_COMMIT_EVERY`, but the upload reads `HISTORY_BATCH_SIZE` | The config value is ignored (the fallback of 1000 is used) |
 | 5 | various | `datetime.utcnow()` (deprecated since Python 3.12) and `Query.get()` (legacy in SQLAlchemy 2.x) | Deprecation warnings only |
 | 6 | security | `SECRET_KEY` has a hard-coded fallback; forms have no CSRF protection; friend actions are state-changing `GET` requests | Set a real `SECRET_KEY` in every environment; consider Flask-WTF / CSRF tokens |

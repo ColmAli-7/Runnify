@@ -20,7 +20,7 @@ class Config:
             a local SQLite file in Flask's instance folder.
         MAX_CONTENT_LENGTH: Maximum request body size (Spotify history zips
             can be large).
-        HISTORY_BATCH_COMMIT_EVERY: Intended batch size for bulk inserts during
+        HISTORY_BATCH_SIZE: Rows added per commit during bulk inserts in the
             Spotify history import.
         HISTORY_MIN_OVERLAP_SECONDS: Minimum seconds a song must overlap a run
             to be linked to it.
@@ -33,7 +33,7 @@ class Config:
 
     # custom limits
     MAX_CONTENT_LENGTH = 600 * 1024 * 1024  # max upload size - like 600mb
-    HISTORY_BATCH_COMMIT_EVERY = 1000  # commit frequency for bulk inserts
+    HISTORY_BATCH_SIZE = 1000  # rows per commit for bulk inserts
     HISTORY_MIN_OVERLAP_SECONDS = 1  # min overlap for track matching
 
     # mail config
