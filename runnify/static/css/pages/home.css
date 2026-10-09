@@ -62,7 +62,7 @@
     max-width: 15ch;
     font-size: clamp(2.6rem, 1.15rem + 4.6vw, 4.6rem);
     font-weight: 750;
-    letter-spacing: -0.05em;
+    letter-spacing: -0.035em;
     line-height: 0.98;
     text-wrap: balance;
   }
@@ -241,6 +241,13 @@
     padding-block: var(--s-3);
   }
 
+  /* ranks printed like race numbers */
+  .results--sheet .results__pos {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
   .results--sheet tbody tr:nth-child(5n) {
     border-bottom-color: var(--rule);
   }
@@ -293,6 +300,14 @@
     display: inline-block;
   }
 
+  .ticker__label {
+    display: flex;
+    flex: none;
+    align-items: center;
+    padding-inline: var(--s-4);
+    border-right: 1px solid var(--on-ink-rule);
+  }
+
   .ticker__viewport {
     flex: 1;
     min-width: 0;
@@ -343,8 +358,9 @@
 
     .ticker:hover .ticker__track,
     .ticker:focus-within .ticker__track,
-    .ticker:has(.ticker__pause:checked) .ticker__track {
-      animation-play-state: paused;
+    .ticker:has(.ticker__pause:checked) .ticker__track,
+    .page-home:has(.hero [data-sweep-host]:not(.is-swept)) .ticker__track {
+      animation-play-state: paused; /* the hero's sweep is the only motion until it lands */
     }
   }
 
@@ -737,7 +753,7 @@
   .verdict__lift {
     font-size: clamp(3rem, 2rem + 4vw, 5rem);
     font-weight: 800;
-    letter-spacing: -0.06em;
+    letter-spacing: -0.04em;
     line-height: 0.9;
     font-variant-numeric: tabular-nums;
   }
@@ -838,20 +854,27 @@
     scroll-snap-align: start;
   }
 
-  .finding__label {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    font-size: var(--text-sm);
-    font-weight: 650;
-  }
-
   .finding__text {
     font-size: var(--text-2xl);
     font-weight: 650;
     letter-spacing: -0.03em;
     line-height: 1.2;
     text-wrap: pretty;
+  }
+
+  /* the world's marks inside a finding: highlighter under a power song, red pen through a drag */
+  .finding__song--power {
+    box-shadow: inset 0 -0.42em 0 var(--highlight);
+  }
+
+  .finding__song--drag {
+    text-decoration: line-through;
+    text-decoration-color: var(--pen);
+    text-decoration-thickness: 3px;
+  }
+
+  .finding__foot {
+    font-size: var(--text-sm);
   }
 
   /* ---- privacy commitments -------------------------------------------------- */
@@ -923,7 +946,7 @@
   .cta__title {
     font-size: var(--text-display);
     font-weight: 800;
-    letter-spacing: -0.055em;
+    letter-spacing: -0.04em;
     line-height: 0.95;
   }
 

@@ -129,9 +129,10 @@ filled 100 tracks per request.
   confirmations, copy and print buttons, linked table rows); page modules live
   in `js/pages/`. Without JavaScript every page still works.
 - **Motion.** Only the landing page animates, with the vendored GSAP and its
-  ScrollTrigger plugin: the highlighter sweep across the winning rows, sample
-  panels easing in once, and the measuring sheets receding as the next one
-  stacks on top. Nothing moves when the visitor prefers reduced motion.
+  ScrollTrigger plugin: the highlighter sweep across each winning row as it
+  comes into view, and the measuring sheets receding as the next one stacks on
+  top. The results ticker holds still until the first sweep lands. Nothing
+  moves when the visitor prefers reduced motion.
 
 ## Security
 

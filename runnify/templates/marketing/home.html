@@ -101,6 +101,7 @@
     {{ icon("pause", class="ticker__icon ticker__icon--pause") }}{{ icon("play", class="ticker__icon ticker__icon--play") }}
     <span class="visually-hidden">Pause the moving results</span>
   </label>
+  <p class="ticker__label"><span class="tag">Sample run</span></p>
   <ol class="visually-hidden">
     {% for row in sample.rows %}<li>{{ row.song.name }}, {{ row.lift|lift }}</li>{% endfor %}
   </ol>
@@ -157,7 +158,7 @@
       </p>
     </div>
     <div class="board">
-      <article class="board__panel board__panel--run" data-reveal>
+      <article class="board__panel board__panel--run">
         <header class="board__head">
           <h3 class="board__title">Every run, song by song</h3>
           <p class="board__meta">{{ sample.run_label }}, {{ sample.run_date|day }}, {{ sample.distance_m|km }} km</p>
@@ -170,7 +171,7 @@
         </ul>
       </article>
 
-      <article class="board__panel board__panel--power" data-reveal>
+      <article class="board__panel board__panel--power">
         <header class="board__head">
           <h3 class="board__title">Power songs</h3>
           <p class="board__meta">Your most reliable lifts</p>
@@ -186,7 +187,7 @@
         </ol>
       </article>
 
-      <article class="board__panel board__panel--drag" data-reveal>
+      <article class="board__panel board__panel--drag">
         <header class="board__head">
           <h3 class="board__title">Drag songs</h3>
           <p class="board__meta">Better saved for the cool-down</p>
@@ -202,7 +203,7 @@
         </ol>
       </article>
 
-      <article class="board__panel board__panel--playlist" data-reveal>
+      <article class="board__panel board__panel--playlist">
         <header class="board__head">
           <h3 class="board__title">A playlist built for the session</h3>
           <p class="board__meta">Tempo run, 30 minutes, building to your strongest song</p>
@@ -233,7 +234,7 @@
     <div class="method__intro">
       <h2 id="method-title" class="section__title">Measured against your own running</h2>
       <p class="section__lede">
-        A song isn't judged against other runners or a tempo chart. It's judged against you, a few minutes earlier and later in the same run.
+        A song isn't judged against other runners or a tempo chart. It's judged against you, a few minutes earlier and later in the same run. Shown here with the same sample runs.
       </p>
     </div>
     <ol class="method__stack" data-stack>
@@ -256,7 +257,7 @@
         <p class="verdict" data-sweep-host>
           <span class="verdict__song" data-sweep>{{ top.label }}</span>
           <span class="verdict__lift">{{ top.shrunk_lift|lift }}</span>
-          <span class="verdict__basis">faster, across {{ top.runs|length|plural("run") }}</span>
+          <span class="verdict__basis">faster, across {{ top.runs|length|plural("sample run") }}</span>
         </p>
       </li>
     </ol>
@@ -279,10 +280,12 @@
       </div>
     </div>
     <ul class="findings__track" data-carousel aria-label="Sample findings" tabindex="0">
-      {% for label, text in findings %}
+      {% for mark, song, rest in findings %}
         <li class="finding">
-          <p class="finding__label"><span class="tag">Sample</span>{{ label }}</p>
-          <p class="finding__text">{{ text }}</p>
+          <p class="finding__text">
+            {%- if song %}<span class="finding__song{{ ' finding__song--' ~ mark if mark }}">{{ song }}</span> {% endif %}{{ rest -}}
+          </p>
+          <p class="finding__foot"><span class="tag">Sample</span></p>
         </li>
       {% endfor %}
     </ul>

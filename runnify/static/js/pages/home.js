@@ -1,7 +1,6 @@
 /**
  * Landing page behaviour. Everything works without it; this adds:
- * - the highlighter sweep over the winning rows (once each);
- * - a quiet scale-and-fade as the sample panels arrive;
+ * - the highlighter sweep over the winning rows, once each as they come into view;
  * - the measuring sheets receding as the next one stacks on top (wide screens);
  * - the steps accordion and the findings carousel controls.
  * Motion is skipped entirely when the visitor prefers reduced motion.
@@ -19,22 +18,14 @@ function animate() {
   }
   gsap.registerPlugin(ScrollTrigger);
 
-  // the hero sheet settles first (CSS), then its winning row is marked
-  const [hero, ...rest] = hosts;
-  if (hero) sweep(hero, { delay: 0.7 });
-  rest.forEach((host) => {
-    ScrollTrigger.create({ trigger: host, start: "top 75%", once: true, onEnter: () => sweep(host, { delay: 0.35 }) });
-  });
-
-  gsap.utils.toArray("[data-reveal]").forEach((panel, index) => {
-    gsap.from(panel, {
-      opacity: 0,
-      scale: 0.97,
-      y: 24,
-      duration: 0.7,
-      delay: (index % 2) * 0.08,
-      ease: "power3.out",
-      scrollTrigger: { trigger: panel, start: "top 88%", once: true },
+  // each winning row is marked once, as it comes into view; the hero's waits for the sheet to settle
+  const [hero] = hosts;
+  hosts.forEach((host) => {
+    ScrollTrigger.create({
+      trigger: host,
+      start: "top 80%",
+      once: true,
+      onEnter: () => sweep(host, { delay: host === hero ? 0.7 : 0.35 }),
     });
   });
 

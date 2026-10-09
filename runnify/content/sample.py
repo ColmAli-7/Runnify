@@ -69,26 +69,35 @@ class Sample:
 
     @property
     def findings(self):
-        """Plain-language findings for the landing page, as ``(label, text)``."""
+        """Plain-language findings for the landing page, as ``(mark, song, rest)``.
+
+        A finding reads ``song`` then ``rest``. ``mark`` says how the song name is
+        drawn: "power" (highlighter), "drag" (red pen) or ``None``. A finding that
+        doesn't start with a song has ``song`` set to ``None``.
+        """
         top, drag, heart = self.power[0], self.drag[0], self.heart[0]
         first, last = self.playlist[0][0], self.playlist[-1][0]
         return [
             (
-                "Power song",
-                f"{top.label} lifted the pace by {_amount(top.shrunk_lift)} across {_runs(top)}.",
+                "power",
+                top.label,
+                f"lifted the pace by {_amount(top.shrunk_lift)} across {_runs(top)}.",
             ),
             (
-                "Drag song",
-                f"{drag.label} slowed the pace by {_amount(drag.shrunk_lift)} across {_runs(drag)}. "
+                "drag",
+                drag.label,
+                f"slowed the pace by {_amount(drag.shrunk_lift)} across {_runs(drag)}. "
                 "Keep it for the cool-down.",
             ),
             (
-                "Heart rate",
-                f"{heart.label} raised heart rate the most: {round(heart.hr_delta)}{NBSP}bpm "
+                None,
+                heart.label,
+                f"raised heart rate the most: {round(heart.hr_delta)}{NBSP}bpm "
                 "above the minutes around it.",
             ),
             (
-                "Playlist",
+                None,
+                None,
                 f"A {PLAYLIST_MINUTES}-minute tempo playlist built from these results starts with "
                 f"{first.song.name} and finishes with {last.song.name}.",
             ),
@@ -129,7 +138,7 @@ def _rows_for_insights(run_id, measured):
 @lru_cache(maxsize=1)
 def landing_sample():
     """Simulate and score the sample once; see the module docstring."""
-    rng = random.Random(31)  # noqa: S311  (a repeatable illustration, not security)
+    rng = random.Random(19)  # noqa: S311  (a repeatable illustration, not security)
     songs = [
         (SampleSong(title, artist), length, effect, hr)
         for title, artist, length, effect, hr in SONGS
