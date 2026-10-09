@@ -34,15 +34,16 @@ def test_km():
 @pytest.mark.parametrize(
     ("value", "text", "kind"),
     [
-        (9.3, "+9 s/km", "up"),
-        (-4.6, "-5 s/km", "down"),
-        (0.2, "±0 s/km", "flat"),
+        (9.3, "+9\u00a0s/km", "up"),
+        (-4.6, "\u22125\u00a0s/km", "down"),
+        (0.2, "±0\u00a0s/km", "flat"),
         (None, "-", "flat"),
     ],
 )
 def test_lift(value, text, kind):
     assert filters.lift(value) == text
     assert filters.lift_kind(value) == kind
+    assert filters.lift_number(value) == text.split(chr(0xA0))[0]
 
 
 def test_dates():

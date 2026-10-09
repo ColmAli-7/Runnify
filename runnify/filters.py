@@ -3,11 +3,14 @@
 Every page formats pace, time, distance and song effects the same way:
 pace as ``4:52`` (per km), durations as ``48:12`` or ``1:02:45``, distances
 as ``10.02`` (km), and effects as ``+9 s/km``. Missing values show as ``-``.
+Effects use a true minus sign and keep the number and unit together on one line.
 """
 
 from datetime import datetime
 
 MISSING = "-"
+MINUS = "\u2212"
+NBSP = "\u00a0"
 
 
 def pace(seconds_per_km):
@@ -42,13 +45,20 @@ def km(metres, places=2):
     return f"{metres / 1000:.{places}f}"
 
 
-def lift(seconds_per_km):
-    """``9.3`` -> ``"+9 s/km"``; ``-4.6`` -> ``"-5 s/km"`` (whole seconds, signed)."""
+def lift_number(seconds_per_km):
+    """``9.3`` -> ``"+9"``; ``-4.6`` -> ``"-5"`` with a true minus sign (whole s/km, no unit)."""
     if seconds_per_km is None:
         return MISSING
     value = round(seconds_per_km)
-    sign = "+" if value > 0 else "-" if value < 0 else "±"
-    return f"{sign}{abs(value)} s/km"
+    sign = "+" if value > 0 else MINUS if value < 0 else "±"
+    return f"{sign}{abs(value)}"
+
+
+def lift(seconds_per_km):
+    """``9.3`` -> ``"+9 s/km"``; ``-4.6`` -> ``"-5 s/km"`` (see :func:`lift_number`)."""
+    if seconds_per_km is None:
+        return MISSING
+    return f"{lift_number(seconds_per_km)}{NBSP}s/km"
 
 
 def lift_kind(seconds_per_km, threshold=1.0):
@@ -110,6 +120,7 @@ FILTERS = {
     "duration": duration,
     "km": km,
     "lift": lift,
+    "lift_number": lift_number,
     "lift_kind": lift_kind,
     "day": day,
     "short_day": short_day,

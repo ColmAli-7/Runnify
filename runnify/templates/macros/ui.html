@@ -64,12 +64,13 @@
   </div>
 {% endmacro %}
 
-{#- A song's effect on pace, e.g. "+9 s/km faster". -#}
-{% macro lift(value) -%}
+{#- A song's effect on pace, e.g. "+9 s/km faster". `unit=False` drops the "s/km"
+    (when a column heading carries it). -#}
+{% macro lift(value, unit=True) -%}
   {%- set kind = value|lift_kind -%}
   <span class="lift lift--{{ kind }}">
     {%- if kind == "up" %}{{ icon("arrow-up") }}{% elif kind == "down" %}{{ icon("arrow-down") }}{% endif -%}
-    {{ value|lift }}<span class="visually-hidden">{{ {"up": " faster", "down": " slower"}.get(kind, " no change") }}</span>
+    {{ value|lift if unit else value|lift_number }}<span class="visually-hidden">{{ {"up": " faster", "down": " slower"}.get(kind, " no change") }}</span>
   </span>
 {%- endmacro %}
 
