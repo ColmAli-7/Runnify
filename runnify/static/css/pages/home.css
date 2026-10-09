@@ -353,13 +353,13 @@
 
   @media (prefers-reduced-motion: no-preference) {
     .ticker__track {
-      animation: ticker 60s linear infinite;
+      animation: ticker 60s linear 1.2s infinite;
     }
 
     .ticker:hover .ticker__track,
     .ticker:focus-within .ticker__track,
     .ticker:has(.ticker__pause:checked) .ticker__track,
-    .page-home:has(.hero [data-sweep-host]:not(.is-swept)) .ticker__track {
+    .js .page-home:has(.hero [data-sweep-host]:not(.is-swept)) .ticker__track {
       animation-play-state: paused; /* the hero's sweep is the only motion until it lands */
     }
   }

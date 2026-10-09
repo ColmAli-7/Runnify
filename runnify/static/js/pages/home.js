@@ -7,6 +7,9 @@
  */
 import { markSwept, sweep } from "../sweep.js";
 
+// lets the stylesheet hold the ticker for the first sweep; without scripts it simply runs
+document.documentElement.classList.add("js");
+
 const motion = window.matchMedia("(prefers-reduced-motion: no-preference)");
 const { gsap, ScrollTrigger } = window;
 

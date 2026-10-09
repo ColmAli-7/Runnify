@@ -138,7 +138,7 @@ def _rows_for_insights(run_id, measured):
 @lru_cache(maxsize=1)
 def landing_sample():
     """Simulate and score the sample once; see the module docstring."""
-    rng = random.Random(19)  # noqa: S311  (a repeatable illustration, not security)
+    rng = random.Random(316)  # noqa: S311  (a repeatable illustration, not security)
     songs = [
         (SampleSong(title, artist), length, effect, hr)
         for title, artist, length, effect, hr in SONGS
