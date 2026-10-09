@@ -42,7 +42,32 @@ def rebuild_scores(user_id):
     click.echo(f"Scored {total} song play{'s' if total != 1 else ''}.")
 
 
+demo_cli = AppGroup("demo", help="Synthetic demo data for local development (never production).")
+
+
+@demo_cli.command("seed")
+@click.option(
+    "--password",
+    prompt=True,
+    hide_input=True,
+    confirmation_prompt=True,
+    help="Password for the demo account (demo@runnify.test).",
+)
+def seed_demo(password):
+    """Create a demo account with four months of synthetic runs, songs and friends."""
+    from flask import current_app
+
+    from runnify.services.demo import DEMO_EMAIL, DemoError, seed
+
+    try:
+        seed(current_app, password)
+    except DemoError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"Demo account ready: sign in as {DEMO_EMAIL}.")
+
+
 def register_cli(app: Flask):
     """Attach the maintenance command groups to ``app``."""
     app.cli.add_command(streams_cli)
     app.cli.add_command(scores_cli)
+    app.cli.add_command(demo_cli)
