@@ -178,6 +178,7 @@ def register():
                 email=form.email.data,
                 password_hash=hash_password(form.password.data),
             )
+            user.record_consent()
             db.session.add(user)
             db.session.commit()
             flash("Account created! You can now log in.", "success")

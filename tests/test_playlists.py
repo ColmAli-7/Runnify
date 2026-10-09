@@ -139,6 +139,7 @@ def test_other_users_playlists_are_not_found(app, client, library):
         result = playlist_service.plan(library, "tempo", 30)
         playlist = playlist_service.save(db.session.get(User, library), result)
         intruder = User(name="I", email="i@example.com", password_hash=hash_password("x"))
+        intruder.record_consent()
         db.session.add(intruder)
         db.session.commit()
         playlist_id, intruder_id = playlist.id, intruder.id

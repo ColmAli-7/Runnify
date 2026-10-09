@@ -11,6 +11,7 @@ from . import (
     garmin,
     help,
     insights,
+    legal,
     main,
     playlists,
     runs,
@@ -36,3 +37,4 @@ def register_blueprints(app):
     app.register_blueprint(playlists.bp)  # playlist creator
     app.register_blueprint(insights.bp)  # music insights
     app.register_blueprint(help.bp)  # help and guides
+    app.register_blueprint(legal.bp)  # privacy, terms, cookies and consent

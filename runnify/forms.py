@@ -52,7 +52,20 @@ class LoginForm(FlaskForm):
     remember = BooleanField("Keep me signed in on this device")
 
 
-class RegisterForm(FlaskForm):
+class ConsentFields:
+    """The two separate agreements every account needs."""
+
+    accept_terms = BooleanField(
+        "I agree to the Terms and the Privacy Policy",
+        validators=[DataRequired("Agree to the Terms and the Privacy Policy to continue.")],
+    )
+    data_consent = BooleanField(
+        "I consent to Runnify processing my runs and heart-rate data to produce my insights",
+        validators=[DataRequired("Runnify needs your consent to analyse your runs.")],
+    )
+
+
+class RegisterForm(ConsentFields, FlaskForm):
     """Create an account."""
 
     name = StringField(
@@ -184,6 +197,10 @@ class PlaylistForm(FlaskForm):
         default=45,
     )
     include_untested = BooleanField("Include songs heard on only one run")
+
+
+class ConsentForm(ConsentFields, FlaskForm):
+    """Confirm the current terms and data processing (existing accounts)."""
 
 
 def first_error(form):

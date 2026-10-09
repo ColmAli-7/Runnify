@@ -41,6 +41,7 @@ def user(app):
             email="runner@example.com",
             password_hash=hash_password(PASSWORD),
         )
+        user.record_consent()
         _db.session.add(user)
         _db.session.commit()
         return user.id

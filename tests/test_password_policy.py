@@ -41,11 +41,24 @@ def test_personal_details_are_rejected():
 
 def test_registration_enforces_the_policy(app, client):
     weak = client.post(
-        "/register", data={"name": "A", "email": "a@example.com", "password": "Password2026!"}
+        "/register",
+        data={
+            "accept_terms": "y",
+            "data_consent": "y",
+            "name": "A",
+            "email": "a@example.com",
+            "password": "Password2026!",
+        },
     )
     assert b"too common" in weak.data
     ok = client.post(
         "/register",
-        data={"name": "A", "email": "a@example.com", "password": "correct horse battery staple"},
+        data={
+            "accept_terms": "y",
+            "data_consent": "y",
+            "name": "A",
+            "email": "a@example.com",
+            "password": "correct horse battery staple",
+        },
     )
     assert ok.status_code == 302

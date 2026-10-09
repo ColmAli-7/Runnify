@@ -27,6 +27,10 @@
           <button type="button" class="show-btn" onclick="togglePassword(this)">●</button>
         </div>
 
+        {% if form_type == 'register' %}
+          <label class="check"><input type="checkbox" name="accept_terms" value="y" required> I agree to the <a href="{{ url_for('legal.terms') }}">Terms</a> and the <a href="{{ url_for('legal.privacy') }}">Privacy policy</a></label>
+          <label class="check"><input type="checkbox" name="data_consent" value="y" required> I consent to Runnify processing my runs and heart-rate data to produce my insights</label>
+        {% endif %}
         {% if form_type == 'login' %}
           <label class="remember"><input type="checkbox" name="remember" value="y"> Keep me signed in</label>
           <!-- link for users who forgot password -->

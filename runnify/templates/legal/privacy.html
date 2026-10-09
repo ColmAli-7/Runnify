@@ -1,0 +1,119 @@
+{% extends "legal/_layout.html" %}
+{% block legal_title %}Privacy policy{% endblock %}
+{% block legal_body %}
+<section>
+  <h2>Who we are</h2>
+  <p>Runnify is operated by {{ site.operator }}. It is responsible for the personal data described here. For anything about your data, email <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>.</p>
+</section>
+
+<section>
+  <h2>What Runnify collects, and why</h2>
+  <div class="table-scroll">
+    <table class="legal-table">
+      <caption>The data Runnify stores, what it is used for, and the legal basis</caption>
+      <thead>
+        <tr><th scope="col">Data</th><th scope="col">Why</th><th scope="col">Legal basis</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Your name, email address and password</th>
+          <td>To create your account and sign you in. Your password is stored only as an Argon2id hash, never as text.</td>
+          <td>Contract</td>
+        </tr>
+        <tr>
+          <th scope="row">Runs from Garmin: start time, distance, duration, average heart rate and pace, and second-by-second pace and heart rate</th>
+          <td>To measure how each song affected your running. Heart rate can count as health data, so Runnify asks for your explicit consent.</td>
+          <td>Explicit consent</td>
+        </tr>
+        <tr>
+          <th scope="row">Your Garmin account email and Garmin session tokens</th>
+          <td>To fetch your new runs. Runnify never stores your Garmin password. The tokens are encrypted.</td>
+          <td>Consent</td>
+        </tr>
+        <tr>
+          <th scope="row">Songs from your Spotify history that played during a run: track, artist, start time, seconds played, and whether you skipped it</th>
+          <td>To link songs to runs. Plays outside your runs are never stored, and the file you upload is deleted as soon as it has been processed.</td>
+          <td>Explicit consent</td>
+        </tr>
+        <tr>
+          <th scope="row">Spotify connection tokens, if you connect Spotify</th>
+          <td>To save playlists you build to your Spotify account. The tokens are encrypted.</td>
+          <td>Consent</td>
+        </tr>
+        <tr>
+          <th scope="row">What Runnify works out: song effects, insights and playlists</th>
+          <td>These are the service itself.</td>
+          <td>Explicit consent</td>
+        </tr>
+        <tr>
+          <th scope="row">Friends and friend requests</th>
+          <td>To show friends on the distance leaderboard. Friends see your name and total distance. Anyone signed in can find your name in search.</td>
+          <td>Contract</td>
+        </tr>
+        <tr>
+          <th scope="row">Security log: sign-ins and account changes, with the network part of your IP address and a shortened description of your browser</th>
+          <td>To protect your account and show you its recent activity. Entries are deleted after 90 days.</td>
+          <td>Legitimate interests (keeping accounts secure)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>What Runnify does not do</h2>
+  <ul>
+    <li>No advertising, and no selling or sharing of your data for marketing.</li>
+    <li>No analytics, tracking pixels or third-party scripts. Every page, font and script comes from Runnify itself.</li>
+    <li>No cookies beyond the essential ones in the <a href="{{ url_for('legal.cookies') }}">cookie policy</a>.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Who else handles your data</h2>
+  <ul>
+    <li>The hosting provider that runs Runnify and stores its database, on Runnify's behalf.</li>
+    <li>The email provider that delivers account emails, such as password resets.</li>
+    <li>Garmin and Spotify, but only when you connect them. Their own privacy policies cover the data they hold. Runnify is not affiliated with either.</li>
+  </ul>
+  <p>If any provider handles data outside the European Economic Area, Runnify only uses providers that offer appropriate safeguards, such as the European Commission's Standard Contractual Clauses.</p>
+</section>
+
+<section>
+  <h2>How long data is kept</h2>
+  <ul>
+    <li>Your account, runs, songs, insights and playlists: until you delete your account.</li>
+    <li>The security log: 90 days.</li>
+    <li>Uploaded Spotify files: deleted as soon as they have been processed.</li>
+    <li>Password-reset links: they work once, for 30 minutes.</li>
+  </ul>
+  <p>Deleting your account removes all of the above straight away. Copies in routine backups are overwritten on the hosting provider's normal schedule.</p>
+</section>
+
+<section>
+  <h2>Your rights</h2>
+  <ul>
+    <li><strong>Get a copy of your data:</strong> Settings, then Download my data. You get a JSON file you can keep or take elsewhere.</li>
+    <li><strong>Correct it:</strong> change your name in Settings, or email us about anything else.</li>
+    <li><strong>Delete it:</strong> Settings, then Delete my account. Everything is removed.</li>
+    <li><strong>Withdraw consent</strong> at any time, by deleting your account or emailing us. This doesn't affect processing that happened before.</li>
+    <li><strong>Object to or restrict processing</strong> by emailing <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>.</li>
+    <li><strong>Complain</strong> to the Data Protection Commission (<a href="https://www.dataprotection.ie" rel="noopener noreferrer">dataprotection.ie</a>) or the data protection authority where you live.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>How your data is protected</h2>
+  <p>Passwords are hashed with Argon2id. You can turn on two-step verification. Garmin and Spotify tokens are encrypted. Connections use HTTPS. Sign-in attempts are rate limited, and accounts are locked after repeated failures. Pages only load code from Runnify itself.</p>
+</section>
+
+<section>
+  <h2>Children</h2>
+  <p>Runnify is not for anyone under 16.</p>
+</section>
+
+<section>
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes in a way that matters, Runnify will ask you to confirm the new version the next time you sign in.</p>
+</section>
+{% endblock %}

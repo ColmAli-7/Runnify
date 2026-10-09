@@ -120,6 +120,14 @@ class Config:
     LOGIN_LOCKOUT_THRESHOLD = 5
     LOGIN_LOCKOUT_MINUTES = 15
 
+    # bump when the terms or privacy policy change materially; users then re-confirm
+    POLICY_VERSION = "2026-10"
+    POLICY_UPDATED = "9 October 2026"
+    # who runs the site, shown on the legal pages
+    OPERATOR_NAME = os.getenv("OPERATOR_NAME", "Runnify")
+    CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "runnify.dev@gmail.com")
+    LEGAL_JURISDICTION = os.getenv("LEGAL_JURISDICTION", "Ireland")
+
     # password-reset links are single-use and expire after this many seconds
     PASSWORD_RESET_MAX_AGE = 30 * 60
 

@@ -1,0 +1,62 @@
+{% extends "legal/_layout.html" %}
+{% block legal_title %}Terms of use{% endblock %}
+{% block legal_body %}
+<section>
+  <h2>About these terms</h2>
+  <p>These terms apply when you use Runnify, which is operated by {{ site.operator }}. Creating an account means you accept them. If you don't agree, please don't use Runnify.</p>
+</section>
+
+<section>
+  <h2>Who can use Runnify</h2>
+  <ul>
+    <li>You must be 16 or older.</li>
+    <li>One account per person. Keep your password private, and tell us if you think someone else has used your account.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>What Runnify is, and isn't</h2>
+  <p>Runnify estimates how songs relate to your running pace, using your own data. Those estimates depend on the quality of your watch and listening data, and they can be wrong.</p>
+  <p><strong>Runnify is not medical, health or coaching advice.</strong> Talk to a qualified professional before changing how you train, especially if you have a health condition.</p>
+</section>
+
+<section>
+  <h2>Your data</h2>
+  <p>Your runs, listening history and everything Runnify works out from them stay yours. You let Runnify process them to provide the service, as described in the <a href="{{ url_for('legal.privacy') }}">privacy policy</a>. Only upload your own data.</p>
+</section>
+
+<section>
+  <h2>Garmin and Spotify</h2>
+  <p>Garmin Connect and Spotify are separate services with their own terms. Runnify is not affiliated with or endorsed by either. Features that depend on them may stop working if they change or limit their services.</p>
+</section>
+
+<section>
+  <h2>Fair use</h2>
+  <p>Don't try to access other people's accounts, get around Runnify's security, overload or scrape the service, or use it for anything unlawful.</p>
+</section>
+
+<section>
+  <h2>Availability</h2>
+  <p>Runnify is provided as it is. It may change, and it may sometimes be unavailable. We work to keep it running and your data safe, but can't promise it will always be available or free of errors.</p>
+</section>
+
+<section>
+  <h2>Liability</h2>
+  <p>As far as the law allows, Runnify is not liable for indirect or consequential loss arising from using the service. Nothing in these terms limits liability that the law does not allow to be limited, and nothing affects your statutory rights as a consumer.</p>
+</section>
+
+<section>
+  <h2>Ending your account</h2>
+  <p>You can delete your account at any time in Settings, which deletes your data. We may suspend an account that breaks these terms, and will tell you why where we can.</p>
+</section>
+
+<section>
+  <h2>Changes</h2>
+  <p>If these terms change in a way that matters, Runnify will ask you to accept the new version the next time you sign in.</p>
+</section>
+
+<section>
+  <h2>Law</h2>
+  <p>These terms are governed by the law of {{ site.jurisdiction }}. If you live elsewhere as a consumer, you keep the protections of the law where you live.</p>
+</section>
+{% endblock %}

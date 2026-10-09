@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Runnify | Before you continue{% endblock %}
+{% block content %}
+  <main class="auth-container" id="main">
+    <h1>Before you continue</h1>
+    <p>Runnify needs your agreement to the current terms, and your consent to analyse your runs, before you carry on.</p>
+    <form method="POST" class="auth-form" novalidate>
+      {{ form.csrf_token }}
+      <label class="check">{{ form.accept_terms() }} I agree to the <a href="{{ url_for('legal.terms') }}">Terms</a> and the <a href="{{ url_for('legal.privacy') }}">Privacy policy</a></label>
+      <label class="check">{{ form.data_consent() }} {{ form.data_consent.label.text }}</label>
+      <button type="submit">Agree and continue</button>
+    </form>
+    <p>Prefer not to? You can <a href="{{ url_for('manage.managing') }}">download your data or delete your account</a> instead.</p>
+  </main>
+{% endblock %}

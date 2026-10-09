@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Runnify | {% block legal_title %}{% endblock %}{% endblock %}
+{% block content %}
+  <main class="legal" id="main">
+    <article class="legal-article">
+      <header class="legal-header">
+        <h1>{{ self.legal_title() }}</h1>
+        <p class="legal-updated">Last updated {{ site.policy_updated }}</p>
+      </header>
+      {% block legal_body %}{% endblock %}
+      <footer class="legal-footer">
+        <p>Questions? Email <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>.</p>
+      </footer>
+    </article>
+  </main>
+{% endblock %}

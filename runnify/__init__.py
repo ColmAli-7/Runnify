@@ -75,6 +75,19 @@ def create_app(config_object=None):
     register_blueprints(app)
     register_cli(app)
 
+    @app.context_processor
+    def site_details():
+        """Details every template can use (legal pages, footer)."""
+        config = app.config
+        return {
+            "site": {
+                "operator": config["OPERATOR_NAME"],
+                "contact_email": config["CONTACT_EMAIL"],
+                "jurisdiction": config["LEGAL_JURISDICTION"],
+                "policy_updated": config["POLICY_UPDATED"],
+            }
+        }
+
     @app.errorhandler(404)
     def page_not_found(error):
         """Render the custom 404 page."""

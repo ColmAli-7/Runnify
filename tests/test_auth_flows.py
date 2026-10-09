@@ -44,7 +44,13 @@ def test_signed_in_users_skip_the_login_page(auth_client):
 def test_registration_rejects_invalid_email(client):
     response = client.post(
         "/register",
-        data={"name": "A", "email": "not-an-email", "password": "correct horse battery staple"},
+        data={
+            "accept_terms": "y",
+            "data_consent": "y",
+            "name": "A",
+            "email": "not-an-email",
+            "password": "correct horse battery staple",
+        },
     )
     assert b"valid email" in response.data
 
@@ -52,7 +58,13 @@ def test_registration_rejects_invalid_email(client):
 def test_registration_rejects_duplicate_email(client, user):
     response = client.post(
         "/register",
-        data={"name": "B", "email": "RUNNER@example.com", "password": "another fine passphrase"},
+        data={
+            "accept_terms": "y",
+            "data_consent": "y",
+            "name": "B",
+            "email": "RUNNER@example.com",
+            "password": "another fine passphrase",
+        },
     )
     assert b"already registered" in response.data
 

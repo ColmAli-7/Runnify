@@ -1,0 +1,45 @@
+{% extends "legal/_layout.html" %}
+{% block legal_title %}Cookie policy{% endblock %}
+{% block legal_body %}
+<section>
+  <h2>The short version</h2>
+  <p>Runnify only uses the cookies it needs to keep you signed in and to protect your account. There are no analytics, advertising or third-party cookies.</p>
+</section>
+
+<section>
+  <h2>Cookies Runnify sets</h2>
+  <div class="table-scroll">
+    <table class="legal-table">
+      <caption>Every cookie Runnify uses</caption>
+      <thead>
+        <tr><th scope="col">Name</th><th scope="col">What it does</th><th scope="col">How long</th><th scope="col">Type</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row"><code>runnify_session</code></th>
+          <td>Keeps you signed in while you use the site, and protects forms against cross-site request forgery.</td>
+          <td>Until you close your browser</td>
+          <td>Essential</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>runnify_remember</code></th>
+          <td>Keeps you signed in on this device. It is only set if you tick "Keep me signed in".</td>
+          <td>30 days, or until you sign out</td>
+          <td>Essential, set at your request</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Runnify doesn't keep anything else in your browser.</p>
+</section>
+
+<section>
+  <h2>Why there is no cookie banner</h2>
+  <p>Consent is only needed for cookies that aren't strictly necessary for a service you asked for. Both of Runnify's cookies are strictly necessary, so there is nothing to ask. If that ever changes, Runnify will ask you first.</p>
+</section>
+
+<section>
+  <h2>Managing cookies</h2>
+  <p>You can delete or block cookies in your browser settings. If you block <code>runnify_session</code>, you won't be able to sign in.</p>
+</section>
+{% endblock %}

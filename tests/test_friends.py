@@ -9,6 +9,7 @@ from tests.conftest import sign_in_as
 def _make_user(app, email, name):
     with app.app_context():
         user = User(name=name, email=email, password_hash=hash_password("pw"))
+        user.record_consent()
         db.session.add(user)
         db.session.commit()
         return user.id

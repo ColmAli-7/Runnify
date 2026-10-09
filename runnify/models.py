@@ -64,6 +64,12 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime)
 
+    # consent: terms + privacy policy, and explicit consent to process run and
+    # heart-rate data (GDPR Art. 9); policy_version is the version agreed to
+    terms_accepted_at = db.Column(db.DateTime)
+    data_consent_at = db.Column(db.DateTime)
+    policy_version = db.Column(db.String(10))
+
     # brute-force protection: consecutive failed sign-ins and the lock they caused
     failed_login_count = db.Column(db.Integer, nullable=False, default=0, server_default="0")
     locked_until = db.Column(db.DateTime)
@@ -104,6 +110,23 @@ class User(db.Model, UserMixin):
     def rotate_session_token(self):
         """Invalidate every existing session for this user."""
         self.session_token = new_session_token()
+
+    @property
+    def has_current_consent(self):
+        """Whether the user has agreed to the current terms and data processing."""
+        from flask import current_app
+
+        return (
+            bool(self.data_consent_at)
+            and self.policy_version == current_app.config["POLICY_VERSION"]
+        )
+
+    def record_consent(self):
+        """Record agreement to the current terms, privacy policy and data processing."""
+        from flask import current_app
+
+        self.terms_accepted_at = self.data_consent_at = utcnow()
+        self.policy_version = current_app.config["POLICY_VERSION"]
 
     @property
     def two_factor_enabled(self):
