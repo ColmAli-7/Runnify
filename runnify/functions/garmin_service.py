@@ -5,7 +5,8 @@ import time
 import zipfile
 from datetime import datetime
 from garminconnect import Garmin
-from models import db, Run
+from runnify.extensions import db
+from runnify.models import Run
 
 FIT_DIR = "fit_files"
 DOWNLOAD_FORMAT = Garmin.ActivityDownloadFormat.ORIGINAL  # garmin format for .fit files

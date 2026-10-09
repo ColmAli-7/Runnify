@@ -24,6 +24,8 @@ class Config:
             Spotify history import.
         HISTORY_MIN_OVERLAP_SECONDS: Minimum seconds a song must overlap a run
             to be linked to it.
+        FERNET_KEY: Key used to encrypt stored Garmin credentials.
+        SPOTIFY_*: Spotify OAuth client settings.
         MAIL_*: Flask-Mail settings used for password-reset emails.
     """
 
@@ -35,6 +37,13 @@ class Config:
     MAX_CONTENT_LENGTH = 600 * 1024 * 1024  # max upload size - like 600mb
     HISTORY_BATCH_SIZE = 1000  # rows per commit for bulk inserts
     HISTORY_MIN_OVERLAP_SECONDS = 1  # min overlap for track matching
+
+    # integrations
+    FERNET_KEY = os.getenv("FERNET_KEY")
+    SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+    SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+    SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+    SPOTIFY_SCOPE = os.getenv("SPOTIFY_SCOPE")
 
     # mail config
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")

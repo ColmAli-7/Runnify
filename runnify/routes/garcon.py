@@ -1,7 +1,6 @@
 """Garmin Connect account linking.
 
-Requires ``FERNET_KEY`` in the environment at import time; it is used to
-encrypt Garmin passwords before they are stored.
+Garmin passwords are encrypted with the app's ``FERNET_KEY`` before storage.
 """
 
 import threading
@@ -17,15 +16,17 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from garminconnect import Garmin
-from models import db, User
+from runnify.extensions import db
+from runnify.models import User
 from cryptography.fernet import Fernet
-import os
-from dotenv import load_dotenv
-from functions.garmin_service import fetch_and_store_garmin_activities
+from runnify.functions.garmin_service import fetch_and_store_garmin_activities
 
-load_dotenv()
-fernet = Fernet(os.environ["FERNET_KEY"].encode())  # encryption for garmin passwords
 garcon = Blueprint("garmin", __name__)  # garmin connection routes
+
+
+def _fernet():
+    """Return the Fernet cipher used to encrypt stored Garmin passwords."""
+    return Fernet(current_app.config["FERNET_KEY"].encode())
 
 
 @garcon.route("/garmin", methods=["GET", "POST"])
@@ -43,6 +44,7 @@ def garmin():
         try:
             client = Garmin(email, password)  # create garmin client
             client.login()  # test login
+            fernet = _fernet()
             encrypted_pw = fernet.encrypt(
                 password.encode()
             ).decode()  # encrypt password for storage

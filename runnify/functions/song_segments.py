@@ -2,7 +2,8 @@
 
 from datetime import timedelta
 from sqlalchemy import and_
-from models import db, UserSongHistory, Song
+from runnify.extensions import db
+from runnify.models import UserSongHistory, Song
 
 
 def _end_time(played_at, time_played):

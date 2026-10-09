@@ -19,7 +19,7 @@ versions for every platform are pinned in `uv.lock`. **Commit both files.**
 |---|---|
 | Install / update `.venv` to match the lock | `uv sync` |
 | Install exactly the lock, failing if it is stale (CI) | `uv sync --locked` |
-| Run anything inside the environment | `uv run <cmd>`, e.g. `uv run flask --app runnify/app.py run --debug` |
+| Run anything inside the environment | `uv run <cmd>`, e.g. `uv run flask --app runnify run --debug` |
 | Add a dependency | `uv add <package>` (updates `pyproject.toml`, `uv.lock` and `.venv`) |
 | Add a dev-only tool | `uv add --dev <package>` |
 | Remove a dependency | `uv remove <package>` |
@@ -58,15 +58,14 @@ export UV_SYSTEM_CERTS=true
    (the app will not start without `FERNET_KEY`).
 3. Optionally point `DATABASE_URL` at PostgreSQL. Without it, a SQLite file is
    created at `runnify/instance/runnify.db`.
-4. `uv run flask --app runnify/app.py run --debug` from the repository root.
+4. `uv run flask --app runnify run --debug` from the repository root.
 
 To reset the local SQLite database, stop the server and delete `runnify/instance/runnify.db`.
 
 ## Code layout and conventions
 
-- **Flat imports.** Modules import siblings as top-level names (`from models import db`).
-  Always launch from the repo root with `flask --app runnify/app.py` or
-  `python runnify/app.py` so that `runnify/` lands on `sys.path`.
+- **Package imports.** Modules import each other absolutely (`from runnify.models import User`);
+  shared extension instances live in `runnify/extensions.py`.
 - **One blueprint per feature** in `runnify/routes/`. Every blueprint is
   registered in `routes/__init__.py::register_blueprints`.
 - **Domain logic lives in `runnify/functions/`** and has no knowledge of
@@ -83,7 +82,7 @@ To reset the local SQLite database, stop the server and delete `runnify/instance
 2. Register it in `runnify/routes/__init__.py`.
 3. Add the template to `runnify/templates/`, extending `base.html`, and any
    assets to `runnify/static/`.
-4. Check the URL appears in `uv run flask --app runnify/app.py routes`, and
+4. Check the URL appears in `uv run flask --app runnify routes`, and
    update [routes.md](routes.md).
 
 ### Changing the schema

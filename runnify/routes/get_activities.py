@@ -3,10 +3,11 @@
 from flask import Blueprint, render_template, abort, request
 from flask_login import current_user, login_required
 from statistics import mean, pstdev
-from models import db, Run, RunSongAnalysis, UserSongHistory
-from functions.fit_util import read_fit_to_series
+from runnify.extensions import db
+from runnify.models import Run, RunSongAnalysis, UserSongHistory
+from runnify.functions.fit_util import read_fit_to_series
 from sqlalchemy import exists, and_
-from functions.song_segments import load_song_segments
+from runnify.functions.song_segments import load_song_segments
 
 get_activities = Blueprint("activities", __name__)  # blueprint for activity routes
 

@@ -3,8 +3,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db
-from functions.validation import passw_strength
+from runnify.extensions import db
+from runnify.functions.validation import passw_strength
 
 manage = Blueprint("manage", __name__)  # user account management routes
 

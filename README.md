@@ -62,7 +62,7 @@ uv sync
 cp .env.example .env
 
 # run the development server
-uv run flask --app runnify/app.py run --debug
+uv run flask --app runnify run --debug
 ```
 
 Open <http://127.0.0.1:5000>. Database tables are created automatically on first start.
@@ -108,13 +108,10 @@ Always run commands from the **repository root**:
 
 ```bash
 # development server with auto-reload and debugger
-uv run flask --app runnify/app.py run --debug
+uv run flask --app runnify run --debug
 
 # list every URL the app serves
-uv run flask --app runnify/app.py routes
-
-# or run the module directly (debug off)
-uv run python runnify/app.py
+uv run flask --app runnify routes
 ```
 
 Downloaded Garmin `.fit` files are written to `fit_files/` in the current
@@ -143,8 +140,9 @@ Runnify/
 ├── .python-version         # Python version uv uses for .venv
 ├── .env.example            # template for your local .env
 ├── docs/                   # in-depth documentation (see below)
-└── runnify/                # application source (flat imports, not a package)
-    ├── app.py              # entry point: creates the app, extensions, tables, blueprints
+└── runnify/                # application package
+    ├── __init__.py         # create_app(): the application factory
+    ├── extensions.py       # db, mail and login manager instances
     ├── config.py           # Config class populated from environment variables
     ├── models.py           # SQLAlchemy models
     ├── functions/          # domain logic, no HTTP

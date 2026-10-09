@@ -11,9 +11,10 @@ from flask import (
 )
 from flask_login import login_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User
+from runnify.extensions import db
+from runnify.models import User
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from functions.validation import passw_strength
+from runnify.functions.validation import passw_strength
 from flask_mail import Message
 
 auth = Blueprint("auth", __name__)  # handles auth routes

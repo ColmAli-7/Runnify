@@ -5,7 +5,8 @@ from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from datetime import datetime, timedelta
-from models import db, Run, RunSongAnalysis, Song, UserSongHistory, utcnow
+from runnify.extensions import db
+from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory, utcnow
 
 music_insights = Blueprint("music_insights", __name__)  # blueprint for music insights
 

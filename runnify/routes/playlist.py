@@ -2,10 +2,8 @@
 
 from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app
 from flask_login import login_required
-from models import db, User   
-
-
-
+from runnify.extensions import db
+from runnify.models import User
 
 playlist = Blueprint("playlist", __name__)
 

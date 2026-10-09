@@ -7,7 +7,7 @@ frontend build: pages are Jinja2 templates, and the charts use Chart.js loaded f
 
 ```mermaid
 flowchart LR
-    Browser -->|HTTP| Flask["Flask app<br/>runnify/app.py"]
+    Browser -->|HTTP| Flask["Flask app<br/>runnify.create_app()"]
     Flask --> Routes["routes/*<br/>blueprints"]
     Routes --> Functions["functions/*<br/>domain logic"]
     Routes --> Models["models.py<br/>SQLAlchemy"]
@@ -21,19 +21,19 @@ flowchart LR
 
 | Layer | Location | Responsibility |
 |---|---|---|
-| Entry point | `runnify/app.py` | Builds the `Flask` app, loads `Config`, initialises SQLAlchemy, Flask-Mail and Flask-Login, runs `db.create_all()`, registers blueprints and the 404 handler |
+| App factory | `runnify/__init__.py` | `create_app()` builds the `Flask` app, loads `Config`, binds the extensions, runs `db.create_all()`, registers blueprints and the 404 handler |
+| Extensions | `runnify/extensions.py` | Unbound `db`, `mail` and `login_manager` instances shared by every module |
 | Config | `runnify/config.py` | Reads environment variables (via `python-dotenv`) into the `Config` class |
 | Models | `runnify/models.py` | SQLAlchemy models and the `friends` association table |
 | Routes | `runnify/routes/` | One blueprint per feature; request handling and template rendering |
 | Domain logic | `runnify/functions/` | FIT parsing, Garmin sync, Spotify history import, song-segment lookup, validation; no HTTP |
 | Templates / static | `runnify/templates/`, `runnify/static/` | Jinja2 pages, CSS, and small JS files for charts, dark mode, upload and filters |
 
-### Imports are flat
+### Application factory
 
-Modules import each other as top-level names (`from models import db`,
-`from functions.fit_util import ...`), so `runnify/` must be on `sys.path`.
-`flask --app runnify/app.py` adds it automatically, because `runnify/` has no
-`__init__.py`. So does `python runnify/app.py`. Run both from the repository root.
+`runnify` is an importable package. `create_app()` builds a fresh application
+per call, which keeps configuration explicit and lets tests create isolated
+apps. Flask's CLI finds the factory automatically: `flask --app runnify run`.
 
 ## Data model
 

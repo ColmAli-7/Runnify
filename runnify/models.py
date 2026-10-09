@@ -12,11 +12,10 @@ Users are linked to each other through the ``friends`` association table and
 ``FriendRequest``.
 """
 
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime, timezone
 
-db = SQLAlchemy()  # initialise database instance
+from runnify.extensions import db, login_manager
 
 
 def utcnow():
@@ -60,6 +59,12 @@ class User(db.Model, UserMixin):
         secondaryjoin="User.id==friends.c.friend_id",
         backref="friend_of",
     )
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Flask-Login callback: load the ``User`` stored in the session cookie."""
+    return db.session.get(User, int(user_id))
 
 
 class Run(db.Model):

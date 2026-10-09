@@ -1,10 +1,10 @@
 """Spotify integration (mounted under ``/spotify``).
 
 Handles the Spotify OAuth flow and the upload of a user's extended streaming
-history zip. OAuth settings come from the ``SPOTIFY_*`` environment variables.
+history zip. OAuth settings come from the app's ``SPOTIFY_*`` config values.
 """
 
-import os, time
+import time
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from flask import (
@@ -18,33 +18,31 @@ from flask import (
     abort,
 )
 from flask_login import current_user, login_required
-from models import db, User, Run, Song, UserSongHistory, RunSongAnalysis
-from dotenv import load_dotenv
-from functions.history_overlap import import_history_zip_overlapping_runs
-from functions.fit_util import read_fit_to_series
+from runnify.extensions import db
+from runnify.models import User, Run, Song, UserSongHistory, RunSongAnalysis
+from runnify.functions.history_overlap import import_history_zip_overlapping_runs
+from runnify.functions.fit_util import read_fit_to_series
 from .get_activities import _score_segment
 
-load_dotenv()
 spocon = Blueprint("spotify", __name__)  # spotify integration routes
 
-CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
-SCOPE = os.getenv("SPOTIFY_SCOPE")
 
-sp_oauth = SpotifyOAuth(
-    client_id=CLIENT_ID,
-    client_secret=CLIENT_SECRET,
-    redirect_uri=REDIRECT_URI,
-    scope=SCOPE,
-)  # setup oauth credentials
+def _oauth():
+    """Return a ``SpotifyOAuth`` helper configured from the app's ``SPOTIFY_*`` settings."""
+    config = current_app.config
+    return SpotifyOAuth(
+        client_id=config["SPOTIFY_CLIENT_ID"],
+        client_secret=config["SPOTIFY_CLIENT_SECRET"],
+        redirect_uri=config["SPOTIFY_REDIRECT_URI"],
+        scope=config["SPOTIFY_SCOPE"],
+    )
 
 
 @spocon.route("/login")
 @login_required
 def login_spotify():
     """Redirect the user to Spotify's authorisation page."""
-    return redirect(sp_oauth.get_authorize_url())  # redirect to spotify login
+    return redirect(_oauth().get_authorize_url())  # redirect to spotify login
 
 
 @spocon.route("/callback")
@@ -52,7 +50,7 @@ def login_spotify():
 def callback():
     """OAuth redirect target: exchange the code for tokens and store them on the user."""
     code = request.args.get("code")  # code returned after user authorises app
-    token_info = sp_oauth.get_access_token(code)  # exchange code for tokens
+    token_info = _oauth().get_access_token(code)  # exchange code for tokens
     sp = spotipy.Spotify(auth=token_info["access_token"])
     profile = sp.current_user()  # get user profile from spotify
     user = db.session.get(User, current_user.id)
@@ -74,7 +72,7 @@ def get_spotify_client(user: User):
     if (
         user.spotify_expires_at - int(time.time()) < 60
     ):  # refresh if token about to expire
-        refreshed = sp_oauth.refresh_access_token(user.spotify_refresh_token)
+        refreshed = _oauth().refresh_access_token(user.spotify_refresh_token)
         user.spotify_token = refreshed["access_token"]
         user.spotify_refresh_token = refreshed.get(
             "refresh_token", user.spotify_refresh_token

@@ -1,6 +1,6 @@
 # Route reference
 
-Generated from `uv run flask --app runnify/app.py routes`, with each route's
+Generated from `uv run flask --app runnify routes`, with each route's
 purpose taken from the source. Routes under "Logged-in users" are decorated
 with `@login_required`; anonymous users are redirected to the login page.
 

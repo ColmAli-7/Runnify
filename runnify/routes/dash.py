@@ -3,7 +3,8 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 from sqlalchemy import func
-from models import db, Run, Song, UserSongHistory
+from runnify.extensions import db
+from runnify.models import Run, Song, UserSongHistory
 from collections import defaultdict
 import datetime as dt
 
