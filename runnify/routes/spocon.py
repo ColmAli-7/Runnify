@@ -55,7 +55,7 @@ def callback():
     token_info = sp_oauth.get_access_token(code)  # exchange code for tokens
     sp = spotipy.Spotify(auth=token_info["access_token"])
     profile = sp.current_user()  # get user profile from spotify
-    user = User.query.get(current_user.id)
+    user = db.session.get(User, current_user.id)
     user.spotify_token = token_info["access_token"]
     user.spotify_refresh_token = token_info["refresh_token"]
     user.spotify_expires_at = token_info["expires_at"]

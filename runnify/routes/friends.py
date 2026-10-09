@@ -46,7 +46,7 @@ def send_request(user_id):
     if user_id == current_user.id:  # prevent adding self
         flash("You can't add yourself.", "error")
         return redirect(url_for("friends.friends_page"))
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     if user in current_user.friends:  # already friends
         flash("You are already friends.", "info")
         return redirect(url_for("friends.friends_page"))
@@ -77,7 +77,7 @@ def send_request(user_id):
 @login_required
 def accept_request(request_id):
     """Accept a friend request addressed to the current user (adds the friendship both ways)."""
-    fr = FriendRequest.query.get_or_404(request_id)
+    fr = db.get_or_404(FriendRequest, request_id)
     if fr.receiver_id != current_user.id:  # only receiver can accept
         flash("Not authorised.", "error")
         return redirect(url_for("friends.friends_page"))
@@ -93,7 +93,7 @@ def accept_request(request_id):
 @login_required
 def decline_request(request_id):
     """Decline a friend request addressed to the current user."""
-    fr = FriendRequest.query.get_or_404(request_id)
+    fr = db.get_or_404(FriendRequest, request_id)
     if fr.receiver_id != current_user.id:  # prevent others from declining
         flash("Not authorised.", "error")
     else:

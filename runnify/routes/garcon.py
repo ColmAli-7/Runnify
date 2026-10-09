@@ -54,7 +54,7 @@ def garmin():
             def background_job(user_id, app):
                 """Run the Garmin sync for ``user_id`` inside an app context."""
                 with app.app_context():  # allow db access in thread
-                    user = User.query.get(user_id)
+                    user = db.session.get(User, user_id)
                     if user:
                         print(f"Starting Garmin sync for {user.email}")
                         fetch_and_store_garmin_activities(

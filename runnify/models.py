@@ -14,9 +14,14 @@ Users are linked to each other through the ``friends`` association table and
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from datetime import datetime
+from datetime import datetime, timezone
 
 db = SQLAlchemy()  # initialise database instance
+
+
+def utcnow():
+    """Return the current UTC time as a naive ``datetime`` (how timestamps are stored)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(db.Model, UserMixin):
@@ -39,7 +44,7 @@ class User(db.Model, UserMixin):
     garmin_username = db.Column(db.String)
     garmin_password = db.Column(db.String)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime)
 
     runs = db.relationship("Run", back_populates="user")  # link to user runs
@@ -70,7 +75,7 @@ class Run(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     activity_id = db.Column(db.String, nullable=False)
-    date_time = db.Column(db.DateTime, default=datetime.utcnow)
+    date_time = db.Column(db.DateTime, default=utcnow)
     distance = db.Column(db.Float)
     duration = db.Column(db.Integer)
     avg_hr = db.Column(db.Integer)
@@ -161,7 +166,7 @@ class FriendRequest(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     status = db.Column(db.String, default="pending")  # pending, accepted, or rejected
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=utcnow)
 
     sender = db.relationship(
         "User", foreign_keys=[sender_id], backref="sent_requests" 
