@@ -1,7 +1,7 @@
-"""Account management: change display name or password."""
+"""Account management: change display name or password, sign out other devices."""
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user, login_required, login_user
 
 from runnify.extensions import db, limiter
 from runnify.forms import ChangeNameForm, ChangePasswordForm, first_error
@@ -17,6 +17,10 @@ bp = Blueprint("manage", __name__)  # user account management routes
 def managing():
     """Show account settings; on POST, change name or password after re-checking the current password."""
     name_form, password_form = ChangeNameForm(), ChangePasswordForm()
+    if request.method == "POST" and request.form.get("action") == "sign_out_everywhere":
+        _restart_sessions()
+        flash("You've been signed out on every other device.", "success")
+        return redirect(url_for("manage.managing"))
     if request.method == "POST":
         form = name_form if request.form.get("action") == "change_name" else password_form
         if not form.validate():
@@ -33,7 +37,14 @@ def managing():
             flash(problems[0], "error")
         else:
             current_user.password_hash = hash_password(form.new_password.data)
-            db.session.commit()
-            flash("Password updated", "success")
+            _restart_sessions()
+            flash("Password updated. You've been signed out on every other device.", "success")
         return redirect(url_for("manage.managing"))
     return render_template("manage.html", name_form=name_form, password_form=password_form)
+
+
+def _restart_sessions():
+    """Rotate the session token (ending every other session) and re-issue this one."""
+    current_user.rotate_session_token()
+    db.session.commit()
+    login_user(current_user._get_current_object())

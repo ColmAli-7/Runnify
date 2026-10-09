@@ -47,7 +47,14 @@ def user(app):
 @pytest.fixture
 def auth_client(client, user):
     """A test client whose session is signed in as ``user``."""
-    with client.session_transaction() as session:
-        session["_user_id"] = str(user)
-        session["_fresh"] = True
+    sign_in_as(client, user)
     return client
+
+
+def sign_in_as(client, user_id):
+    """Put a valid session for ``user_id`` into ``client``'s cookie jar."""
+    with client.application.app_context():
+        session_id = _db.session.get(User, user_id).get_id()
+    with client.session_transaction() as session:
+        session["_user_id"] = session_id
+        session["_fresh"] = True

@@ -12,6 +12,8 @@ Users are linked to each other through the ``friends`` association table and
 ``FriendRequest``.
 """
 
+import hmac
+import secrets
 from datetime import UTC, datetime
 
 from flask_login import UserMixin
@@ -22,6 +24,11 @@ from runnify.extensions import db, login_manager
 def utcnow():
     """Return the current UTC time as a naive ``datetime`` (how timestamps are stored)."""
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def new_session_token():
+    """Return a fresh random session token (see :meth:`User.get_id`)."""
+    return secrets.token_urlsafe(32)
 
 
 class User(db.Model, UserMixin):
@@ -51,6 +58,9 @@ class User(db.Model, UserMixin):
     failed_login_count = db.Column(db.Integer, nullable=False, default=0, server_default="0")
     locked_until = db.Column(db.DateTime)
 
+    # part of every session and remember-me cookie; rotating it signs out every device
+    session_token = db.Column(db.String(64), nullable=False, default=new_session_token)
+
     runs = db.relationship("Run", back_populates="user")  # link to user runs
     song_history = db.relationship(
         "UserSongHistory", back_populates="user"
@@ -65,11 +75,30 @@ class User(db.Model, UserMixin):
         backref="friend_of",
     )
 
+    def get_id(self):
+        """Identify the user in session cookies as ``"<id>:<session token>"``.
+
+        Cookies minted before the token last rotated no longer match, so
+        rotating it (on password change, or "sign out everywhere") ends every
+        other session, remember-me cookies included.
+        """
+        return f"{self.id}:{self.session_token}"
+
+    def rotate_session_token(self):
+        """Invalidate every existing session for this user."""
+        self.session_token = new_session_token()
+
 
 @login_manager.user_loader
-def load_user(user_id):
-    """Flask-Login callback: load the ``User`` stored in the session cookie."""
-    return db.session.get(User, int(user_id))
+def load_user(session_id):
+    """Flask-Login callback: load the user whose id *and* current session token match the cookie."""
+    user_id, _, token = session_id.partition(":")
+    if not user_id.isdigit() or not token:
+        return None
+    user = db.session.get(User, int(user_id))
+    if user is None or not hmac.compare_digest(user.session_token, token):
+        return None
+    return user
 
 
 class Run(db.Model):

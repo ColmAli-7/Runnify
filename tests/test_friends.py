@@ -3,6 +3,7 @@
 from runnify.extensions import db
 from runnify.models import FriendRequest, User
 from runnify.security.passwords import hash_password
+from tests.conftest import sign_in_as
 
 
 def _make_user(app, email, name):
@@ -36,8 +37,7 @@ def test_request_accept_flow(app, auth_client, user):
     with app.app_context():
         assert db.session.get(FriendRequest, request_id).status == "pending"
 
-    with auth_client.session_transaction() as session:
-        session["_user_id"] = str(other)
+    sign_in_as(auth_client, other)
     auth_client.post(f"/friends/accept/{request_id}")
     with app.app_context():
         assert db.session.get(FriendRequest, request_id).status == "accepted"
