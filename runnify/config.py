@@ -96,9 +96,9 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_SECURE = False
 
-    # Content-Security-Policy is report-only until every legacy template is rebuilt
-    # without CDN scripts and inline JavaScript; then it is enforced
-    CSP_REPORT_ONLY = True
+    # the Content-Security-Policy is enforced; set CSP_REPORT_ONLY=1 to only report violations
+    # (in the browser console) while debugging a page
+    CSP_REPORT_ONLY = env_bool("CSP_REPORT_ONLY", False)
 
     # rate limits (Flask-Limiter syntax). Use a shared store such as Redis in production
     # (RATELIMIT_STORAGE_URI=redis://...) so limits hold across every worker.
