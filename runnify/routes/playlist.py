@@ -1,3 +1,5 @@
+"""Playlist generator (work in progress: the form is captured but no playlist is built yet)."""
+
 from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app
 from flask_login import login_required
 from models import db, User   
@@ -11,6 +13,7 @@ playlist = Blueprint("playlist", __name__)
 @playlist.route("/playlist", methods=["GET", "POST"])
 @login_required
 def playlists():
+    """Show the playlist form; on POST, read run type, pace, length and mood (generation not yet implemented)."""
     if request.method == "POST":
         run_type = request.form.get("type")
         pace = request.form.get("pace")

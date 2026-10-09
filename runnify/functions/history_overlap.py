@@ -1,3 +1,12 @@
+"""Import Spotify extended streaming history and match it against runs.
+
+The uploaded zip is streamed with ``ijson`` so multi-hundred-MB histories do
+not need to fit in memory. Each music play is turned into a ``[start, end)``
+interval (Spotify's ``ts`` is when playback *stopped*), intersected with every
+run interval, and stored as ``UserSongHistory`` rows. Performance scores are
+then computed per play and stored as ``RunSongAnalysis`` rows.
+"""
+
 import io, zipfile, datetime as dt
 from typing import Dict, Any
 import ijson
@@ -5,7 +14,7 @@ from sqlalchemy import and_, exists
 
 
 def _parse_ts_stop_utc(ts_str: str):
-    # converts spotify timestamp string to utc datetime
+    """Parse a Spotify ``ts`` value into a naive UTC ``datetime`` (``None`` if invalid)."""
     if not ts_str:
         return None
     try:
@@ -22,7 +31,7 @@ def _parse_ts_stop_utc(ts_str: str):
 
 
 def _row_interval(row: Dict[str, Any]):
-    # gets start and end times for a single song play from spotify data
+    """Return the ``(start, end)`` interval of a play, using ``ts - ms_played`` as start."""
     ts = _parse_ts_stop_utc(row.get("ts"))
     if ts is None:
         return None
@@ -37,7 +46,7 @@ def _row_interval(row: Dict[str, Any]):
 
 
 def _is_podcast_or_video(row: Dict[str, Any]):
-    # filters out podcast and video plays
+    """Return ``True`` if the row is a podcast episode or video rather than music."""
     return bool(
         row.get("episode_name")
         or row.get("episode_show_name")
@@ -46,7 +55,7 @@ def _is_podcast_or_video(row: Dict[str, Any]):
 
 
 def _spotify_track_id(row: Dict[str, Any]):
-    # extracts spotify track id from uri
+    """Extract the track id from a ``spotify:track:<id>`` URI (``None`` if absent)."""
     uri = row.get("spotify_track_uri")
     if not uri:
         return None
@@ -57,7 +66,7 @@ def _spotify_track_id(row: Dict[str, Any]):
 
 
 def _names(row: Dict[str, Any]):
-    # extracts track, artist and album names
+    """Return ``(track, artist, album)`` names from a history row."""
     return (
         row.get("master_metadata_track_name"),
         row.get("master_metadata_album_artist_name"),
@@ -68,18 +77,19 @@ def _names(row: Dict[str, Any]):
 def _overlap(
     a_start: dt.datetime, a_end: dt.datetime, b_start: dt.datetime, b_end: dt.datetime
 ):
-    # returns overlapping time range between two intervals
+    """Return the overlapping ``(start, end)`` of two intervals, or ``None``."""
     s = max(a_start, b_start)
     e = min(a_end, b_end)
     return (s, e) if s < e else None
 
 
 def _seconds(td: dt.timedelta):
+    """Return a timedelta as whole, non-negative seconds."""
     return max(0, int(td.total_seconds()))  # ensures no negative values
 
 
 def _collect_run_intervals(db, RunModel, user_id: int):
-    # fetches all runs and converts to time intervals
+    """Return the user's runs as ``(run_id, start, end)`` tuples sorted by start time."""
     runs = db.session.query(RunModel).filter(RunModel.user_id == user_id).all()
     out = []
     for r in runs:
@@ -93,7 +103,7 @@ def _collect_run_intervals(db, RunModel, user_id: int):
 
 
 def _iter_json_rows(file_like):
-    # iterates through large json files efficiently
+    """Stream the dict items of a top-level JSON array, stopping quietly on bad JSON."""
     try:
         for row in ijson.items(file_like, "item"):
             if isinstance(row, dict):
@@ -116,7 +126,27 @@ def import_history_zip_overlapping_runs(
     batch_size: int = 500,
     min_overlap_seconds: int = 1,
 ):
-    # imports extended spotify history zip and links plays to runs
+    """Import a Spotify history zip, link plays to runs and score them.
+
+    Models and helpers are injected so this module stays free of app imports.
+
+    Args:
+        zip_bytes: Raw bytes of the ``my_spotify_data.zip`` export.
+        user_id: The user the history belongs to.
+        db: Flask-SQLAlchemy ``db`` instance.
+        RunModel, SongModel, UserSongHistoryModel, RunSongAnalysisModel:
+            The model classes to read and write.
+        read_fit_to_series: Callable that parses a FIT file into
+            ``(timestamps, heart_rates, paces)``.
+        _score_segment: Callable that scores one song segment of a run.
+        batch_size: How many rows to add before each commit.
+        min_overlap_seconds: Plays overlapping a run by less than this are
+            ignored.
+
+    Returns:
+        A stats dict with counts for ``files``, ``json_files``, ``rows``,
+        ``saved``, ``skipped`` and ``errors``, plus an optional ``note``.
+    """
     stats = dict(files=0, json_files=0, rows=0, saved=0, skipped=0, errors=0, note=None)
     run_intervals = _collect_run_intervals(db, RunModel, user_id)
     if not run_intervals:

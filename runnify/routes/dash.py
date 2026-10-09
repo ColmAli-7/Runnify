@@ -1,3 +1,5 @@
+"""User dashboard: headline stats and monthly mileage."""
+
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -11,6 +13,12 @@ dash = Blueprint("dash", __name__)  # dashboard blueprint
 @dash.route("/dashboard")
 @login_required
 def dashboard():
+    """Render the dashboard.
+
+    Shows total runs, songs and distance, favourite artist, last run,
+    fastest-paced run (with the first song played), longest run and a
+    monthly mileage chart.
+    """
     user = current_user
     total_runs = Run.query.filter_by(user_id=user.id).count()  # total run count
     total_songs = UserSongHistory.query.filter_by(

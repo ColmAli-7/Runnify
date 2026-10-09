@@ -1,3 +1,5 @@
+"""Friends system: search, requests and the distance leaderboard."""
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from models import db, User, FriendRequest, Run
@@ -9,6 +11,7 @@ friends = Blueprint("friends", __name__)  # blueprint for friend system
 @friends.route("/friends")
 @login_required
 def friends_page():
+    """List friends with their total distance, plus pending incoming and outgoing requests."""
     friends = current_user.friends  # get all accepted friends
     friends_data = []
     for friend in friends:
@@ -39,6 +42,7 @@ def friends_page():
 @friends.route("/friends/send/<int:user_id>")
 @login_required
 def send_request(user_id):
+    """Send a friend request to ``user_id`` unless already friends or one is pending."""
     if user_id == current_user.id:  # prevent adding self
         flash("You can't add yourself.", "error")
         return redirect(url_for("friends.friends_page"))
@@ -72,6 +76,7 @@ def send_request(user_id):
 @friends.route("/friends/accept/<int:request_id>")
 @login_required
 def accept_request(request_id):
+    """Accept a friend request addressed to the current user (adds the friendship both ways)."""
     fr = FriendRequest.query.get_or_404(request_id)
     if fr.receiver_id != current_user.id:  # only receiver can accept
         flash("Not authorised.", "error")
@@ -87,6 +92,7 @@ def accept_request(request_id):
 @friends.route("/friends/decline/<int:request_id>")
 @login_required
 def decline_request(request_id):
+    """Decline a friend request addressed to the current user."""
     fr = FriendRequest.query.get_or_404(request_id)
     if fr.receiver_id != current_user.id:  # prevent others from declining
         flash("Not authorised.", "error")
@@ -100,6 +106,7 @@ def decline_request(request_id):
 @friends.route("/friends/search", methods=["GET", "POST"])
 @login_required
 def search_users():
+    """Search users by name (case-insensitive substring match on ``?q=``)."""
     query = request.args.get("q", "")  # search input
     results = []
     if query:

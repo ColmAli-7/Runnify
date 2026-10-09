@@ -1,3 +1,9 @@
+"""Garmin Connect account linking.
+
+Requires ``FERNET_KEY`` in the environment at import time; it is used to
+encrypt Garmin passwords before they are stored.
+"""
+
 import threading
 from flask import (
     Blueprint,
@@ -25,6 +31,12 @@ garcon = Blueprint("garmin", __name__)  # garmin connection routes
 @garcon.route("/garmin", methods=["GET", "POST"])
 @login_required
 def garmin():
+    """Link a Garmin account.
+
+    On POST, test-logs in to Garmin Connect with the submitted credentials,
+    stores the email and encrypted password on the user, then starts a
+    background thread that imports all running activities.
+    """
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
@@ -40,6 +52,7 @@ def garmin():
             app = current_app._get_current_object()  # get flask app context
 
             def background_job(user_id, app):
+                """Run the Garmin sync for ``user_id`` inside an app context."""
                 with app.app_context():  # allow db access in thread
                     user = User.query.get(user_id)
                     if user:

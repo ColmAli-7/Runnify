@@ -1,3 +1,17 @@
+"""SQLAlchemy database models.
+
+Entity overview (see ``docs/architecture.md`` for a diagram):
+
+- ``User`` has many ``Run`` and many ``UserSongHistory`` rows.
+- ``UserSongHistory`` links a ``User``, a ``Song`` and (optionally) a ``Run``.
+- ``RunSongAnalysis`` links a ``Run`` to a ``UserSongHistory`` row.
+
+``UserSongHistory`` rows are song plays that overlapped one of the user's
+runs; ``RunSongAnalysis`` stores the performance score computed for each.
+Users are linked to each other through the ``friends`` association table and
+``FriendRequest``.
+"""
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
@@ -6,6 +20,13 @@ db = SQLAlchemy()  # initialise database instance
 
 
 class User(db.Model, UserMixin):
+    """A Runnify account.
+
+    Stores login details plus the credentials needed to talk to Spotify
+    (OAuth tokens) and Garmin Connect (username and a Fernet-encrypted
+    password).
+    """
+
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -37,6 +58,13 @@ class User(db.Model, UserMixin):
 
 
 class Run(db.Model):
+    """A running activity imported from Garmin Connect.
+
+    ``distance`` is in metres, ``duration`` in seconds and ``avg_pace`` in
+    minutes per km. ``fit_file_path`` points at the downloaded ``.fit`` file
+    (or holds the Garmin activity id if the download failed).
+    """
+
     __tablename__ = "runs"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -56,6 +84,8 @@ class Run(db.Model):
 
 
 class Song(db.Model):
+    """A Spotify track, keyed by its Spotify track id."""
+
     __tablename__ = "songs"
 
     id = db.Column(db.String, primary_key=True)
@@ -71,6 +101,12 @@ class Song(db.Model):
 
 
 class UserSongHistory(db.Model):
+    """One song play from a user's Spotify history that overlapped a run.
+
+    ``played_at`` is the (UTC) start of the overlapping segment and
+    ``time_played`` its length in seconds.
+    """
+
     __tablename__ = "user_song_history"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -88,6 +124,12 @@ class UserSongHistory(db.Model):
 
 
 class RunSongAnalysis(db.Model):
+    """The performance score (0-100) of one song play within one run.
+
+    50 means the user ran at their average pace for that run; higher means
+    faster. See ``docs/scoring.md``.
+    """
+
     __tablename__ = "run_song_analysis"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -111,6 +153,8 @@ friends = db.Table(
 
 
 class FriendRequest(db.Model):
+    """A friend request between two users (``pending`` / ``accepted`` / ``declined``)."""
+
     __tablename__ = "friend_requests"
 
     id = db.Column(db.Integer, primary_key=True)

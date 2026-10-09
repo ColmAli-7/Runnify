@@ -1,3 +1,5 @@
+"""Garmin Connect activity sync."""
+
 import os
 import zipfile
 from datetime import datetime, time
@@ -9,7 +11,18 @@ DOWNLOAD_FORMAT = Garmin.ActivityDownloadFormat.ORIGINAL  # garmin format for .f
 
 
 def fetch_and_store_garmin_activities(user, fernet):
-    # downloads all new running activities from garmin and stores them in the database
+    """Download all new running activities for ``user`` and save them as ``Run`` rows.
+
+    Pages through the user's Garmin activity list 20 at a time, skips
+    activities already stored and anything that is not a run, downloads each
+    activity's original ``.fit`` file into ``FIT_DIR`` and commits one batch
+    per page. Intended to run in a background thread inside an app context.
+
+    Args:
+        user: The ``User`` whose Garmin credentials should be used.
+        fernet: ``cryptography.fernet.Fernet`` instance used to decrypt the
+            stored Garmin password.
+    """
     email = user.garmin_username
     password = fernet.decrypt(
         user.garmin_password.encode()

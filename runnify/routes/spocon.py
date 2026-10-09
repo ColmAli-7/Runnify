@@ -1,3 +1,9 @@
+"""Spotify integration (mounted under ``/spotify``).
+
+Handles the Spotify OAuth flow and the upload of a user's extended streaming
+history zip. OAuth settings come from the ``SPOTIFY_*`` environment variables.
+"""
+
 import os, time
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -37,12 +43,14 @@ sp_oauth = SpotifyOAuth(
 @spocon.route("/login")
 @login_required
 def login_spotify():
+    """Redirect the user to Spotify's authorisation page."""
     return redirect(sp_oauth.get_authorize_url())  # redirect to spotify login
 
 
 @spocon.route("/callback")
 @login_required
 def callback():
+    """OAuth redirect target: exchange the code for tokens and store them on the user."""
     code = request.args.get("code")  # code returned after user authorises app
     token_info = sp_oauth.get_access_token(code)  # exchange code for tokens
     sp = spotipy.Spotify(auth=token_info["access_token"])
@@ -56,6 +64,11 @@ def callback():
 
 
 def get_spotify_client(user: User):
+    """Return an authenticated ``spotipy.Spotify`` client for ``user``.
+
+    Refreshes and saves the access token if it expires within 60 seconds.
+    Returns ``None`` if the user has not connected Spotify.
+    """
     if not user.spotify_token or not user.spotify_refresh_token:
         return None
     if (
@@ -74,6 +87,7 @@ def get_spotify_client(user: User):
 @spocon.route("/history/upload", methods=["GET", "POST"])
 @login_required
 def upload_history():
+    """Show the upload page; on POST, import a Spotify history ``.zip`` and score matched songs."""
     if request.method == "GET":
         return render_template("spotify_upload_history.html")  # upload page
 

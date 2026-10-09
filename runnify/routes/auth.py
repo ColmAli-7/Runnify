@@ -1,3 +1,5 @@
+"""Authentication: login, registration, logout and password reset by email."""
+
 from flask import (
     Blueprint,
     request,
@@ -19,6 +21,7 @@ auth = Blueprint("auth", __name__)  # handles auth routes
 
 @auth.route("/login", methods=["GET", "POST"])
 def login():
+    """Show the login form; on POST, verify credentials and start a session."""
     if request.method == "POST":
         email = request.form.get("email").strip().lower()  # normalise email
         password = request.form.get("password")
@@ -36,6 +39,7 @@ def login():
 
 @auth.route("/register", methods=["GET", "POST"])
 def register():
+    """Show the registration form; on POST, validate and create a new account."""
     if request.method == "POST":
         name = request.form.get("name")
         email = request.form.get("email").strip().lower()
@@ -63,17 +67,20 @@ def register():
 @auth.route("/logout")
 @login_required
 def logout():
+    """End the current session and return to the login page."""
     logout_user()  # end session
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))
 
 
 def generate_reset_token(email):
+    """Return a signed, timestamped password-reset token encoding ``email``."""
     s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])  # create serialiser
     return s.dumps(email, salt="password-reset")  # encode email as token
 
 
 def verify_reset_token(token, max_age=3600):
+    """Return the email inside a reset token, or ``None`` if it is invalid or older than ``max_age`` seconds."""
     s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
     try:
         email = s.loads(token, salt="password-reset", max_age=max_age)  # decode token
@@ -83,6 +90,11 @@ def verify_reset_token(token, max_age=3600):
 
 
 def send_reset_email(to_email, reset_link):
+    """Email a password-reset link using Flask-Mail.
+
+    Raises:
+        RuntimeError: If Flask-Mail has not been initialised on the app.
+    """
     mail = current_app.extensions.get("mail")
     if mail is None:
         raise RuntimeError("flask-mail not initialised")
@@ -103,6 +115,7 @@ If you didn't request this, please ignore this email.""",
 
 @auth.route("/forgot", methods=["GET", "POST"])
 def forgot_password():
+    """Show the forgot-password form; on POST, email a reset link (valid for 1 hour)."""
     if request.method == "POST":
         email = request.form.get("email").strip().lower()
         user = User.query.filter_by(email=email).first()
@@ -121,6 +134,7 @@ def forgot_password():
 
 @auth.route("/reset/<token>", methods=["GET", "POST"])
 def reset_password(token):
+    """Validate a reset token and, on POST, set the user's new password."""
     email = verify_reset_token(token)  # validate token
     if not email:
         flash("The reset link is invalid or has expired.", "error")

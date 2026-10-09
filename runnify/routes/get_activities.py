@@ -1,3 +1,5 @@
+"""Activity list, per-run analysis page and the song performance score."""
+
 from flask import Blueprint, render_template, abort, request
 from flask_login import current_user, login_required
 from statistics import mean, pstdev
@@ -12,6 +14,7 @@ get_activities = Blueprint("activities", __name__)  # blueprint for activity rou
 @get_activities.route("/activities")
 @login_required
 def activities():
+    """List the user's runs, newest first; ``?music_only=true`` keeps only runs with matched songs."""
     music_only = (
         request.args.get("music_only", "false") == "true"
     )  # toggle for music-linked runs
@@ -30,6 +33,22 @@ def activities():
 
 
 def _score_segment(seg, timestamps, pace_s_per_km, hr=None):
+    """Score how fast the user ran during one song relative to the whole run.
+
+    ``score = 50 + 20 * z`` where ``z = (run_avg_pace - song_avg_pace) /
+    run_pace_std``, clamped to 0-100. 50 is average pace for the run; higher
+    is faster. See ``docs/scoring.md``.
+
+    Args:
+        seg: Dict with ``start_time`` and ``end_time`` of the song segment.
+        timestamps: Run timestamps from the FIT file.
+        pace_s_per_km: Pace samples (seconds per km) aligned with ``timestamps``.
+        hr: Heart-rate samples (currently unused).
+
+    Returns:
+        The score rounded to 1 decimal place, or ``None`` if there are fewer
+        than 5 pace samples in the segment or 10 in the run.
+    """
     song_paces = [
         pace
         for t, pace in zip(timestamps, pace_s_per_km)
@@ -52,6 +71,12 @@ def _score_segment(seg, timestamps, pace_s_per_km, hr=None):
 @login_required
 @get_activities.route("/activity/<int:run_id>")
 def activity_detail(run_id):
+    """Render the analysis page for one run.
+
+    Parses the run's FIT file, finds the songs played during it, scores each
+    one and passes a JSON-ready payload (run summary, pace/HR timeline and
+    song segments) to the template for charting.
+    """
     run = Run.query.filter_by(id=run_id, user_id=current_user.id).first()
     if not run:
         abort(404, description="Run not found")  # invalid id or unauthorised access

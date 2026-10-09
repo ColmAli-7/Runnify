@@ -1,10 +1,12 @@
+"""Load the songs that were playing during a run."""
+
 from datetime import timedelta
 from sqlalchemy import and_
 from models import db, UserSongHistory, Song
 
 
 def _end_time(played_at, time_played):
-    # calculates when a song finished playing based on its play duration
+    """Return when a play ended, treating ``time_played`` >= 10000 as milliseconds."""
     if time_played is None:
         return played_at
     if time_played >= 10000:  # handles values in ms
@@ -13,7 +15,17 @@ def _end_time(played_at, time_played):
 
 
 def load_song_segments(user_id, run_start, run_end):
-    # loads all song playback segments overlapping with a run
+    """Return the song segments that overlap a run, trimmed to the run window.
+
+    Args:
+        user_id: Owner of the song history.
+        run_start: Run start time (naive UTC ``datetime``).
+        run_end: Run end time (naive UTC ``datetime``).
+
+    Returns:
+        A list of dicts with ``track_name``, ``artist_name``, ``start_time``
+        and ``end_time``, ordered by play time, with duplicate plays removed.
+    """
     query = (
         db.session.query(UserSongHistory, Song)
         .join(Song, Song.id == UserSongHistory.song_id)

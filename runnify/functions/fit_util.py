@@ -1,7 +1,20 @@
+"""Helpers for reading Garmin ``.fit`` activity files."""
+
 from fitparse import FitFile
 
 
 def _ema(values, alpha=0.2):  # exponential moving average smoothing
+    """Smooth a series with an exponential moving average.
+
+    ``None`` gaps are filled with the previous smoothed value.
+
+    Args:
+        values: Numeric values (may contain ``None``).
+        alpha: Smoothing factor; higher reacts faster to changes.
+
+    Returns:
+        A list the same length as ``values``.
+    """
     ema_values = []
     prev_ema = None
     for value in values:
@@ -20,6 +33,19 @@ def _ema(values, alpha=0.2):  # exponential moving average smoothing
 def read_fit_to_series(
     fit_file_path,
 ):  # extracts timestamps, heart rate, and pace from a fit file
+    """Extract time series from a FIT file.
+
+    Pace comes from the recorded (enhanced) speed, or from the change in
+    distance between records when speed is missing, and is EMA-smoothed.
+
+    Args:
+        fit_file_path: Path to a ``.fit`` file.
+
+    Returns:
+        A ``(timestamps, heart_rates, paces_seconds_per_km)`` tuple of
+        equal-length lists, sorted by time. Heart rate and pace entries can be
+        ``None``. All three lists are empty if the file has no records.
+    """
     fit_file = FitFile(fit_file_path)
     record_rows = []
 

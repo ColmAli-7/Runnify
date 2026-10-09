@@ -1,3 +1,9 @@
+"""Route blueprints.
+
+Each module defines one Flask blueprint; :func:`register_blueprints` attaches
+them all to the app. See ``docs/routes.md`` for the full URL reference.
+"""
+
 from .auth import auth
 from .spocon import spocon
 from .garcon import garcon
@@ -13,6 +19,11 @@ from .help import help
 
 # register all app blueprints
 def register_blueprints(app):
+    """Register every Runnify blueprint on ``app``.
+
+    The Spotify blueprint is mounted under ``/spotify``; all others are
+    mounted at the site root.
+    """
     app.register_blueprint(auth)  # login and registration routes
     app.register_blueprint(spocon, url_prefix="/spotify")  # spotify routes
     app.register_blueprint(garcon)  # garmin routes

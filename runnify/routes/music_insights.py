@@ -1,3 +1,9 @@
+"""Music Insights: aggregate song performance statistics over a date range.
+
+Uses PostgreSQL's ``date_trunc`` for the monthly trend, so this page requires
+a PostgreSQL database.
+"""
+
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -8,6 +14,7 @@ music_insights = Blueprint("music_insights", __name__)  # blueprint for music in
 
 
 def _date_bounds(label: str):
+    """Map a range label (e.g. ``"Last 30 days"``) to ``(start, end)``; ``(None, None)`` means all time."""
     now = datetime.utcnow()
     if label == "Last 7 days":
         return now - timedelta(days=7), now
@@ -24,6 +31,11 @@ def _date_bounds(label: str):
 @music_insights.route("/music-insights")
 @login_required
 def music_insights_page():
+    """Render Music Insights for the ``?range=`` window (default ``Last 30 days``).
+
+    Includes average score, best and most-played songs, distinct song count,
+    monthly score trend, plays-vs-score data and two top-10 tables.
+    """
     range_label = request.args.get("range", "Last 30 days")
     start, end = _date_bounds(range_label)  # determine time range
 
