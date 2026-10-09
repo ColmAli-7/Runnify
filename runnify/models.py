@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from flask_login import UserMixin
 
 from runnify.extensions import db, login_manager
+from runnify.security.crypto import EncryptedString
 
 
 def utcnow():
@@ -35,8 +36,8 @@ class User(db.Model, UserMixin):
     """A Runnify account.
 
     Stores login details plus the credentials needed to talk to Spotify
-    (OAuth tokens) and Garmin Connect (username and a Fernet-encrypted
-    password).
+    (OAuth tokens) and Garmin Connect. Third-party credentials are encrypted
+    at rest (:class:`~runnify.security.crypto.EncryptedString`).
     """
 
     __tablename__ = "users"
@@ -45,11 +46,11 @@ class User(db.Model, UserMixin):
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, unique=True, index=True, nullable=False)
     password_hash = db.Column(db.String, nullable=False)
-    spotify_token = db.Column(db.String)
-    spotify_refresh_token = db.Column(db.String)
+    spotify_token = db.Column(EncryptedString)
+    spotify_refresh_token = db.Column(EncryptedString)
     spotify_expires_at = db.Column(db.Integer)
     garmin_username = db.Column(db.String)
-    garmin_password = db.Column(db.String)
+    garmin_password = db.Column(EncryptedString)
 
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime)

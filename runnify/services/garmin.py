@@ -14,7 +14,7 @@ FIT_DIR = "fit_files"
 DOWNLOAD_FORMAT = Garmin.ActivityDownloadFormat.ORIGINAL  # garmin format for .fit files
 
 
-def fetch_and_store_garmin_activities(user, fernet):
+def fetch_and_store_garmin_activities(user):
     """Download all new running activities for ``user`` and save them as ``Run`` rows.
 
     Pages through the user's Garmin activity list 20 at a time, skips
@@ -24,11 +24,9 @@ def fetch_and_store_garmin_activities(user, fernet):
 
     Args:
         user: The ``User`` whose Garmin credentials should be used.
-        fernet: ``cryptography.fernet.Fernet`` instance used to decrypt the
-            stored Garmin password.
     """
     email = user.garmin_username
-    password = fernet.decrypt(user.garmin_password.encode()).decode()  # decrypt saved password
+    password = user.garmin_password  # decrypted by the model
     client = Garmin(email, password)
     client.login()  # authenticate with garmin
     os.makedirs(FIT_DIR, exist_ok=True)

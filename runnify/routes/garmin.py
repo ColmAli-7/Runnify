@@ -1,11 +1,10 @@
 """Garmin Connect account linking.
 
-Garmin passwords are encrypted with the app's ``FERNET_KEY`` before storage.
+Garmin credentials are encrypted at rest by the ``User`` model.
 """
 
 import threading
 
-from cryptography.fernet import Fernet
 from flask import (
     Blueprint,
     current_app,
@@ -26,11 +25,6 @@ from runnify.services.garmin import fetch_and_store_garmin_activities
 bp = Blueprint("garmin", __name__)  # garmin connection routes
 
 
-def _fernet():
-    """Return the Fernet cipher used to encrypt stored Garmin passwords."""
-    return Fernet(current_app.config["FERNET_KEY"].encode())
-
-
 @bp.route("/garmin", methods=["GET", "POST"])
 @login_required
 @limiter.limit(limit_from_config("GARMIN_CONNECT"), methods=["POST"], key_func=user_or_ip)
@@ -47,12 +41,8 @@ def garmin():
         try:
             client = Garmin(email, password)  # create garmin client
             client.login()  # test login
-            fernet = _fernet()
-            encrypted_pw = fernet.encrypt(
-                password.encode()
-            ).decode()  # encrypt password for storage
             current_user.garmin_username = email
-            current_user.garmin_password = encrypted_pw
+            current_user.garmin_password = password  # encrypted by the model
             db.session.commit()
             app = current_app._get_current_object()  # get flask app context
 
@@ -62,7 +52,7 @@ def garmin():
                     user = db.session.get(User, user_id)
                     if user:
                         print(f"Starting Garmin sync for {user.email}")
-                        fetch_and_store_garmin_activities(user, fernet)  # fetch all user activities
+                        fetch_and_store_garmin_activities(user)  # fetch all user activities
                         db.session.commit()
                         print(f"Finished Garmin sync for {user.email}")
 

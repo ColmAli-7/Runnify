@@ -88,7 +88,8 @@ the project root. [`.env.example`](.env.example) lists every variable with comme
 | `PROXY_COUNT` | No | `0` dev / `1` prod | Reverse proxies whose `X-Forwarded-*` headers are trusted |
 | `MAX_UPLOAD_MB` | No | `100` | Maximum upload size |
 | `RATELIMIT_STORAGE_URI` | Recommended in production | `memory://` | Rate-limit counter store; use Redis (e.g. Render Key Value) to share limits across workers |
-| `FERNET_KEY` | **Yes** | none | Encrypts stored third-party credentials (required to link Garmin) |
+| `FERNET_KEY` | **Yes** | none | Encrypts stored third-party credentials at rest (required to link Garmin or Spotify) |
+| `FERNET_KEYS` | No | none | Comma-separated keys, newest first, for rotating `FERNET_KEY` without downtime |
 | `SPOTIFY_CLIENT_ID` | For Spotify login | none | Spotify app client ID |
 | `SPOTIFY_CLIENT_SECRET` | For Spotify login | none | Spotify app client secret |
 | `SPOTIFY_REDIRECT_URI` | For Spotify login | none | Must exactly match the redirect URI registered in the Spotify dashboard, e.g. `http://127.0.0.1:5000/spotify/callback` |

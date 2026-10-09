@@ -4,8 +4,6 @@ import io
 import pathlib
 import zipfile
 
-from cryptography.fernet import Fernet
-
 from runnify.extensions import db
 from runnify.models import Run, User
 from runnify.services import garmin as garmin_service
@@ -50,19 +48,18 @@ class FakeGarmin:
 
 def test_sync_saves_runs_and_their_fit_files(app, monkeypatch):
     monkeypatch.setattr(garmin_service, "Garmin", FakeGarmin)
-    fernet = Fernet(app.config["FERNET_KEY"].encode())
     with app.app_context():
         user = User(
             name="T",
             email="t@example.com",
             password_hash="x",
             garmin_username="g@example.com",
-            garmin_password=fernet.encrypt(b"garmin-secret").decode(),
+            garmin_password="garmin-secret",
         )
         db.session.add(user)
         db.session.commit()
 
-        garmin_service.fetch_and_store_garmin_activities(user, fernet)
+        garmin_service.fetch_and_store_garmin_activities(user)
 
         run = Run.query.one()  # the swim is skipped
         assert run.activity_id == "123"
@@ -73,19 +70,18 @@ def test_sync_saves_runs_and_their_fit_files(app, monkeypatch):
 
 def test_sync_skips_activities_already_stored(app, monkeypatch):
     monkeypatch.setattr(garmin_service, "Garmin", FakeGarmin)
-    fernet = Fernet(app.config["FERNET_KEY"].encode())
     with app.app_context():
         user = User(
             name="T",
             email="t@example.com",
             password_hash="x",
             garmin_username="g@example.com",
-            garmin_password=fernet.encrypt(b"garmin-secret").decode(),
+            garmin_password="garmin-secret",
         )
         db.session.add(user)
         db.session.commit()
 
-        garmin_service.fetch_and_store_garmin_activities(user, fernet)
-        garmin_service.fetch_and_store_garmin_activities(user, fernet)
+        garmin_service.fetch_and_store_garmin_activities(user)
+        garmin_service.fetch_and_store_garmin_activities(user)
 
         assert Run.query.count() == 1
