@@ -1,12 +1,15 @@
 """Account management: name, password, two-step verification and signed-in devices."""
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
-from flask_login import current_user, login_required, login_user
+import json
+
+from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required, login_user, logout_user
 
 from runnify.extensions import db, limiter
 from runnify.forms import (
     ChangeNameForm,
     ChangePasswordForm,
+    DeleteAccountForm,
     PasswordConfirmForm,
     TwoFactorDisableForm,
     TwoFactorEnableForm,
@@ -15,7 +18,12 @@ from runnify.forms import (
 from runnify.security import audit, two_factor
 from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config, user_or_ip
-from runnify.services.notifications import send_password_changed, send_two_factor_changed
+from runnify.services import account as account_service
+from runnify.services.notifications import (
+    send_account_deleted,
+    send_password_changed,
+    send_two_factor_changed,
+)
 
 bp = Blueprint("manage", __name__)  # user account management routes
 
@@ -58,6 +66,8 @@ def managing():
         "manage.html",
         name_form=name_form,
         password_form=password_form,
+        export_form=PasswordConfirmForm(),
+        delete_form=DeleteAccountForm(),
         activity=audit.recent(current_user),
     )
 
@@ -154,3 +164,47 @@ def new_recovery_codes():
     audit.record(current_user, "recovery_codes_replaced")
     db.session.commit()
     return render_template("recovery_codes.html", codes=codes)
+
+
+@bp.route("/settings/export", methods=["POST"])
+@login_required
+@limiter.limit(limit_from_config("ACCOUNT_CHANGE"), key_func=user_or_ip)
+def export_data():
+    """Download everything Runnify holds about the user as JSON (password required)."""
+    form = PasswordConfirmForm()
+    if (
+        not form.validate_on_submit()
+        or not verify_password(current_user.password_hash, form.password.data)[0]
+    ):
+        flash("Your current password is incorrect.", "error")
+        return redirect(url_for("manage.managing"))
+    payload = account_service.export_data(current_user)
+    audit.record(current_user, "data_exported")
+    db.session.commit()
+    return Response(
+        json.dumps(payload, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": 'attachment; filename="runnify-data.json"'},
+    )
+
+
+@bp.route("/settings/delete", methods=["POST"])
+@login_required
+@limiter.limit(limit_from_config("ACCOUNT_CHANGE"), key_func=user_or_ip)
+def delete_account():
+    """Permanently delete the account and all personal data (password + confirmation)."""
+    form = DeleteAccountForm()
+    if not form.validate_on_submit():
+        flash(first_error(form), "error")
+        return redirect(url_for("manage.managing"))
+    if not verify_password(current_user.password_hash, form.password.data)[0]:
+        flash("Your current password is incorrect.", "error")
+        return redirect(url_for("manage.managing"))
+    user = current_user._get_current_object()
+    send_account_deleted(user)
+    account_service.delete_account(user)
+    db.session.commit()
+    logout_user()
+    session.clear()
+    flash("Your account and all of its data have been deleted.", "info")
+    return redirect(url_for("main.home"))

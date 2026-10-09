@@ -43,6 +43,18 @@
       <input type="text" name="new_name" value="{{ current_user.name }}" placeholder="New Name" required>
       <button type="submit">Change Name</button>
     </form>
+    <h3>Your data</h3>
+    <form method="POST" action="{{ url_for('manage.export_data') }}" class="auth-form">
+      {{ export_form.csrf_token }}
+      <input type="password" name="password" autocomplete="current-password" placeholder="Current password" required>
+      <button type="submit">Download my data</button>
+    </form>
+    <form method="POST" action="{{ url_for('manage.delete_account') }}" class="auth-form">
+      {{ delete_form.csrf_token }}
+      <input type="password" name="password" autocomplete="current-password" placeholder="Current password" required>
+      <label><input type="checkbox" name="confirm" value="y" required> I understand this permanently deletes my account and data</label>
+      <button type="submit">Delete my account</button>
+    </form>
     <h3>Recent security activity</h3>
     <ul class="security-activity">
       {% for event, description in activity %}

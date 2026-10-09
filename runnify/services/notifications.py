@@ -68,6 +68,20 @@ safe while sign-in is paused; consider choosing a new, unique password.""",
     )
 
 
+def send_account_deleted(user):
+    """Confirm to ``user`` that their account and data were deleted."""
+    send_email(
+        user.email,
+        "Your Runnify account was deleted",
+        f"""Hello {user.name},
+
+Your Runnify account and all of its data (runs, song history, scores and
+connections) have been permanently deleted.
+
+Thanks for running with us.""",
+    )
+
+
 def send_two_factor_changed(user, enabled):
     """Tell ``user`` that two-step verification was turned on or off."""
     state = "turned on" if enabled else "turned off"

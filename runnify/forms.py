@@ -153,6 +153,16 @@ class PasswordConfirmForm(FlaskForm):
     password = _password_field("Current password", "Enter your current password.")
 
 
+class DeleteAccountForm(FlaskForm):
+    """Permanently delete the account: password plus an explicit confirmation."""
+
+    password = _password_field("Current password", "Enter your current password.")
+    confirm = BooleanField(
+        "I understand this permanently deletes my account and data",
+        validators=[DataRequired("Tick the box to confirm.")],
+    )
+
+
 def first_error(form):
     """Return the first validation message on ``form``, for a flash message."""
     for errors in form.errors.values():
