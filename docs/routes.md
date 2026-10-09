@@ -28,7 +28,7 @@ with `@login_required`; anonymous users are redirected to the login page.
 | GET | `/spotify/callback` | `spotify.callback` | Spotify OAuth redirect target; stores tokens |
 | GET, POST | `/spotify/history/upload` | `spotify.upload_history` | Upload Spotify extended streaming history. Form file: `history_zip` (`.zip`) |
 | GET | `/help/spotify-upload-guide` | `help.spotify_upload_guide` | How to request and upload Spotify history |
-| GET | `/music-insights` | `music_insights.music_insights_page` | Aggregate song performance. Query: `range` = `Last 7 days`, `Last 30 days` (default), `Last 90 days`, `Year to date`, any other value = all time. **Requires PostgreSQL** |
+| GET | `/music-insights` | `music_insights.music_insights_page` | Aggregate song performance. Query: `range` = `Last 7 days`, `Last 30 days` (default), `Last 90 days`, `Year to date`, any other value = all time |
 | GET | `/friends` | `friends.friends_page` | Friends leaderboard (total km) and pending requests |
 | GET, POST | `/friends/search` | `friends.search_users` | Search users by name. Query: `q` |
 | GET | `/friends/send/<int:user_id>` | `friends.send_request` | Send a friend request |

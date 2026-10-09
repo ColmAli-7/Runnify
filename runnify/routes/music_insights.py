@@ -1,21 +1,18 @@
-"""Music Insights: aggregate song performance statistics over a date range.
+"""Music Insights: aggregate song performance statistics over a date range."""
 
-Uses PostgreSQL's ``date_trunc`` for the monthly trend, so this page requires
-a PostgreSQL database.
-"""
-
+from collections import defaultdict
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from datetime import datetime, timedelta
-from models import db, Run, RunSongAnalysis, Song, UserSongHistory
+from models import db, Run, RunSongAnalysis, Song, UserSongHistory, utcnow
 
 music_insights = Blueprint("music_insights", __name__)  # blueprint for music insights
 
 
 def _date_bounds(label: str):
     """Map a range label (e.g. ``"Last 30 days"``) to ``(start, end)``; ``(None, None)`` means all time."""
-    now = datetime.utcnow()
+    now = utcnow()
     if label == "Last 7 days":
         return now - timedelta(days=7), now
     elif label == "Last 30 days":
@@ -86,17 +83,19 @@ def music_insights_page():
         )
     total_songs = total_songs.scalar() or 0  # total distinct songs
 
-    performance_trend = (
-        db.session.query(
-            func.date_trunc('month', Run.date_time).label("month"),
-            func.avg(RunSongAnalysis.performance_score).label("avg_score"),
-        )
+    # score progression over time, grouped by month in python so it works on any database
+    monthly_scores = defaultdict(list)
+    for run_date, score in (
+        db.session.query(Run.date_time, RunSongAnalysis.performance_score)
         .join(Run, Run.id == RunSongAnalysis.run_id)
         .filter(*base_filter)
-        .group_by("month")
-        .order_by("month")
-        .all()
-    )  # score progression over time
+    ):
+        if run_date is not None and score is not None:
+            monthly_scores[run_date.strftime("%Y-%m")].append(score)
+    performance_trend = [
+        {"month": month, "avg_score": sum(scores) / len(scores)}
+        for month, scores in sorted(monthly_scores.items())
+    ]
 
     play_perf = (
         db.session.query(

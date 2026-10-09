@@ -78,7 +78,7 @@ the project root. [`.env.example`](.env.example) lists every variable with comme
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `SECRET_KEY` | **Yes** in production | `runnify-secret-key` | Signs session cookies and password-reset tokens |
-| `DATABASE_URL` | Recommended | `sqlite:///runnify.db` (in `runnify/instance/`) | SQLAlchemy database URL. PostgreSQL is needed for Music Insights |
+| `DATABASE_URL` | Recommended | `sqlite:///runnify.db` (in `runnify/instance/`) | SQLAlchemy database URL. Use PostgreSQL in production |
 | `FERNET_KEY` | **Yes** | none | Encrypts stored Garmin passwords. **The app will not start without it** |
 | `SPOTIFY_CLIENT_ID` | For Spotify login | none | Spotify app client ID |
 | `SPOTIFY_CLIENT_SECRET` | For Spotify login | none | Spotify app client secret |
@@ -173,7 +173,6 @@ All Python modules, classes and functions also have docstrings.
 
 ## Limitations
 
-- **Music Insights needs PostgreSQL.** It uses `date_trunc`, which SQLite does not support.
 - **No migrations.** Tables are created with `db.create_all()` on start-up.
   Schema changes to existing tables must be applied manually.
 - **Playlist generator is a work in progress.** The form is captured but no playlist is built yet.

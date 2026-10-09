@@ -57,7 +57,7 @@ export UV_SYSTEM_CERTS=true
 2. `cp .env.example .env` and fill in at least `SECRET_KEY` and `FERNET_KEY`
    (the app will not start without `FERNET_KEY`).
 3. Optionally point `DATABASE_URL` at PostgreSQL. Without it, a SQLite file is
-   created at `runnify/instance/runnify.db`. Music Insights will not work on SQLite.
+   created at `runnify/instance/runnify.db`.
 4. `uv run flask --app runnify/app.py run --debug` from the repository root.
 
 To reset the local SQLite database, stop the server and delete `runnify/instance/runnify.db`.
@@ -98,5 +98,4 @@ These were found while documenting the code and have **not** been fixed yet.
 
 | # | Where | Issue | Effect |
 |---|---|---|---|
-| 5 | various | `datetime.utcnow()` (deprecated since Python 3.12) and `Query.get()` (legacy in SQLAlchemy 2.x) | Deprecation warnings only |
 | 6 | security | `SECRET_KEY` has a hard-coded fallback; forms have no CSRF protection; friend actions are state-changing `GET` requests | Set a real `SECRET_KEY` in every environment; consider Flask-WTF / CSRF tokens |
