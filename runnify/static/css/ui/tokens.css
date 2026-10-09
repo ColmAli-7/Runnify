@@ -40,6 +40,12 @@
   --go: #0c7238; /* connected, done, 6.2:1 on paper */
   --go-soft: #e7f3ec;
 
+  /* print on the ink bands (the ticker, the privacy band) */
+  --on-ink: #ffffff;
+  --on-ink-2: #b4b4b4; /* secondary text on ink */
+  --on-ink-rule: #3a3a3a;
+  --pen-on-ink: #ff8a80; /* drags on ink */
+
   /* type */
   --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --text-2xs: 0.6875rem;

@@ -43,4 +43,6 @@
   <symbol id="i-disc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></g></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></g></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="8" y="8" width="12" height="12"/><path d="M16 4H4v12"/></g></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 5v14M16 5v14"/></g></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M7 4.5v15L19 12z"/></g></symbol>
 </svg>

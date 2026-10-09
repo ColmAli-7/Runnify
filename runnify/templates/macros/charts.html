@@ -1,0 +1,62 @@
+{#- Charts drawn from the geometry in runnify/services/charts.py.
+    Everything is placed in percentages, so a chart takes its size from CSS
+    and its text and lines stay crisp at any width. -#}
+
+{#- Pace over time, faster drawn higher, with a band for each song. -#}
+{% macro run_chart(chart, summary, class="") %}
+<div class="chart chart--run {{ class }}">
+  {%- if chart.empty %}
+  <p class="chart__empty">Not enough moving time to draw this run.</p>
+  {%- else %}
+  <svg class="chart__y" aria-hidden="true" focusable="false">
+    {%- for y, label in chart.y_ticks %}
+    <text x="100%" y="{{ y }}%" dx="-8" dy="0.35em" text-anchor="end">{{ label }}</text>
+    {%- endfor %}
+  </svg>
+  <svg class="chart__plot" role="img" aria-label="{{ summary }}">
+    {%- for band in chart.bands %}
+    <rect class="band band--{{ band.kind }}{{ ' band--alt' if band.index is odd }}" x="{{ band.x }}%" y="0" width="{{ band.width }}%" height="100%" data-band="{{ band.index }}"></rect>
+    {%- endfor %}
+    {%- for y, _ in chart.y_ticks %}
+    <line class="grid" x1="0" x2="100%" y1="{{ y }}%" y2="{{ y }}%"></line>
+    {%- endfor %}
+    <svg viewBox="0 0 {{ chart.box }} {{ chart.box }}" preserveAspectRatio="none" width="100%" height="100%">
+      {%- for points in chart.lines %}
+      <polyline class="trace" points="{{ points }}"></polyline>
+      {%- endfor %}
+    </svg>
+    <line class="baseline" x1="0" x2="100%" y1="100%" y2="100%"></line>
+  </svg>
+  <svg class="chart__x" aria-hidden="true" focusable="false">
+    {%- for x, label in chart.x_ticks %}
+    <text x="{{ x }}%" y="0" dy="1.1em" text-anchor="middle">{{ label }}</text>
+    {%- endfor %}
+  </svg>
+  {%- endif %}
+</div>
+{% endmacro %}
+
+{#- Vertical bars; values sit above (or, for negative bars, below) each bar. -#}
+{% macro bar_chart(chart, summary, class="") %}
+<div class="chart chart--bars {{ class }}">
+  <svg class="chart__plot" role="img" aria-label="{{ summary }}">
+    {%- for bar in chart.bars %}
+    <rect class="bar bar--{{ bar.kind }}" x="{{ bar.x }}%" y="{{ bar.y }}%" width="{{ bar.width }}%" height="{{ bar.height }}%"></rect>
+    {%- if bar.value_label %}
+    <text class="chart__value" x="{{ bar.center }}%" y="{{ bar.bottom if bar.kind == 'down' else bar.y }}%" dy="{{ '1.25em' if bar.kind == 'down' else '-0.55em' }}" text-anchor="middle">{{ bar.value_label }}</text>
+    {%- endif %}
+    {%- endfor %}
+    <line class="baseline" x1="0" x2="100%" y1="{{ chart.baseline }}%" y2="{{ chart.baseline }}%"></line>
+  </svg>
+  <svg class="chart__x" aria-hidden="true" focusable="false">
+    {%- for bar in chart.bars %}
+    <text x="{{ bar.center }}%" y="0" dy="1.1em" text-anchor="middle">{{ bar.label }}</text>
+    {%- endfor %}
+  </svg>
+</div>
+{% endmacro %}
+
+{#- A single horizontal bar, `share` in percent (0 to 100). -#}
+{% macro meter(share, kind="up") -%}
+<svg class="meter meter--{{ kind }}" aria-hidden="true" focusable="false"><rect x="0" y="0" width="{{ [[share, 0]|max, 100]|min }}%" height="100%"></rect></svg>
+{%- endmacro %}

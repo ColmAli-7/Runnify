@@ -352,6 +352,30 @@
     white-space: nowrap;
   }
 
+  .results__unit {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+
+  @media (max-width: 559px) {
+    .results th,
+    .results td {
+      padding-inline: var(--s-2);
+    }
+
+    .results th:first-child,
+    .results td:first-child {
+      padding-left: var(--s-4);
+    }
+
+    .results th:last-child,
+    .results td:last-child {
+      padding-right: var(--s-4);
+    }
+  }
+
   .results__pos {
     width: 1%;
     font-size: var(--text-lg);
@@ -377,9 +401,10 @@
     text-decoration: underline;
   }
 
-  /* the best row, struck through with highlighter */
+  /* the best row, struck through with highlighter (the shadow closes hairline seams between cells) */
   .results tr.is-best > * {
     background-color: var(--highlight);
+    box-shadow: 1px 0 0 var(--highlight);
   }
 
   .results tbody tr.is-linked:hover > * {
@@ -390,10 +415,23 @@
     background-color: var(--highlight);
   }
 
+  /* "4 more songs": a dotted break in a shortened table */
+  .results tbody tr.results__gap {
+    border-bottom: 1px dashed var(--field);
+  }
+
+  .results__gap td {
+    padding-block: var(--s-2);
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    text-align: center;
+  }
+
   .results-note {
     padding: var(--s-3) var(--s-5);
     font-size: var(--text-xs);
     color: var(--ink-3);
+    text-wrap: pretty;
   }
 
   /* ---- stats ------------------------------------------------------------- */
@@ -829,34 +867,104 @@
   }
 
   /* ---- charts ----------------------------------------------------------- */
+  /* Geometry comes from runnify/services/charts.py in percentages, so a chart
+     takes its size from here: --chart-h is the plot height. */
 
   .chart {
-    width: 100%;
-    height: auto;
-    overflow: visible;
-    font-family: var(--font);
+    --chart-h: 200px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--chart-h) 1.5rem;
+    font-size: var(--text-xs);
     font-variant-numeric: tabular-nums;
   }
 
+  .chart--run {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+  }
+
+  .chart--compact {
+    --chart-h: 150px;
+  }
+
+  .chart--tall {
+    --chart-h: 240px;
+  }
+
+  @media (min-width: 760px) {
+    .chart--tall {
+      --chart-h: 300px;
+    }
+  }
+
+  .chart svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .chart__y {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .chart__plot,
+  .chart__x {
+    grid-column: -2;
+  }
+
+  .chart__plot {
+    grid-row: 1;
+  }
+
+  .chart__x {
+    grid-row: 2;
+  }
+
   .chart text {
-    font-size: 11px;
     fill: var(--ink-3);
   }
 
-  .chart .axis {
+  .chart .grid {
     stroke: var(--rule);
     stroke-width: 1;
+    shape-rendering: crispEdges;
   }
 
   .chart .baseline {
     stroke: var(--ink);
     stroke-width: 2;
+    shape-rendering: crispEdges;
   }
 
-  .chart .bar {
-    fill: var(--ink);
+  .chart .trace {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
   }
 
+  .chart .band {
+    fill: transparent;
+  }
+
+  .chart .band--alt,
+  .chart .band--context {
+    fill: var(--board);
+  }
+
+  .chart .band--best {
+    fill: var(--highlight);
+  }
+
+  .chart .band--worst {
+    fill: var(--pen-soft);
+  }
+
+  .chart .bar,
   .chart .bar--up {
     fill: var(--ink);
   }
@@ -866,17 +974,189 @@
   }
 
   .chart .bar--muted {
-    fill: #c9ccd0;
+    fill: var(--rule);
   }
 
-  .chart .value-label {
-    fill: var(--ink);
+  .chart__value {
     font-weight: 650;
+  }
+
+  .chart .chart__value {
+    fill: var(--ink);
+  }
+
+  .chart__empty {
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    align-self: center;
+    justify-self: center;
+    font-size: var(--text-sm);
+    color: var(--ink-3);
   }
 
   .chart-caption {
     margin-top: var(--s-3);
     font-size: var(--text-xs);
     color: var(--ink-3);
+  }
+
+  /* a one-line horizontal bar */
+  .meter {
+    display: block;
+    width: 100%;
+    height: 8px;
+    background: var(--board);
+  }
+
+  .meter rect {
+    fill: var(--ink);
+  }
+
+  .meter--down rect {
+    fill: var(--pen);
+  }
+
+  /* chart keys */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-5);
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-sm);
+  }
+
+  .legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
+  .legend__swatch {
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--ink);
+  }
+
+  .legend__swatch--best {
+    background: var(--highlight);
+  }
+
+  .legend__swatch--worst {
+    background: var(--pen-soft);
+    border-color: var(--pen);
+  }
+
+  .legend__note {
+    color: var(--ink-3);
+  }
+
+  /* ---- ranked lists (top songs, artists) -------------------------------- */
+
+  .ranks {
+    display: grid;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ranks__row {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-2);
+    border-bottom: var(--hair);
+  }
+
+  .ranks__row:last-child {
+    border-bottom: 0;
+  }
+
+  .ranks__row.is-best {
+    background: var(--highlight);
+  }
+
+  .ranks__pos {
+    font-size: var(--text-xl);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .ranks__name {
+    min-width: 0;
+    font-weight: 650;
+    line-height: var(--leading-snug);
+  }
+
+  /* a drag song, crossed out in red pen */
+  .ranks__struck {
+    text-decoration: line-through;
+    text-decoration-color: var(--pen);
+    text-decoration-thickness: 2px;
+  }
+
+  .ranks__sub {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--ink-3);
+    text-decoration: none;
+  }
+
+  .ranks__row.is-best .ranks__sub {
+    color: var(--ink-2);
+  }
+
+  .ranks__value {
+    display: grid;
+    justify-items: end;
+    gap: 2px;
+  }
+
+  .ranks__runs {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ranks__row.is-best .ranks__runs {
+    color: var(--ink-2);
+  }
+
+  /* ---- the highlighter sweep -------------------------------------------- */
+  /* A stroke of highlighter drawn across the best row or name (see js/sweep.js). */
+
+  [data-sweep-host] {
+    position: relative;
+  }
+
+  [data-sweep-host] > :not(.sweep-mark) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sweep-mark {
+    position: absolute;
+    z-index: 0;
+    background: var(--highlight);
+    transform-origin: left center;
+    pointer-events: none;
+  }
+
+  /* ---- icon-only buttons ------------------------------------------------ */
+
+  .btn--icon {
+    width: 44px;
+    padding: 0;
+  }
+
+  .btn--icon.btn--sm {
+    width: 36px;
+  }
+
+  .btn[aria-disabled="true"]::before {
+    display: none;
   }
 }
