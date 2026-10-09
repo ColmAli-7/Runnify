@@ -8,10 +8,10 @@ from runnify.models import Run, Song, UserSongHistory
 from collections import defaultdict
 import datetime as dt
 
-dash = Blueprint("dash", __name__)  # dashboard blueprint
+bp = Blueprint("dash", __name__)  # dashboard blueprint
 
 
-@dash.route("/dashboard")
+@bp.route("/dashboard")
 @login_required
 def dashboard():
     """Render the dashboard.

@@ -5,10 +5,10 @@ from flask_login import login_required
 from runnify.extensions import db
 from runnify.models import User
 
-playlist = Blueprint("playlist", __name__)
+bp = Blueprint("playlist", __name__)
 
 
-@playlist.route("/playlist", methods=["GET", "POST"])
+@bp.route("/playlist", methods=["GET", "POST"])
 @login_required
 def playlists():
     """Show the playlist form; on POST, read run type, pace, length and mood (generation not yet implemented)."""

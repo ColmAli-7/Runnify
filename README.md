@@ -145,15 +145,16 @@ Runnify/
     ├── extensions.py       # db, mail and login manager instances
     ├── config.py           # Config class populated from environment variables
     ├── models.py           # SQLAlchemy models
-    ├── functions/          # domain logic, no HTTP
-    │   ├── fit_util.py         # parse .fit files into time/HR/pace series
-    │   ├── garmin_service.py   # sync running activities from Garmin Connect
-    │   ├── history_overlap.py  # import Spotify history zip and match plays to runs
-    │   ├── song_segments.py    # songs that were playing during a given run
-    │   └── validation.py       # password strength rules
+    ├── services/           # domain logic, no HTTP
+    │   ├── fit.py              # parse .fit files into time/HR/pace series
+    │   ├── garmin.py           # sync running activities from Garmin Connect
+    │   ├── history_import.py   # import Spotify history zip and match plays to runs
+    │   ├── segments.py         # songs that were playing during a given run
+    │   ├── scoring.py          # per-song performance score
+    │   └── passwords.py        # password strength rules
     ├── routes/             # one Flask blueprint per feature area
-    │   ├── auth.py  dash.py  friends.py  garcon.py  get_activities.py
-    │   ├── help.py  main.py  manage.py  music_insights.py  playlist.py  spocon.py
+    │   ├── auth.py  dashboard.py  friends.py  garmin.py  help.py  insights.py
+    │   ├── main.py  playlists.py  runs.py  settings.py  spotify.py
     ├── templates/          # Jinja2 pages
     └── static/             # css/ and js/
 ```

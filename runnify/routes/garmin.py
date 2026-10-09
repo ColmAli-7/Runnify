@@ -19,9 +19,9 @@ from garminconnect import Garmin
 from runnify.extensions import db
 from runnify.models import User
 from cryptography.fernet import Fernet
-from runnify.functions.garmin_service import fetch_and_store_garmin_activities
+from runnify.services.garmin import fetch_and_store_garmin_activities
 
-garcon = Blueprint("garmin", __name__)  # garmin connection routes
+bp = Blueprint("garmin", __name__)  # garmin connection routes
 
 
 def _fernet():
@@ -29,7 +29,7 @@ def _fernet():
     return Fernet(current_app.config["FERNET_KEY"].encode())
 
 
-@garcon.route("/garmin", methods=["GET", "POST"])
+@bp.route("/garmin", methods=["GET", "POST"])
 @login_required
 def garmin():
     """Link a Garmin account.

@@ -14,13 +14,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from runnify.extensions import db
 from runnify.models import User
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from runnify.functions.validation import passw_strength
+from runnify.services.passwords import passw_strength
 from flask_mail import Message
 
-auth = Blueprint("auth", __name__)  # handles auth routes
+bp = Blueprint("auth", __name__)  # handles auth routes
 
 
-@auth.route("/login", methods=["GET", "POST"])
+@bp.route("/login", methods=["GET", "POST"])
 def login():
     """Show the login form; on POST, verify credentials and start a session."""
     if request.method == "POST":
@@ -38,7 +38,7 @@ def login():
     return render_template("login.html", form_type="login")
 
 
-@auth.route("/register", methods=["GET", "POST"])
+@bp.route("/register", methods=["GET", "POST"])
 def register():
     """Show the registration form; on POST, validate and create a new account."""
     if request.method == "POST":
@@ -65,7 +65,7 @@ def register():
     return render_template("login.html", form_type="register")
 
 
-@auth.route("/logout")
+@bp.route("/logout")
 @login_required
 def logout():
     """End the current session and return to the login page."""
@@ -114,7 +114,7 @@ If you didn't request this, please ignore this email.""",
     mail.send(msg)
 
 
-@auth.route("/forgot", methods=["GET", "POST"])
+@bp.route("/forgot", methods=["GET", "POST"])
 def forgot_password():
     """Show the forgot-password form; on POST, email a reset link (valid for 1 hour)."""
     if request.method == "POST":
@@ -133,7 +133,7 @@ def forgot_password():
     return render_template("forgot.html")
 
 
-@auth.route("/reset/<token>", methods=["GET", "POST"])
+@bp.route("/reset/<token>", methods=["GET", "POST"])
 def reset_password(token):
     """Validate a reset token and, on POST, set the user's new password."""
     email = verify_reset_token(token)  # validate token

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory, utcnow
 
-music_insights = Blueprint("music_insights", __name__)  # blueprint for music insights
+bp = Blueprint("music_insights", __name__)  # blueprint for music insights
 
 
 def _date_bounds(label: str):
@@ -26,7 +26,7 @@ def _date_bounds(label: str):
         return None, None  # all time
 
 
-@music_insights.route("/music-insights")
+@bp.route("/music-insights")
 @login_required
 def music_insights_page():
     """Render Music Insights for the ``?range=`` window (default ``Last 30 days``).

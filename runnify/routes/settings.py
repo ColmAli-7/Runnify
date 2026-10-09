@@ -4,12 +4,12 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from runnify.extensions import db
-from runnify.functions.validation import passw_strength
+from runnify.services.passwords import passw_strength
 
-manage = Blueprint("manage", __name__)  # user account management routes
+bp = Blueprint("manage", __name__)  # user account management routes
 
 
-@manage.route("/manage", methods=["GET", "POST"])
+@bp.route("/manage", methods=["GET", "POST"])
 @login_required
 def managing():
     """Show account settings; on POST, change name or password after re-checking the current password."""

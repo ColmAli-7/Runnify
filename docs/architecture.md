@@ -9,7 +9,7 @@ frontend build: pages are Jinja2 templates, and the charts use Chart.js loaded f
 flowchart LR
     Browser -->|HTTP| Flask["Flask app<br/>runnify.create_app()"]
     Flask --> Routes["routes/*<br/>blueprints"]
-    Routes --> Functions["functions/*<br/>domain logic"]
+    Routes --> Functions["services/*<br/>domain logic"]
     Routes --> Models["models.py<br/>SQLAlchemy"]
     Functions --> Models
     Models --> DB[("PostgreSQL / SQLite")]
@@ -26,7 +26,7 @@ flowchart LR
 | Config | `runnify/config.py` | Reads environment variables (via `python-dotenv`) into the `Config` class |
 | Models | `runnify/models.py` | SQLAlchemy models and the `friends` association table |
 | Routes | `runnify/routes/` | One blueprint per feature; request handling and template rendering |
-| Domain logic | `runnify/functions/` | FIT parsing, Garmin sync, Spotify history import, song-segment lookup, validation; no HTTP |
+| Domain logic | `runnify/services/` | FIT parsing, Garmin sync, Spotify history import, song-segment lookup, scoring, password rules; no HTTP |
 | Templates / static | `runnify/templates/`, `runnify/static/` | Jinja2 pages, CSS, and small JS files for charts, dark mode, upload and filters |
 
 ### Application factory
@@ -117,12 +117,12 @@ Notes:
 
 ## Pipeline 1: Garmin sync
 
-Triggered when a user submits the form at `/garmin` (`routes/garcon.py`).
+Triggered when a user submits the form at `/garmin` (`routes/garmin.py`).
 
 1. A `Garmin(email, password)` client logs in to verify the credentials.
 2. The password is encrypted with `Fernet(FERNET_KEY)` and saved on the user, along with the email.
 3. A **background thread** (with its own app context) calls
-   `functions/garmin_service.fetch_and_store_garmin_activities`, which:
+   `services/garmin.fetch_and_store_garmin_activities`, which:
    - pages through the activity list 20 at a time;
    - skips activities already stored and anything whose type is not `running`;
    - stores start time, distance, duration, average HR and average pace as a `Run`;
@@ -134,7 +134,7 @@ The user is redirected to the dashboard straight away while the sync continues.
 ## Pipeline 2: Spotify history import
 
 Triggered by uploading `my_spotify_data.zip` at `/spotify/history/upload`
-(`routes/spocon.py` → `functions/history_overlap.import_history_zip_overlapping_runs`).
+(`routes/spotify.py` → `services/history_import.import_history_zip_overlapping_runs`).
 
 1. All of the user's runs are loaded as `[start, start + duration)` intervals.
 2. Every `.json` file in the zip is **streamed** with `ijson`, so very large histories don't need to fit in memory.
@@ -147,7 +147,7 @@ Triggered by uploading `my_spotify_data.zip` at `/spotify/history/upload`
      identical one already exists.
 4. Rows are committed in batches.
 5. Scoring: each run's FIT file is parsed once, then every matched play is
-   scored with `_score_segment` and stored in `run_song_analysis`. See [scoring.md](scoring.md).
+   scored with `services/scoring.score_segment` and stored in `run_song_analysis`. See [scoring.md](scoring.md).
 
 ## Spotify OAuth
 
@@ -160,7 +160,7 @@ uploaded history zip, not the live API.
 ## Authentication and security
 
 - Passwords are hashed with Werkzeug (`generate_password_hash` / `check_password_hash`).
-- Password strength rules: at least 8 characters, with a letter, a digit and a special character (`functions/validation.py`).
+- Password strength rules: at least 8 characters, with a letter, a digit and a special character (`services/passwords.py`).
 - Password reset uses an `itsdangerous.URLSafeTimedSerializer` token signed with
   `SECRET_KEY` (salt `password-reset`, valid for 1 hour), sent by Flask-Mail.
 - Garmin passwords are stored encrypted with Fernet (`FERNET_KEY`), because the background sync needs them to log in.

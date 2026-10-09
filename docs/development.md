@@ -68,8 +68,8 @@ To reset the local SQLite database, stop the server and delete `runnify/instance
   shared extension instances live in `runnify/extensions.py`.
 - **One blueprint per feature** in `runnify/routes/`. Every blueprint is
   registered in `routes/__init__.py::register_blueprints`.
-- **Domain logic lives in `runnify/functions/`** and has no knowledge of
-  requests or templates. `history_overlap.py` goes further and takes models and
+- **Domain logic lives in `runnify/services/`** and has no knowledge of
+  requests or templates. `history_import.py` goes further and takes models and
   helpers as arguments, so it has no app imports.
 - **Docstrings** use Google style (`Args:` / `Returns:`) on every module, class
   and function. Short inline comments are lower-case.
@@ -77,7 +77,7 @@ To reset the local SQLite database, stop the server and delete `runnify/instance
 
 ### Adding a page
 
-1. Create `runnify/routes/<feature>.py` with a `Blueprint` and view functions
+1. Create `runnify/routes/<feature>.py` with a `bp = Blueprint(...)` and view functions
    (add `@login_required` **below** `@<bp>.route(...)`).
 2. Register it in `runnify/routes/__init__.py`.
 3. Add the template to `runnify/templates/`, extending `base.html`, and any

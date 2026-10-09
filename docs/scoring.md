@@ -39,11 +39,11 @@ least `HISTORY_MIN_OVERLAP_SECONDS` (default 1 s) is stored as a
 `time_played` is the overlap length in seconds. A play that spans the start or
 end of a run is therefore trimmed to the part that happened while running.
 
-Implementation: `functions/history_overlap.py`.
+Implementation: `services/history_import.py`.
 
 ## 3. Building the pace series
 
-`functions/fit_util.read_fit_to_series` reads every `record` message from the FIT file:
+`services/fit.read_fit_to_series` reads every `record` message from the FIT file:
 
 1. Take `enhanced_speed` (or `speed`) in m/s and convert it to pace:
    `pace = 1000 / speed` seconds per km.
@@ -56,7 +56,7 @@ The function returns timestamps, heart rates and smoothed paces.
 
 ## 4. The performance score
 
-Implemented in `routes/get_activities._score_segment`.
+Implemented in `services/scoring.score_segment`.
 
 For a song segment `[start_time, end_time]` within a run:
 

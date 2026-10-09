@@ -122,7 +122,7 @@ def import_history_zip_overlapping_runs(
     UserSongHistoryModel,
     RunSongAnalysisModel,
     read_fit_to_series,
-    _score_segment,
+    score_segment,
     batch_size: int = 500,
     min_overlap_seconds: int = 1,
 ):
@@ -138,7 +138,7 @@ def import_history_zip_overlapping_runs(
             The model classes to read and write.
         read_fit_to_series: Callable that parses a FIT file into
             ``(timestamps, heart_rates, paces)``.
-        _score_segment: Callable that scores one song segment of a run.
+        score_segment: Callable that scores one song segment of a run.
         batch_size: How many rows to add before each commit.
         min_overlap_seconds: Plays overlapping a run by less than this are
             ignored.
@@ -272,7 +272,7 @@ def import_history_zip_overlapping_runs(
                 "end_time": user_song.played_at
                 + dt.timedelta(seconds=user_song.time_played),
             }
-            score = _score_segment(seg, timestamps, pace_s_per_km, hr)
+            score = score_segment(seg, timestamps, pace_s_per_km, hr)
 
             if score is None or (
                 isinstance(score, float) and (score != score)

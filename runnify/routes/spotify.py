@@ -20,11 +20,11 @@ from flask import (
 from flask_login import current_user, login_required
 from runnify.extensions import db
 from runnify.models import User, Run, Song, UserSongHistory, RunSongAnalysis
-from runnify.functions.history_overlap import import_history_zip_overlapping_runs
-from runnify.functions.fit_util import read_fit_to_series
-from .get_activities import _score_segment
+from runnify.services.history_import import import_history_zip_overlapping_runs
+from runnify.services.fit import read_fit_to_series
+from runnify.services.scoring import score_segment
 
-spocon = Blueprint("spotify", __name__)  # spotify integration routes
+bp = Blueprint("spotify", __name__)  # spotify integration routes
 
 
 def _oauth():
@@ -38,14 +38,14 @@ def _oauth():
     )
 
 
-@spocon.route("/login")
+@bp.route("/login")
 @login_required
 def login_spotify():
     """Redirect the user to Spotify's authorisation page."""
     return redirect(_oauth().get_authorize_url())  # redirect to spotify login
 
 
-@spocon.route("/callback")
+@bp.route("/callback")
 @login_required
 def callback():
     """OAuth redirect target: exchange the code for tokens and store them on the user."""
@@ -82,7 +82,7 @@ def get_spotify_client(user: User):
     return spotipy.Spotify(auth=user.spotify_token)
 
 
-@spocon.route("/history/upload", methods=["GET", "POST"])
+@bp.route("/history/upload", methods=["GET", "POST"])
 @login_required
 def upload_history():
     """Show the upload page; on POST, import a Spotify history ``.zip`` and score matched songs."""
@@ -105,7 +105,7 @@ def upload_history():
         UserSongHistoryModel=UserSongHistory,
         RunSongAnalysisModel=RunSongAnalysis,
         read_fit_to_series=read_fit_to_series,  # converts garmin fit files to data series
-        _score_segment=_score_segment,  # import scoring function
+        score_segment=score_segment,  # scores each matched song segment
         batch_size=current_app.config.get("HISTORY_BATCH_SIZE", 1000),
         min_overlap_seconds=current_app.config.get("HISTORY_MIN_OVERLAP_SECONDS", 1),
     )

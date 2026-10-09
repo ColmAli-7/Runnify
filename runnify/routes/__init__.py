@@ -1,37 +1,26 @@
 """Route blueprints.
 
-Each module defines one Flask blueprint; :func:`register_blueprints` attaches
-them all to the app. See ``docs/routes.md`` for the full URL reference.
+Each module defines one Flask blueprint named ``bp``; :func:`register_blueprints`
+attaches them all to the app. See ``docs/routes.md`` for the full URL reference.
 """
 
-from .auth import auth
-from .spocon import spocon
-from .garcon import garcon
-from .get_activities import get_activities
-from .manage import manage
-from .dash import dash
-from .friends import friends
-from .main import main
-from .playlist import playlist
-from .music_insights import music_insights
-from .help import help
+from . import auth, dashboard, friends, garmin, help, insights, main, playlists, runs, settings, spotify
 
 
-# register all app blueprints
 def register_blueprints(app):
     """Register every Runnify blueprint on ``app``.
 
     The Spotify blueprint is mounted under ``/spotify``; all others are
     mounted at the site root.
     """
-    app.register_blueprint(auth)  # login and registration routes
-    app.register_blueprint(spocon, url_prefix="/spotify")  # spotify routes
-    app.register_blueprint(garcon)  # garmin routes
-    app.register_blueprint(get_activities)  # activity retrieval
-    app.register_blueprint(manage)  # account management
-    app.register_blueprint(dash)  # dashboard routes
-    app.register_blueprint(friends)  # friends system
-    app.register_blueprint(main)  # homepage and misc routes
-    app.register_blueprint(playlist)  # playlist generation
-    app.register_blueprint(music_insights)  # music analytics
-    app.register_blueprint(help)  # help and guides
+    app.register_blueprint(auth.bp)  # login, registration and password reset
+    app.register_blueprint(spotify.bp, url_prefix="/spotify")  # spotify oauth and history import
+    app.register_blueprint(garmin.bp)  # garmin account linking
+    app.register_blueprint(runs.bp)  # run list and per-run analysis
+    app.register_blueprint(settings.bp)  # account management
+    app.register_blueprint(dashboard.bp)  # dashboard
+    app.register_blueprint(friends.bp)  # friends system
+    app.register_blueprint(main.bp)  # homepage
+    app.register_blueprint(playlists.bp)  # playlist creator
+    app.register_blueprint(insights.bp)  # music insights
+    app.register_blueprint(help.bp)  # help and guides

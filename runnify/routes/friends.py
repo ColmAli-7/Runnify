@@ -6,10 +6,10 @@ from runnify.extensions import db
 from runnify.models import User, FriendRequest, Run
 from sqlalchemy import func
 
-friends = Blueprint("friends", __name__)  # blueprint for friend system
+bp = Blueprint("friends", __name__)  # blueprint for friend system
 
 
-@friends.route("/friends")
+@bp.route("/friends")
 @login_required
 def friends_page():
     """List friends with their total distance, plus pending incoming and outgoing requests."""
@@ -40,7 +40,7 @@ def friends_page():
     )
 
 
-@friends.route("/friends/send/<int:user_id>")
+@bp.route("/friends/send/<int:user_id>")
 @login_required
 def send_request(user_id):
     """Send a friend request to ``user_id`` unless already friends or one is pending."""
@@ -74,7 +74,7 @@ def send_request(user_id):
     return redirect(url_for("friends.friends_page"))
 
 
-@friends.route("/friends/accept/<int:request_id>")
+@bp.route("/friends/accept/<int:request_id>")
 @login_required
 def accept_request(request_id):
     """Accept a friend request addressed to the current user (adds the friendship both ways)."""
@@ -90,7 +90,7 @@ def accept_request(request_id):
     return redirect(url_for("friends.friends_page"))
 
 
-@friends.route("/friends/decline/<int:request_id>")
+@bp.route("/friends/decline/<int:request_id>")
 @login_required
 def decline_request(request_id):
     """Decline a friend request addressed to the current user."""
@@ -104,7 +104,7 @@ def decline_request(request_id):
     return redirect(url_for("friends.friends_page"))
 
 
-@friends.route("/friends/search", methods=["GET", "POST"])
+@bp.route("/friends/search", methods=["GET", "POST"])
 @login_required
 def search_users():
     """Search users by name (case-insensitive substring match on ``?q=``)."""
