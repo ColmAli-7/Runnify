@@ -4,8 +4,9 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
-from runnify.extensions import db
+from runnify.extensions import db, limiter
 from runnify.models import FriendRequest, Run, User
+from runnify.security.rate_limits import limit_from_config, user_or_ip
 
 bp = Blueprint("friends", __name__)  # blueprint for friend system
 
@@ -98,6 +99,7 @@ def decline_request(request_id):
 
 @bp.route("/friends/search", methods=["GET", "POST"])
 @login_required
+@limiter.limit(limit_from_config("SEARCH"), key_func=user_or_ip)
 def search_users():
     """Search users by name (case-insensitive substring match on ``?q=``)."""
     query = request.args.get("q", "")  # search input

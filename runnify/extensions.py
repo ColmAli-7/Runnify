@@ -4,6 +4,8 @@ They are created here, unbound, so any module can import them without
 importing the app; :func:`runnify.create_app` binds them to the application.
 """
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
@@ -23,6 +25,7 @@ NAMING_CONVENTION = {
 db = SQLAlchemy(metadata=MetaData(naming_convention=NAMING_CONVENTION))
 migrate = Migrate()
 csrf = CSRFProtect()
+limiter = Limiter(key_func=get_remote_address)  # storage and switches come from config
 mail = Mail()
 
 login_manager = LoginManager()

@@ -4,7 +4,8 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from runnify.extensions import db
+from runnify.extensions import db, limiter
+from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services.passwords import passw_strength
 
 bp = Blueprint("manage", __name__)  # user account management routes
@@ -12,6 +13,7 @@ bp = Blueprint("manage", __name__)  # user account management routes
 
 @bp.route("/manage", methods=["GET", "POST"])
 @login_required
+@limiter.limit(limit_from_config("ACCOUNT_CHANGE"), methods=["POST"], key_func=user_or_ip)
 def managing():
     """Show account settings; on POST, change name or password after re-checking the current password."""
     if request.method == "POST":

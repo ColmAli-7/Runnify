@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Runnify | {{ title }}{% endblock %}
+{% block content %}
+  <main class="error-container">
+    <h1>{{ title }}</h1>
+    <p>{{ message }}</p>
+    <a href="{{ url_for('main.home') }}">Go back to Home</a>
+  </main>
+{% endblock %}

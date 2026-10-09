@@ -98,6 +98,19 @@ class Config:
     # without CDN scripts and inline JavaScript; then it is enforced
     CSP_REPORT_ONLY = True
 
+    # rate limits (Flask-Limiter syntax). Use a shared store such as Redis in production
+    # (RATELIMIT_STORAGE_URI=redis://...) so limits hold across every worker.
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    RATELIMIT_STRATEGY = "moving-window"
+    RATELIMIT_HEADERS_ENABLED = True
+    RATE_LIMIT_LOGIN = "10 per minute; 50 per hour"
+    RATE_LIMIT_REGISTER = "5 per hour"
+    RATE_LIMIT_PASSWORD_RESET = "5 per hour"  # noqa: S105  (a limit, not a password)
+    RATE_LIMIT_ACCOUNT_CHANGE = "10 per hour"
+    RATE_LIMIT_GARMIN_CONNECT = "5 per hour"
+    RATE_LIMIT_UPLOAD = "10 per hour"
+    RATE_LIMIT_SEARCH = "30 per minute"
+
     # CSRF tokens are tied to the session, so they need no separate expiry
     WTF_CSRF_TIME_LIMIT = None
 
@@ -155,6 +168,7 @@ class TestConfig(Config):
     SPOTIFY_SCOPE = "user-read-email"
     MAIL_SUPPRESS_SEND = True
     WTF_CSRF_ENABLED = False  # tests post forms directly; test_csrf.py turns it back on
+    RATELIMIT_ENABLED = False  # test_rate_limits.py turns limits back on
 
 
 CONFIGS = {

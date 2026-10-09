@@ -13,8 +13,9 @@ from flask_login import login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from runnify.extensions import db
+from runnify.extensions import db, limiter
 from runnify.models import User
+from runnify.security.rate_limits import limit_from_config
 from runnify.services.mail import send_email
 from runnify.services.passwords import passw_strength
 
@@ -22,6 +23,7 @@ bp = Blueprint("auth", __name__)  # handles auth routes
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit(limit_from_config("LOGIN"), methods=["POST"])
 def login():
     """Show the login form; on POST, verify credentials and start a session."""
     if request.method == "POST":
@@ -38,6 +40,7 @@ def login():
 
 
 @bp.route("/register", methods=["GET", "POST"])
+@limiter.limit(limit_from_config("REGISTER"), methods=["POST"])
 def register():
     """Show the registration form; on POST, validate and create a new account."""
     if request.method == "POST":
@@ -106,6 +109,7 @@ If you didn't request this, please ignore this email.""",
 
 
 @bp.route("/forgot", methods=["GET", "POST"])
+@limiter.limit(limit_from_config("PASSWORD_RESET"), methods=["POST"])
 def forgot_password():
     """Show the forgot-password form; on POST, email a reset link (valid for 1 hour)."""
     if request.method == "POST":
@@ -123,6 +127,7 @@ def forgot_password():
 
 
 @bp.route("/reset/<token>", methods=["GET", "POST"])
+@limiter.limit(limit_from_config("PASSWORD_RESET"), methods=["POST"])
 def reset_password(token):
     """Validate a reset token and, on POST, set the user's new password."""
     email = verify_reset_token(token)  # validate token

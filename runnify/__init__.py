@@ -15,7 +15,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from runnify.config import get_config, validate_production_config
-from runnify.extensions import csrf, db, login_manager, mail, migrate
+from runnify.extensions import csrf, db, limiter, login_manager, mail, migrate
 from runnify.security.headers import init_security_headers
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
@@ -53,6 +53,7 @@ def create_app(config_object=None):
     db.init_app(app)
     migrate.init_app(app, db, directory=str(MIGRATIONS_DIR), render_as_batch=True)
     csrf.init_app(app)
+    limiter.init_app(app)
     mail.init_app(app)
     login_manager.init_app(app)
     init_security_headers(app)
@@ -67,6 +68,12 @@ def create_app(config_object=None):
     def page_not_found(error):
         """Render the custom 404 page."""
         return render_template("404.html"), 404
+
+    @app.errorhandler(429)
+    def too_many_requests(error):
+        """A rate limit was hit: explain, without revealing which limit or account."""
+        message = "Too many attempts. Please wait a few minutes and try again."
+        return render_template("errors/error.html", title="Slow down", message=message), 429
 
     @app.errorhandler(CSRFError)
     def csrf_failed(error):

@@ -18,8 +18,9 @@ from flask import (
 from flask_login import current_user, login_required
 from garminconnect import Garmin
 
-from runnify.extensions import db
+from runnify.extensions import db, limiter
 from runnify.models import User
+from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services.garmin import fetch_and_store_garmin_activities
 
 bp = Blueprint("garmin", __name__)  # garmin connection routes
@@ -32,6 +33,7 @@ def _fernet():
 
 @bp.route("/garmin", methods=["GET", "POST"])
 @login_required
+@limiter.limit(limit_from_config("GARMIN_CONNECT"), methods=["POST"], key_func=user_or_ip)
 def garmin():
     """Link a Garmin account.
 

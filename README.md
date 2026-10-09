@@ -87,6 +87,7 @@ the project root. [`.env.example`](.env.example) lists every variable with comme
 | `ALLOWED_HOSTS` | **Yes** in production | none | Comma-separated host names; any other `Host` header is rejected |
 | `PROXY_COUNT` | No | `0` dev / `1` prod | Reverse proxies whose `X-Forwarded-*` headers are trusted |
 | `MAX_UPLOAD_MB` | No | `100` | Maximum upload size |
+| `RATELIMIT_STORAGE_URI` | Recommended in production | `memory://` | Rate-limit counter store; use Redis (e.g. Render Key Value) to share limits across workers |
 | `FERNET_KEY` | **Yes** | none | Encrypts stored third-party credentials (required to link Garmin) |
 | `SPOTIFY_CLIENT_ID` | For Spotify login | none | Spotify app client ID |
 | `SPOTIFY_CLIENT_SECRET` | For Spotify login | none | Spotify app client secret |

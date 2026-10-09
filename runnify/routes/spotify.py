@@ -19,8 +19,9 @@ from flask import (
 from flask_login import current_user, login_required
 from spotipy.oauth2 import SpotifyOAuth
 
-from runnify.extensions import db
+from runnify.extensions import db, limiter
 from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory
+from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services.fit import read_fit_to_series
 from runnify.services.history_import import import_history_zip_overlapping_runs
 from runnify.services.scoring import score_segment
@@ -81,6 +82,7 @@ def get_spotify_client(user: User):
 
 @bp.route("/history/upload", methods=["GET", "POST"])
 @login_required
+@limiter.limit(limit_from_config("UPLOAD"), methods=["POST"], key_func=user_or_ip)
 def upload_history():
     """Show the upload page; on POST, import a Spotify history ``.zip`` and score matched songs."""
     if request.method == "GET":

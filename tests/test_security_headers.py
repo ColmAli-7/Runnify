@@ -17,7 +17,9 @@ def test_baseline_headers(client):
 
 def test_csp_allows_only_the_site_itself(client):
     headers = client.get("/").headers
-    policy = headers.get("Content-Security-Policy") or headers["Content-Security-Policy-Report-Only"]
+    policy = (
+        headers.get("Content-Security-Policy") or headers["Content-Security-Policy-Report-Only"]
+    )
     assert policy.startswith(CONTENT_SECURITY_POLICY)
     assert "'unsafe-inline'" not in policy
     assert "frame-ancestors 'none'" in policy
