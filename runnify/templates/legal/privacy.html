@@ -3,7 +3,7 @@
 {% block legal_body %}
 <section>
   <h2>Who we are</h2>
-  <p>Runnify is operated by {{ site.operator }}. It is responsible for the personal data described here. For anything about your data, email <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>.</p>
+  <p>{% if site.operator != "Runnify" %}Runnify is run by {{ site.operator }}, the controller responsible for the personal data described here.{% else %}Runnify is the controller responsible for the personal data described here.{% endif %} For anything about your data, email <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>.</p>
 </section>
 
 <section>
