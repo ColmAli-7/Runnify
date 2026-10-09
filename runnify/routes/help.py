@@ -5,6 +5,7 @@ from flask_login import login_required
 
 bp = Blueprint("help", __name__)
 
+
 @bp.route("/help/spotify-upload-guide")
 @login_required
 def spotify_upload_guide():

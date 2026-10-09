@@ -13,7 +13,10 @@ def _series(paces):
 
 
 def _segment(first, last):
-    return {"start_time": START + timedelta(seconds=first), "end_time": START + timedelta(seconds=last)}
+    return {
+        "start_time": START + timedelta(seconds=first),
+        "end_time": START + timedelta(seconds=last),
+    }
 
 
 def test_returns_none_without_enough_samples():

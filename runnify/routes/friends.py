@@ -1,10 +1,11 @@
 """Friends system: search, requests and the distance leaderboard."""
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
-from runnify.extensions import db
-from runnify.models import User, FriendRequest, Run
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from sqlalchemy import func
+
+from runnify.extensions import db
+from runnify.models import FriendRequest, Run, User
 
 bp = Blueprint("friends", __name__)  # blueprint for friend system
 
@@ -17,10 +18,7 @@ def friends_page():
     friends_data = []
     for friend in friends:
         total_distance = (
-            db.session.query(func.sum(Run.distance))
-            .filter(Run.user_id == friend.id)
-            .scalar()
-            or 0
+            db.session.query(func.sum(Run.distance)).filter(Run.user_id == friend.id).scalar() or 0
         )
         total_distance_km = round(total_distance / 1000, 2)  # convert to km
         friends_data.append(
@@ -52,14 +50,8 @@ def send_request(user_id):
         flash("You are already friends.", "info")
         return redirect(url_for("friends.friends_page"))
     existing = FriendRequest.query.filter(
-        (
-            (FriendRequest.sender_id == current_user.id)
-            & (FriendRequest.receiver_id == user_id)
-        )
-        | (
-            (FriendRequest.sender_id == user_id)
-            & (FriendRequest.receiver_id == current_user.id)
-        ),
+        ((FriendRequest.sender_id == current_user.id) & (FriendRequest.receiver_id == user_id))
+        | ((FriendRequest.sender_id == user_id) & (FriendRequest.receiver_id == current_user.id)),
         FriendRequest.status == "pending",
     ).first()  # check if a pending request exists
     if existing:
@@ -111,7 +103,5 @@ def search_users():
     query = request.args.get("q", "")  # search input
     results = []
     if query:
-        results = User.query.filter(
-            User.name.ilike(f"%{query}%")
-        ).all()  # case-insensitive search
+        results = User.query.filter(User.name.ilike(f"%{query}%")).all()  # case-insensitive search
     return render_template("friend_search.html", results=results, query=query)

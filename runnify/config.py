@@ -6,6 +6,7 @@ the full list of variables.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -65,7 +66,7 @@ class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite://"
     FERNET_KEY = "x3HpWkM5yMTkNmGF9v8xB2o1C0Gq4WqY7d0Zr6Jc1sE="  # dummy key, tests only
     SPOTIFY_CLIENT_ID = "test-client-id"
-    SPOTIFY_CLIENT_SECRET = "test-client-secret"
+    SPOTIFY_CLIENT_SECRET = "test-client-secret"  # noqa: S105  (tests only)
     SPOTIFY_REDIRECT_URI = "http://127.0.0.1:5000/spotify/callback"
     SPOTIFY_SCOPE = "user-read-email"
     MAIL_SUPPRESS_SEND = True

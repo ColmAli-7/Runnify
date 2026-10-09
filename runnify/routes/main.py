@@ -5,6 +5,7 @@ from flask_login import current_user
 
 bp = Blueprint("main", __name__)  # main site routes
 
+
 @bp.route("/")
 def home():
     """Render the homepage, personalised when a user is logged in."""

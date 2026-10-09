@@ -4,21 +4,22 @@ Garmin passwords are encrypted with the app's ``FERNET_KEY`` before storage.
 """
 
 import threading
+
+from cryptography.fernet import Fernet
 from flask import (
     Blueprint,
+    current_app,
+    flash,
+    redirect,
     render_template,
     request,
-    redirect,
     url_for,
-    flash,
-    jsonify,
-    current_app,
 )
-from flask_login import login_required, current_user
+from flask_login import current_user, login_required
 from garminconnect import Garmin
+
 from runnify.extensions import db
 from runnify.models import User
-from cryptography.fernet import Fernet
 from runnify.services.garmin import fetch_and_store_garmin_activities
 
 bp = Blueprint("garmin", __name__)  # garmin connection routes
@@ -59,18 +60,14 @@ def garmin():
                     user = db.session.get(User, user_id)
                     if user:
                         print(f"Starting Garmin sync for {user.email}")
-                        fetch_and_store_garmin_activities(
-                            user, fernet
-                        )  # fetch all user activities
+                        fetch_and_store_garmin_activities(user, fernet)  # fetch all user activities
                         db.session.commit()
                         print(f"Finished Garmin sync for {user.email}")
 
             threading.Thread(
                 target=background_job, args=(current_user.id, app)
             ).start()  # run sync in background
-            flash(
-                "Garmin connected! Activities are syncing in the background.", "success"
-            )
+            flash("Garmin connected! Activities are syncing in the background.", "success")
             return redirect(url_for("dash.dashboard"))
         except Exception as e:  # login or api failure
             flash(f"Garmin login failed: Incorrect Details or API Failed: {e}", "danger")

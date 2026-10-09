@@ -7,10 +7,12 @@ run interval, and stored as ``UserSongHistory`` rows. Performance scores are
 then computed per play and stored as ``RunSongAnalysis`` rows.
 """
 
-import io, zipfile, datetime as dt
-from typing import Dict, Any
+import datetime as dt
+import io
+import zipfile
+from typing import Any
+
 import ijson
-from sqlalchemy import and_, exists
 
 
 def _parse_ts_stop_utc(ts_str: str):
@@ -23,14 +25,14 @@ def _parse_ts_stop_utc(ts_str: str):
         try:
             if ts_str.endswith("Z"):
                 d = dt.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                return d.astimezone(dt.timezone.utc).replace(tzinfo=None)
+                return d.astimezone(dt.UTC).replace(tzinfo=None)
             d = dt.datetime.fromisoformat(ts_str)
-            return d.astimezone(dt.timezone.utc).replace(tzinfo=None)
+            return d.astimezone(dt.UTC).replace(tzinfo=None)
         except Exception:
             return None
 
 
-def _row_interval(row: Dict[str, Any]):
+def _row_interval(row: dict[str, Any]):
     """Return the ``(start, end)`` interval of a play, using ``ts - ms_played`` as start."""
     ts = _parse_ts_stop_utc(row.get("ts"))
     if ts is None:
@@ -45,16 +47,14 @@ def _row_interval(row: Dict[str, Any]):
     return (start, end) if start < end else None
 
 
-def _is_podcast_or_video(row: Dict[str, Any]):
+def _is_podcast_or_video(row: dict[str, Any]):
     """Return ``True`` if the row is a podcast episode or video rather than music."""
     return bool(
-        row.get("episode_name")
-        or row.get("episode_show_name")
-        or row.get("spotify_episode_uri")
+        row.get("episode_name") or row.get("episode_show_name") or row.get("spotify_episode_uri")
     )
 
 
-def _spotify_track_id(row: Dict[str, Any]):
+def _spotify_track_id(row: dict[str, Any]):
     """Extract the track id from a ``spotify:track:<id>`` URI (``None`` if absent)."""
     uri = row.get("spotify_track_uri")
     if not uri:
@@ -65,7 +65,7 @@ def _spotify_track_id(row: Dict[str, Any]):
     return None
 
 
-def _names(row: Dict[str, Any]):
+def _names(row: dict[str, Any]):
     """Return ``(track, artist, album)`` names from a history row."""
     return (
         row.get("master_metadata_track_name"),
@@ -74,9 +74,7 @@ def _names(row: Dict[str, Any]):
     )
 
 
-def _overlap(
-    a_start: dt.datetime, a_end: dt.datetime, b_start: dt.datetime, b_end: dt.datetime
-):
+def _overlap(a_start: dt.datetime, a_end: dt.datetime, b_start: dt.datetime, b_end: dt.datetime):
     """Return the overlapping ``(start, end)`` of two intervals, or ``None``."""
     s = max(a_start, b_start)
     e = min(a_end, b_end)
@@ -264,19 +262,14 @@ def import_history_zip_overlapping_runs(
 
         analyses_to_add = []
         for user_song in user_songs:
-            timestamps, hr, pace_s_per_km = run_data_cache.get(
-                user_song.run_id, ([], [], [])
-            )
+            timestamps, hr, pace_s_per_km = run_data_cache.get(user_song.run_id, ([], [], []))
             seg = {
                 "start_time": user_song.played_at,
-                "end_time": user_song.played_at
-                + dt.timedelta(seconds=user_song.time_played),
+                "end_time": user_song.played_at + dt.timedelta(seconds=user_song.time_played),
             }
             score = score_segment(seg, timestamps, pace_s_per_km, hr)
 
-            if score is None or (
-                isinstance(score, float) and (score != score)
-            ):  # skip invalid
+            if score is None or (isinstance(score, float) and (score != score)):  # skip invalid
                 continue
             exists = (
                 db.session.query(RunSongAnalysisModel.id)

@@ -5,23 +5,24 @@ history zip. OAuth settings come from the app's ``SPOTIFY_*`` config values.
 """
 
 import time
+
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 from flask import (
     Blueprint,
-    redirect,
-    request,
-    session,
-    url_for,
-    render_template,
-    current_app,
     abort,
+    current_app,
+    redirect,
+    render_template,
+    request,
+    url_for,
 )
 from flask_login import current_user, login_required
+from spotipy.oauth2 import SpotifyOAuth
+
 from runnify.extensions import db
-from runnify.models import User, Run, Song, UserSongHistory, RunSongAnalysis
-from runnify.services.history_import import import_history_zip_overlapping_runs
+from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory
 from runnify.services.fit import read_fit_to_series
+from runnify.services.history_import import import_history_zip_overlapping_runs
 from runnify.services.scoring import score_segment
 
 bp = Blueprint("spotify", __name__)  # spotify integration routes
@@ -69,14 +70,10 @@ def get_spotify_client(user: User):
     """
     if not user.spotify_token or not user.spotify_refresh_token:
         return None
-    if (
-        user.spotify_expires_at - int(time.time()) < 60
-    ):  # refresh if token about to expire
+    if user.spotify_expires_at - int(time.time()) < 60:  # refresh if token about to expire
         refreshed = _oauth().refresh_access_token(user.spotify_refresh_token)
         user.spotify_token = refreshed["access_token"]
-        user.spotify_refresh_token = refreshed.get(
-            "refresh_token", user.spotify_refresh_token
-        )
+        user.spotify_refresh_token = refreshed.get("refresh_token", user.spotify_refresh_token)
         user.spotify_expires_at = refreshed["expires_at"]
         db.session.commit()
     return spotipy.Spotify(auth=user.spotify_token)
@@ -111,6 +108,5 @@ def upload_history():
     )
 
     # stats includes counts of processed runs, matched songs, and created analyses
-
 
     return redirect(url_for("dash.dashboard"))  # go back to dashboard after upload

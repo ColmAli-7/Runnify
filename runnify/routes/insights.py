@@ -1,10 +1,12 @@
 """Music Insights: aggregate song performance statistics over a date range."""
 
 from collections import defaultdict
-from flask import Blueprint, render_template, request
-from flask_login import login_required, current_user
-from sqlalchemy import func
 from datetime import datetime, timedelta
+
+from flask import Blueprint, render_template, request
+from flask_login import current_user, login_required
+from sqlalchemy import func
+
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory, utcnow
 
@@ -69,15 +71,13 @@ def music_insights_page():
     if start:
         most_played = most_played.filter(Run.date_time >= start, Run.date_time <= end)
     most_played = (
-        most_played.group_by(Song.name)
-        .order_by(func.count(UserSongHistory.id).desc())
-        .first()
+        most_played.group_by(Song.name).order_by(func.count(UserSongHistory.id).desc()).first()
     )
     most_played = most_played[0] if most_played else None  # most frequently played
 
-    total_songs = db.session.query(
-        func.count(func.distinct(UserSongHistory.song_id))
-    ).filter(UserSongHistory.user_id == current_user.id)
+    total_songs = db.session.query(func.count(func.distinct(UserSongHistory.song_id))).filter(
+        UserSongHistory.user_id == current_user.id
+    )
     if start:
         total_songs = total_songs.join(Run, Run.id == UserSongHistory.run_id).filter(
             Run.date_time >= start, Run.date_time <= end
@@ -137,9 +137,7 @@ def music_insights_page():
         .filter(UserSongHistory.user_id == current_user.id)
     )
     if start:
-        most_listened = most_listened.filter(
-            Run.date_time >= start, Run.date_time <= end
-        )
+        most_listened = most_listened.filter(Run.date_time >= start, Run.date_time <= end)
     most_listened = (
         most_listened.group_by(Song.name)
         .order_by(func.count(UserSongHistory.id).desc())

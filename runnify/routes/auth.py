@@ -2,20 +2,21 @@
 
 from flask import (
     Blueprint,
-    request,
-    render_template,
-    redirect,
-    url_for,
-    flash,
     current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
 )
-from flask_login import login_user, logout_user, login_required
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import login_required, login_user, logout_user
+from flask_mail import Message
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from runnify.extensions import db
 from runnify.models import User
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from runnify.services.passwords import passw_strength
-from flask_mail import Message
 
 bp = Blueprint("auth", __name__)  # handles auth routes
 
@@ -27,9 +28,7 @@ def login():
         email = request.form.get("email").strip().lower()  # normalise email
         password = request.form.get("password")
         user = User.query.filter_by(email=email).first()  # find user
-        if not user or not check_password_hash(
-            user.password_hash, password
-        ):  # invalid login
+        if not user or not check_password_hash(user.password_hash, password):  # invalid login
             flash("Invalid email or password", "error")
             return render_template("login.html", form_type="login")
         login_user(user)  # start user session
@@ -124,9 +123,7 @@ def forgot_password():
             flash("That email is not registered.", "error")
             return render_template("forgot.html")
         token = generate_reset_token(email)  # create token
-        reset_link = url_for(
-            "auth.reset_password", token=token, _external=True
-        )  # build reset link
+        reset_link = url_for("auth.reset_password", token=token, _external=True)  # build reset link
         send_reset_email(email, reset_link)  # send email
         flash("A reset link has been sent to your email.", "info")
         return redirect(url_for("auth.login"))

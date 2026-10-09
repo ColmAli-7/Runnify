@@ -1,9 +1,9 @@
 """Load the songs that were playing during a run."""
 
 from datetime import timedelta
-from sqlalchemy import and_
+
 from runnify.extensions import db
-from runnify.models import UserSongHistory, Song
+from runnify.models import Song, UserSongHistory
 
 
 def _end_time(played_at, time_played):

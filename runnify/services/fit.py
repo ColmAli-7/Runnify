@@ -53,9 +53,7 @@ def read_fit_to_series(
         fields = {field.name: field.value for field in record}
         timestamp = fields.get("timestamp")
         heart_rate = fields.get("heart_rate")
-        speed = fields.get(
-            "enhanced_speed", fields.get("speed")
-        )  # use enhanced speed if available
+        speed = fields.get("enhanced_speed", fields.get("speed"))  # use enhanced speed if available
         distance = fields.get("distance")
         if timestamp is not None:
             record_rows.append((timestamp, heart_rate, speed, distance))

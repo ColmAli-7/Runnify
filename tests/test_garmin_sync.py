@@ -34,7 +34,13 @@ class FakeGarmin:
             return []
         common = {"startTimeGMT": "2026-10-01 07:00:00", "duration": 1800.0, "distance": 5000.0}
         return [
-            {"activityId": 123, "activityType": {"typeKey": "running"}, "averageHR": 150, "averageSpeed": 2.78, **common},
+            {
+                "activityId": 123,
+                "activityType": {"typeKey": "running"},
+                "averageHR": 150,
+                "averageSpeed": 2.78,
+                **common,
+            },
             {"activityId": 456, "activityType": {"typeKey": "lap_swimming"}, **common},
         ]
 

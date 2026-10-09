@@ -4,7 +4,19 @@ Each module defines one Flask blueprint named ``bp``; :func:`register_blueprints
 attaches them all to the app. See ``docs/routes.md`` for the full URL reference.
 """
 
-from . import auth, dashboard, friends, garmin, help, insights, main, playlists, runs, settings, spotify
+from . import (
+    auth,
+    dashboard,
+    friends,
+    garmin,
+    help,
+    insights,
+    main,
+    playlists,
+    runs,
+    settings,
+    spotify,
+)
 
 
 def register_blueprints(app):

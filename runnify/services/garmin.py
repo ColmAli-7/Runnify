@@ -4,7 +4,9 @@ import os
 import time
 import zipfile
 from datetime import datetime
+
 from garminconnect import Garmin
+
 from runnify.extensions import db
 from runnify.models import Run
 
@@ -26,9 +28,7 @@ def fetch_and_store_garmin_activities(user, fernet):
             stored Garmin password.
     """
     email = user.garmin_username
-    password = fernet.decrypt(
-        user.garmin_password.encode()
-    ).decode()  # decrypt saved password
+    password = fernet.decrypt(user.garmin_password.encode()).decode()  # decrypt saved password
     client = Garmin(email, password)
     client.login()  # authenticate with garmin
     os.makedirs(FIT_DIR, exist_ok=True)
@@ -46,9 +46,7 @@ def fetch_and_store_garmin_activities(user, fernet):
         total = max(total, start + len(activities))
         for act in activities:
             activity_id = str(act["activityId"])
-            existing = Run.query.filter_by(
-                user_id=user.id, activity_id=activity_id
-            ).first()
+            existing = Run.query.filter_by(user_id=user.id, activity_id=activity_id).first()
             if existing:
                 print(f"Skipping duplicate activity {activity_id}")
                 continue  # avoid existing entries
@@ -61,19 +59,15 @@ def fetch_and_store_garmin_activities(user, fernet):
             distance = float(act.get("distance", 0))
             avg_hr = act.get("averageHR")
             avg_speed = act.get("averageSpeed", 0.0)
-            avg_pace = (
-                (1000 / avg_speed / 60) if avg_speed > 0 else None
-            )  # convert to min/km
+            avg_pace = (1000 / avg_speed / 60) if avg_speed > 0 else None  # convert to min/km
 
             zip_filename = os.path.join(FIT_DIR, f"{activity_id}_ACTIVITY.zip")
             fit_filename = os.path.join(FIT_DIR, f"{activity_id}_ACTIVITY.fit")
 
             try:
                 # download the activity as a zip and extract the fit file
-                fit_zip_data = client.download_activity(
-                    activity_id, dl_fmt=DOWNLOAD_FORMAT
-                )
-                time.sleep(1)  
+                fit_zip_data = client.download_activity(activity_id, dl_fmt=DOWNLOAD_FORMAT)
+                time.sleep(1)
                 with open(zip_filename, "wb") as f:
                     f.write(fit_zip_data)
                 with zipfile.ZipFile(zip_filename, "r") as zip_ref:
@@ -92,9 +86,7 @@ def fetch_and_store_garmin_activities(user, fernet):
                 duration=duration,
                 avg_hr=avg_hr,
                 avg_pace=avg_pace,
-                fit_file_path=(
-                    fit_path if fit_path else activity_id
-                ),  # store fit file path or id
+                fit_file_path=(fit_path if fit_path else activity_id),  # store fit file path or id
             )
             db.session.add(run)
             processed += 1  # track total saved activities

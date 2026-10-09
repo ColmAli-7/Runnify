@@ -36,6 +36,8 @@ def test_protected_pages_redirect_anonymous_users_to_login(client, path):
     assert response.headers["Location"].startswith("/login")
 
 
-@pytest.mark.parametrize("path", ["/dashboard", "/activities", "/music-insights", "/friends", "/manage"])
+@pytest.mark.parametrize(
+    "path", ["/dashboard", "/activities", "/music-insights", "/friends", "/manage"]
+)
 def test_signed_in_pages_render(auth_client, path):
     assert auth_client.get(path).status_code == 200

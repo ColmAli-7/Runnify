@@ -1,13 +1,13 @@
 """Activity list and the per-run analysis page."""
 
-from flask import Blueprint, render_template, abort, request
+from flask import Blueprint, abort, render_template, request
 from flask_login import current_user, login_required
-from runnify.extensions import db
-from runnify.models import Run, RunSongAnalysis, UserSongHistory
+from sqlalchemy import and_, exists
+
+from runnify.models import Run, UserSongHistory
 from runnify.services.fit import read_fit_to_series
-from sqlalchemy import exists, and_
-from runnify.services.segments import load_song_segments
 from runnify.services.scoring import score_segment
+from runnify.services.segments import load_song_segments
 
 bp = Blueprint("activities", __name__)  # blueprint for activity routes
 
@@ -16,9 +16,7 @@ bp = Blueprint("activities", __name__)  # blueprint for activity routes
 @login_required
 def activities():
     """List the user's runs, newest first; ``?music_only=true`` keeps only runs with matched songs."""
-    music_only = (
-        request.args.get("music_only", "false") == "true"
-    )  # toggle for music-linked runs
+    music_only = request.args.get("music_only", "false") == "true"  # toggle for music-linked runs
     query = Run.query.filter_by(user_id=current_user.id)
     if music_only:
         query = query.filter(
@@ -46,23 +44,19 @@ def activity_detail(run_id):
     if not run:
         abort(404, description="Run not found")  # invalid id or unauthorised access
     if not run.fit_file_path:
-        abort(
-            400, description="No FIT file recorded for this run"
-        )  # no fit file present
+        abort(400, description="No FIT file recorded for this run")  # no fit file present
 
     ts, hr, pace = read_fit_to_series(run.fit_file_path)  # parse FIT file
     if not ts:
         abort(400, description="No records found in FIT")  # empty FIT file
 
     run_start, run_end = ts[0], ts[-1]
-    segments = load_song_segments(
-        run.user_id, run_start, run_end
-    )  # get songs played during run
+    segments = load_song_segments(run.user_id, run_start, run_end)  # get songs played during run
 
     for seg in segments:
         seg["score"] = score_segment(seg, ts, pace, hr)  # compute score per song
 
-    #payload for frontend rendering of activity analysis
+    # payload for frontend rendering of activity analysis
     payload = {
         "run": {
             "id": run.id,
@@ -77,9 +71,7 @@ def activity_detail(run_id):
             "avg_hr": run.avg_hr,
         },
         "timeline": {
-            "t_s": [
-                int((t - run_start).total_seconds()) for t in ts
-            ],  # time in seconds from start
+            "t_s": [int((t - run_start).total_seconds()) for t in ts],  # time in seconds from start
             "pace_s_per_km": [round(v, 1) if v is not None else None for v in pace],
             "hr_bpm": hr,
         },

@@ -12,15 +12,16 @@ Users are linked to each other through the ``friends`` association table and
 ``FriendRequest``.
 """
 
+from datetime import UTC, datetime
+
 from flask_login import UserMixin
-from datetime import datetime, timezone
 
 from runnify.extensions import db, login_manager
 
 
 def utcnow():
     """Return the current UTC time as a naive ``datetime`` (how timestamps are stored)."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class User(db.Model, UserMixin):
@@ -88,9 +89,7 @@ class Run(db.Model):
     fit_file_path = db.Column(db.String)
 
     user = db.relationship("User", back_populates="runs")  # link run to user
-    analysis = db.relationship(
-        "RunSongAnalysis", back_populates="run"
-    )  # link run to analysis
+    analysis = db.relationship("RunSongAnalysis", back_populates="run")  # link run to analysis
 
 
 class Song(db.Model):
@@ -174,7 +173,7 @@ class FriendRequest(db.Model):
     timestamp = db.Column(db.DateTime, default=utcnow)
 
     sender = db.relationship(
-        "User", foreign_keys=[sender_id], backref="sent_requests" 
+        "User", foreign_keys=[sender_id], backref="sent_requests"
     )  # link sender
     receiver = db.relationship(
         "User", foreign_keys=[receiver_id], backref="received_requests"

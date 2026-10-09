@@ -1,9 +1,7 @@
 """Playlist generator (work in progress: the form is captured but no playlist is built yet)."""
 
-from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request
 from flask_login import login_required
-from runnify.extensions import db
-from runnify.models import User
 
 bp = Blueprint("playlist", __name__)
 

@@ -1,8 +1,9 @@
 """Account management: change display name or password."""
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from runnify.extensions import db
 from runnify.services.passwords import passw_strength
 
@@ -22,7 +23,7 @@ def managing():
         ):  # verify password before any change
             flash("Incorrect password", "error")
             return redirect(url_for("manage.managing"))
-        
+
         if action == "change_name":
             new_name = request.form.get("new_name")
             current_user.name = new_name  # update display name
@@ -39,9 +40,7 @@ def managing():
                 flash("Passwords do not match", "error")
                 return redirect(url_for("manage.managing"))
             else:
-                current_user.password_hash = generate_password_hash(
-                    new_pw
-                )  # update password
+                current_user.password_hash = generate_password_hash(new_pw)  # update password
                 db.session.commit()
                 flash("Password updated", "success")
                 return redirect(url_for("manage.managing"))

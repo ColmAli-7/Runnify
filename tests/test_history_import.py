@@ -14,7 +14,9 @@ from runnify.services.scoring import score_segment
 def _history_zip(rows):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
-        archive.writestr("Spotify Extended Streaming History/Streaming_History_Audio_2026.json", json.dumps(rows))
+        archive.writestr(
+            "Spotify Extended Streaming History/Streaming_History_Audio_2026.json", json.dumps(rows)
+        )
         archive.writestr("ReadMeFirst.pdf", b"not json")
     return buffer.getvalue()
 
@@ -33,7 +35,9 @@ def _row(ts, ms, uri, name="Track", artist="Artist", **extra):
 
 def test_import_links_overlapping_music_and_skips_the_rest(app):
     rows = [
-        _row("2026-10-01T07:05:00Z", 200_000, "spotify:track:during"),  # 07:01:40-07:05:00, inside the run
+        _row(
+            "2026-10-01T07:05:00Z", 200_000, "spotify:track:during"
+        ),  # 07:01:40-07:05:00, inside the run
         _row("2026-10-01T06:00:00Z", 180_000, "spotify:track:before"),  # an hour before the run
         _row("2026-10-01T07:10:00Z", 60_000, None, episode_name="A podcast"),  # podcast
         _row("2026-10-01T07:12:00Z", 60_000, None),  # no track uri
@@ -42,7 +46,15 @@ def test_import_links_overlapping_music_and_skips_the_rest(app):
         user = User(name="T", email="t@example.com", password_hash="x")
         db.session.add(user)
         db.session.flush()
-        db.session.add(Run(user_id=user.id, activity_id="1", date_time=datetime(2026, 10, 1, 7), duration=1800, distance=5000))
+        db.session.add(
+            Run(
+                user_id=user.id,
+                activity_id="1",
+                date_time=datetime(2026, 10, 1, 7),
+                duration=1800,
+                distance=5000,
+            )
+        )
         db.session.commit()
 
         stats = import_history_zip_overlapping_runs(

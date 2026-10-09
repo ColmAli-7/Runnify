@@ -1,12 +1,13 @@
 """User dashboard: headline stats and monthly mileage."""
 
+from collections import defaultdict
+
 from flask import Blueprint, render_template
-from flask_login import login_required, current_user
+from flask_login import current_user, login_required
 from sqlalchemy import func
+
 from runnify.extensions import db
 from runnify.models import Run, Song, UserSongHistory
-from collections import defaultdict
-import datetime as dt
 
 bp = Blueprint("dash", __name__)  # dashboard blueprint
 
@@ -22,9 +23,7 @@ def dashboard():
     """
     user = current_user
     total_runs = Run.query.filter_by(user_id=user.id).count()  # total run count
-    total_songs = UserSongHistory.query.filter_by(
-        user_id=user.id
-    ).count()  # total songs played
+    total_songs = UserSongHistory.query.filter_by(user_id=user.id).count()  # total songs played
     total_distance = (
         db.session.query(func.sum(Run.distance)).filter(Run.user_id == user.id).scalar()
     )
@@ -38,26 +37,20 @@ def dashboard():
         .order_by(func.count(UserSongHistory.id).desc())
         .first()
     )
-    favourite_artist = (
-        favourite_artist[0] if favourite_artist else "—"
-    )  # most played artist
+    favourite_artist = favourite_artist[0] if favourite_artist else "—"  # most played artist
 
-    last_run = (
-        Run.query.filter_by(user_id=user.id).order_by(Run.date_time.desc()).first()
-    )
+    last_run = Run.query.filter_by(user_id=user.id).order_by(Run.date_time.desc()).first()
 
     last_run_display = "—"
     if last_run:
         pace_s = (
-            last_run.duration / (last_run.distance / 1000)
-            if last_run.distance
-            else None
+            last_run.duration / (last_run.distance / 1000) if last_run.distance else None
         )  # sec per km
         if pace_s:
             pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km"
         else:
             pace_str = "—"
-        last_run_display = f"{(last_run.distance/1000):.1f} km | {pace_str} | Avg HR: {last_run.avg_hr or '—'}"  # format last run summary
+        last_run_display = f"{(last_run.distance / 1000):.1f} km | {pace_str} | Avg HR: {last_run.avg_hr or '—'}"  # format last run summary
 
     fastest_km_display = "—"
     fastest_km_date = None
@@ -78,9 +71,7 @@ def dashboard():
             .first()
         )
         if song:
-            fastest_km_display = (
-                f"{pace_str} — {song[1]} - {song[0]}"  # show artist and song
-            )
+            fastest_km_display = f"{pace_str} — {song[1]} - {song[0]}"  # show artist and song
         else:
             fastest_km_display = pace_str
         fastest_km_date = fastest_km_run.date_time.strftime("%d %b %Y")  # format date
@@ -97,17 +88,13 @@ def dashboard():
     if longest_run:
         dist_km = longest_run.distance / 1000 if longest_run.distance else 0
         pace_s = (
-            longest_run.duration / (longest_run.distance / 1000)
-            if longest_run.distance
-            else None
+            longest_run.duration / (longest_run.distance / 1000) if longest_run.distance else None
         )
         if pace_s:
             pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km"
         else:
             pace_str = "—"
-        longest_run_display = (
-            f"{dist_km:.1f} km | {pace_str} | Avg HR: {longest_run.avg_hr or '—'}"
-        )
+        longest_run_display = f"{dist_km:.1f} km | {pace_str} | Avg HR: {longest_run.avg_hr or '—'}"
         longest_run_date = longest_run.date_time.strftime("%d %b %Y")
 
     monthly_mileage = defaultdict(float)
