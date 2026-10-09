@@ -22,12 +22,11 @@ from flask import (
 from flask_login import current_user, login_required
 
 from runnify.extensions import db, limiter
-from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory
+from runnify.models import Run
 from runnify.security.rate_limits import limit_from_config, user_or_ip
+from runnify.services import imports
 from runnify.services import spotify as spotify_service
-from runnify.services.fit import read_fit_to_series
-from runnify.services.history_import import import_history_zip_overlapping_runs
-from runnify.services.scoring import score_segment
+from runnify.services.history_import import HistoryArchiveError
 
 bp = Blueprint("spotify", __name__)  # spotify integration routes
 logger = logging.getLogger(__name__)
@@ -79,33 +78,30 @@ def callback():
 @login_required
 @limiter.limit(limit_from_config("UPLOAD"), methods=["POST"], key_func=user_or_ip)
 def upload_history():
-    """Show the upload page; on POST, import a Spotify history ``.zip`` and score matched songs."""
+    """Show the upload page; on POST, check the archive and import it in the background."""
     if request.method == "GET":
-        return render_template("spotify_upload_history.html")  # upload page
+        return render_template("spotify_upload_history.html")
 
     file = request.files.get("history_zip")
-    if not file or not file.filename.lower().endswith(".zip"):
-        abort(400, description="Please upload a .zip file from Spotify")
+    if not file or not file.filename or not file.filename.lower().endswith(".zip"):
+        flash("Choose the .zip file Spotify sent you.", "error")
+        return redirect(url_for("spotify.upload_history"))
+    if not Run.query.filter_by(user_id=current_user.id).first():
+        flash("Sync your runs from Garmin first; songs are matched to runs.", "info")
+        return redirect(url_for("spotify.upload_history"))
+    if current_user.history_import_state == "importing":
+        flash("An import is already running. It will finish shortly.", "info")
+        return redirect(url_for("dash.dashboard"))
 
-    zip_bytes = file.read()  # read uploaded zip file
-
-    # match streaming history with run data and analyse performance
-    stats = import_history_zip_overlapping_runs(
-        zip_bytes=zip_bytes,  # zip file containing spotify listening data
-        user_id=current_user.id,
-        db=db,
-        RunModel=Run,
-        SongModel=Song,
-        UserSongHistoryModel=UserSongHistory,
-        RunSongAnalysisModel=RunSongAnalysis,
-        read_fit_to_series=read_fit_to_series,  # converts garmin fit files to data series
-        score_segment=score_segment,  # scores each matched song segment
-        batch_size=current_app.config.get("HISTORY_BATCH_SIZE", 1000),
-        min_overlap_seconds=current_app.config.get("HISTORY_MIN_OVERLAP_SECONDS", 1),
+    path = imports.save_upload(file)
+    try:
+        imports.check_upload(path)
+    except HistoryArchiveError as error:
+        imports.discard(path)
+        flash(str(error), "error")
+        return redirect(url_for("spotify.upload_history"))
+    imports.start_background_import(current_app._get_current_object(), current_user.id, path)
+    flash(
+        "Importing your listening history. Matched songs appear as soon as it finishes.", "success"
     )
-
-    if stats["note"]:
-        flash(stats["note"], "info")
-    else:
-        flash(f"Matched {stats['saved']} song plays to your runs.", "success")
-    return redirect(url_for("dash.dashboard"))  # go back to dashboard after upload
+    return redirect(url_for("dash.dashboard"))

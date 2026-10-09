@@ -126,7 +126,12 @@ class Config:
     # uploads and imports; FIT files default to <instance folder>/fit_files
     FIT_STORAGE_DIR = os.getenv("FIT_STORAGE_DIR")
     MAX_CONTENT_LENGTH = env_int("MAX_UPLOAD_MB", 100) * 1024 * 1024
+    UPLOAD_TMP_DIR = os.getenv("UPLOAD_TMP_DIR")  # default: <instance folder>/uploads
     HISTORY_BATCH_SIZE = 1000  # rows per commit for bulk inserts
+    # an archive breaking any of these is refused before parsing (zip-bomb protection)
+    HISTORY_MAX_ENTRIES = 1000
+    HISTORY_MAX_UNCOMPRESSED_MB = 2048
+    HISTORY_MAX_COMPRESSION_RATIO = 100
     HISTORY_MIN_OVERLAP_SECONDS = 1  # min overlap for track matching
 
     # integrations

@@ -58,7 +58,7 @@ def test_import_links_overlapping_music_and_skips_the_rest(app):
         db.session.commit()
 
         stats = import_history_zip_overlapping_runs(
-            zip_bytes=_history_zip(rows),
+            zip_file=io.BytesIO(_history_zip(rows)),
             user_id=user.id,
             db=db,
             RunModel=Run,
@@ -85,7 +85,9 @@ def test_import_without_runs_does_nothing(app):
         db.session.add(user)
         db.session.commit()
         stats = import_history_zip_overlapping_runs(
-            zip_bytes=_history_zip([_row("2026-10-01T07:05:00Z", 200_000, "spotify:track:x")]),
+            zip_file=io.BytesIO(
+                _history_zip([_row("2026-10-01T07:05:00Z", 200_000, "spotify:track:x")])
+            ),
             user_id=user.id,
             db=db,
             RunModel=Run,

@@ -56,6 +56,11 @@ class User(db.Model, UserMixin):
     garmin_sync_message = db.Column(db.String(200))
     garmin_last_synced_at = db.Column(db.DateTime)
 
+    # Spotify history import progress: "importing", "ok" or "failed"
+    history_import_state = db.Column(db.String(16))
+    history_import_message = db.Column(db.String(200))
+    history_imported_at = db.Column(db.DateTime)
+
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime)
 

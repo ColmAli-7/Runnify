@@ -1,18 +1,59 @@
 """Import Spotify extended streaming history and match it against runs.
 
-The uploaded zip is streamed with ``ijson`` so multi-hundred-MB histories do
-not need to fit in memory. Each music play is turned into a ``[start, end)``
+Archives are checked with :func:`inspect_archive` before anything is parsed
+(entry count, total uncompressed size and compression ratio, so a zip bomb is
+refused), then streamed with ``ijson`` so multi-hundred-MB histories never
+need to fit in memory. Each music play is turned into a ``[start, end)``
 interval (Spotify's ``ts`` is when playback *stopped*), intersected with every
 run interval, and stored as ``UserSongHistory`` rows. Performance scores are
 then computed per play and stored as ``RunSongAnalysis`` rows.
 """
 
 import datetime as dt
-import io
 import zipfile
 from typing import Any
 
 import ijson
+
+
+class HistoryArchiveError(ValueError):
+    """The upload isn't a usable Spotify history archive (the message is safe to show)."""
+
+
+def inspect_archive(zip_file, *, max_entries, max_uncompressed_bytes, max_ratio):
+    """Check an uploaded archive before parsing it.
+
+    Args:
+        zip_file: Path or seekable binary file of the upload.
+        max_entries: Most entries an archive may contain.
+        max_uncompressed_bytes: Largest total size of the JSON entries once unpacked.
+        max_ratio: Highest compression ratio allowed for any entry.
+
+    Returns:
+        The number of JSON entries.
+
+    Raises:
+        HistoryArchiveError: The file is not a zip, holds no JSON, is encrypted,
+            or is far bigger unpacked than any real export (a zip bomb).
+    """
+    try:
+        with zipfile.ZipFile(zip_file) as archive:
+            entries = archive.infolist()
+    except (zipfile.BadZipFile, OSError) as error:
+        raise HistoryArchiveError("That file isn't a zip archive.") from error
+    if len(entries) > max_entries:
+        raise HistoryArchiveError("That archive has far more files than a Spotify export.")
+    json_entries = [e for e in entries if e.filename.lower().endswith(".json")]
+    if not json_entries:
+        raise HistoryArchiveError("That archive has no listening history (.json) files in it.")
+    if any(e.flag_bits & 0x1 for e in json_entries):
+        raise HistoryArchiveError("That archive is password-protected.")
+    if sum(e.file_size for e in json_entries) > max_uncompressed_bytes:
+        raise HistoryArchiveError("That archive is too large once unpacked.")
+    for entry in json_entries:
+        if entry.compress_size and entry.file_size / entry.compress_size > max_ratio:
+            raise HistoryArchiveError("That archive doesn't look like a Spotify export.")
+    return len(json_entries)
 
 
 def _parse_ts_stop_utc(ts_str: str):
@@ -112,7 +153,7 @@ def _iter_json_rows(file_like):
 
 def import_history_zip_overlapping_runs(
     *,
-    zip_bytes: bytes,
+    zip_file,
     user_id: int,
     db,
     RunModel,
@@ -129,7 +170,8 @@ def import_history_zip_overlapping_runs(
     Models and helpers are injected so this module stays free of app imports.
 
     Args:
-        zip_bytes: Raw bytes of the ``my_spotify_data.zip`` export.
+        zip_file: Path or seekable binary file of the ``my_spotify_data.zip``
+            export, already checked with :func:`inspect_archive`.
         user_id: The user the history belongs to.
         db: Flask-SQLAlchemy ``db`` instance.
         RunModel, SongModel, UserSongHistoryModel, RunSongAnalysisModel:
@@ -163,7 +205,7 @@ def import_history_zip_overlapping_runs(
     seen_songs = set()
 
     # process all spotify json files in the uploaded zip
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+    with zipfile.ZipFile(zip_file) as zf:
         names = zf.namelist()
         stats["files"] = len(names)
         for name in names:
