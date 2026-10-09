@@ -42,7 +42,7 @@ def database_url():
     Hosts hand out ``postgres://`` or ``postgresql://`` URLs; SQLAlchemy 2.1
     maps a bare ``postgresql://`` to psycopg 3, which is not installed.
     """
-    url = os.getenv("DATABASE_URL", "sqlite:///runnify.db")
+    url = os.getenv("DATABASE_URL") or "sqlite:///runnify.db"
     for scheme in ("postgres://", "postgresql://"):
         if url.startswith(scheme):
             return "postgresql+psycopg2://" + url.removeprefix(scheme)
@@ -102,7 +102,7 @@ class Config:
 
     # rate limits (Flask-Limiter syntax). Use a shared store such as Redis in production
     # (RATELIMIT_STORAGE_URI=redis://...) so limits hold across every worker.
-    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI") or "memory://"
     RATELIMIT_STRATEGY = "moving-window"
     RATELIMIT_HEADERS_ENABLED = True
     RATE_LIMIT_LOGIN = "10 per minute; 50 per hour"
@@ -124,9 +124,9 @@ class Config:
     POLICY_VERSION = "2026-10"
     POLICY_UPDATED = "9 October 2026"
     # who runs the site, shown on the legal pages
-    OPERATOR_NAME = os.getenv("OPERATOR_NAME", "Runnify")
-    CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "runnify.dev@gmail.com")
-    LEGAL_JURISDICTION = os.getenv("LEGAL_JURISDICTION", "Ireland")
+    OPERATOR_NAME = os.getenv("OPERATOR_NAME") or "Runnify"
+    CONTACT_EMAIL = os.getenv("CONTACT_EMAIL") or "runnify.dev@gmail.com"
+    LEGAL_JURISDICTION = os.getenv("LEGAL_JURISDICTION") or "Ireland"
 
     # password-reset links are single-use and expire after this many seconds
     PASSWORD_RESET_MAX_AGE = 30 * 60
@@ -159,7 +159,7 @@ class Config:
     MAIL_USE_SSL = env_bool("MAIL_USE_SSL", False)
     MAIL_USERNAME = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
-    MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "runnify.dev@gmail.com")
+    MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER") or "runnify.dev@gmail.com"
 
 
 class DevelopmentConfig(Config):

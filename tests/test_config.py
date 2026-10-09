@@ -111,3 +111,24 @@ def test_sqlite_connections_are_tuned(app):
     with app.app_context():
         assert db.session.execute(text("PRAGMA foreign_keys")).scalar() == 1
         assert db.session.execute(text("PRAGMA busy_timeout")).scalar() == 15000
+
+
+def test_empty_settings_fall_back_to_their_defaults(monkeypatch):
+    """A blank line such as OPERATOR_NAME= in .env must not blank the value out."""
+    import importlib
+
+    import runnify.config as config_module
+
+    for name in ("OPERATOR_NAME", "CONTACT_EMAIL", "LEGAL_JURISDICTION", "RATELIMIT_STORAGE_URI"):
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("DATABASE_URL", "")
+    assert config_module.database_url() == "sqlite:///runnify.db"
+    reloaded = importlib.reload(config_module)
+    try:
+        assert reloaded.Config.OPERATOR_NAME == "Runnify"
+        assert reloaded.Config.CONTACT_EMAIL == "runnify.dev@gmail.com"
+        assert reloaded.Config.LEGAL_JURISDICTION == "Ireland"
+        assert reloaded.Config.RATELIMIT_STORAGE_URI == "memory://"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config_module)
