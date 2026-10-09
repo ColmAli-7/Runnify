@@ -1,0 +1,159 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon %}
+{% from "macros/charts.html" import meter %}
+{% from "macros/results.html" import effect_list %}
+
+{% block title %}Insights | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/insights.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Insights</h1>
+    <p class="page-head__meta">
+      {% if overview.has_data %}
+        {{ overview.plays|plural("song play") }} measured across {{ overview.runs_with_music|plural("run") }}, {{ overview.range_label|lower }}.
+      {% else %}
+        {{ overview.range_label }}.
+      {% endif %}
+    </p>
+  </div>
+  <nav class="segmented" aria-label="Date range">
+    {% for key, (label, _days) in ranges.items() %}
+      <a href="{{ url_for('insights.index', range=key) }}"{% if key == overview.range_key %} aria-current="true"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+</header>
+
+{% if not overview.has_data %}
+  <div class="sheet">
+    <div class="empty">
+      <p class="empty__title">Nothing measured in this period</p>
+      <p>Insights appear once songs have played during your runs. Try a longer range, or upload your Spotify history if you haven't yet.</p>
+      <p class="cluster">
+        <a class="btn btn--primary" href="{{ url_for('imports.index') }}">Upload your history</a>
+        {% if overview.range_key != "all" %}<a class="btn" href="{{ url_for('insights.index', range='all') }}">See all time</a>{% endif %}
+      </p>
+    </div>
+  </div>
+{% else %}
+<div class="insights">
+  <section class="sheet" aria-labelledby="power-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="power-title">Power songs</h2>
+      <p class="sheet__meta">Your most reliable lifts</p>
+    </header>
+    {% if overview.power_songs %}
+      {{ effect_list(overview.power_songs, highlight=True) }}
+    {% else %}
+      <p class="insights__none">No song has lifted your pace on two or more runs in this period yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="sheet" aria-labelledby="drag-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="drag-title">Drag songs</h2>
+      <p class="sheet__meta">Better saved for the cool-down</p>
+    </header>
+    {% if overview.drag_songs %}
+      {{ effect_list(overview.drag_songs, struck=True) }}
+    {% else %}
+      <p class="insights__none">No song has slowed you down on two or more runs in this period.</p>
+    {% endif %}
+  </section>
+
+  <section class="sheet" aria-labelledby="phases-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="phases-title">Where songs work hardest</h2>
+      <p class="sheet__meta">Compared with how strongly each song usually works for you</p>
+    </header>
+    {% if strongest %}
+      <dl class="phases">
+        {% for phase in overview.phases %}
+          <div class="phases__row">
+            <dt>{{ phase.label }}</dt>
+            <dd>
+              {% if phase.strength is not none %}
+                {{ meter((phase.strength / strongest * 100) if strongest > 0 else 0, "up" if phase.strength >= 0 else "down") }}
+                <span class="phases__value">{{ "%.1f"|format(phase.strength) }}&times;</span>
+              {% else %}
+                <span class="muted">Not enough plays yet</span>
+              {% endif %}
+            </dd>
+          </div>
+        {% endfor %}
+      </dl>
+      <p class="sheet__foot">1&times; means as strongly as usual. The start is the first fifth of a run and the finish the last fifth.</p>
+    {% else %}
+      <p class="insights__none">This needs at least {{ min_phase_plays }} plays of songs you've heard more than once in each part of a run. Keep running with music and it will appear.</p>
+    {% endif %}
+  </section>
+
+  <section class="sheet" aria-labelledby="artists-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="artists-title">Top artists</h2>
+      <p class="sheet__meta">All their songs together</p>
+    </header>
+    {% if overview.top_artists %}
+      {{ effect_list(overview.top_artists, highlight=True) }}
+    {% else %}
+      <p class="insights__none">No artist has lifted your pace across two or more plays yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="sheet" aria-labelledby="heart-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="heart-title">Heart raisers</h2>
+      <p class="sheet__meta">Songs that push your heart rate up</p>
+    </header>
+    {% if overview.heart_raisers %}
+      {{ effect_list(overview.heart_raisers, measure="heart") }}
+      <p class="sheet__foot">Easy-run playlists rank these lower, so easy runs stay easy.</p>
+    {% else %}
+      <p class="insights__none">No song has raised your heart rate across two or more plays.</p>
+    {% endif %}
+  </section>
+
+  <section class="sheet" aria-labelledby="skipped-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="skipped-title">Most skipped</h2>
+      <p class="sheet__meta">During runs</p>
+    </header>
+    {% if overview.most_skipped %}
+      {{ effect_list(overview.most_skipped, measure="skips") }}
+    {% else %}
+      <p class="insights__none">You haven't skipped anything mid-run in this period.</p>
+    {% endif %}
+  </section>
+
+  {% if overview.with_music_pace and overview.without_music_pace %}
+    <section class="sheet insights__wide" aria-labelledby="music-title">
+      <header class="sheet__head">
+        <h2 class="sheet__title" id="music-title">With music and without</h2>
+        <p class="sheet__meta">Average pace of whole runs</p>
+      </header>
+      <dl class="stats stats--flush insights__compare">
+        <div class="stat"><dt>With music</dt><dd><span class="stat__value">{{ overview.with_music_pace|pace }}</span><span class="stat__unit">/km</span></dd></div>
+        <div class="stat"><dt>Without music</dt><dd><span class="stat__value">{{ overview.without_music_pace|pace }}</span><span class="stat__unit">/km</span></dd></div>
+      </dl>
+      <p class="sheet__foot">A rough guide only: you may run different kinds of sessions with and without music.</p>
+    </section>
+  {% endif %}
+
+  <details class="sheet insights__wide insights__method">
+    <summary class="sheet__head">
+      <span class="sheet__title">How these are worked out</span>
+      {{ icon("chevron-down", class="insights__method-icon") }}
+    </summary>
+    <div class="sheet__body prose-small">
+      <p>Each time a song plays during a run, Runnify compares your pace while it played with your pace in the five minutes before and after it, in the same run. That cancels out most of the warm-up, hills and tiredness, so what's left is mostly the song.</p>
+      <p>A song only ranks once it has played on two or more runs, and its lift is held back towards zero in proportion to how little evidence there is. A song with one great run can't top a song that has helped you on ten.</p>
+      <p>Moments when you stopped are ignored, and so is a song that played for less than about 20 seconds of running.</p>
+    </div>
+  </details>
+</div>
+{% endif %}
+{% endblock %}

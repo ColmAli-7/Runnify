@@ -1,0 +1,97 @@
+/* Insights. */
+
+@layer pages {
+  .insights {
+    display: grid;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  .insights .ranks {
+    padding-inline: var(--s-3);
+  }
+
+  .insights__none {
+    padding: var(--s-5);
+    color: var(--ink-2);
+  }
+
+  @media (min-width: 960px) {
+    .insights {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .insights__wide {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* where songs work hardest */
+  .phases {
+    display: grid;
+    gap: var(--s-4);
+    padding: var(--s-5);
+  }
+
+  .phases__row {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    align-items: center;
+    gap: var(--s-4);
+  }
+
+  .phases dt {
+    font-weight: 650;
+  }
+
+  .phases dd {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3.5rem;
+    align-items: center;
+    gap: var(--s-3);
+  }
+
+  .phases .meter {
+    height: 12px;
+  }
+
+  .phases__value {
+    font-weight: 750;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .insights__compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* how these are worked out */
+  .insights__method > summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .insights__method > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .insights__method:not([open]) > summary {
+    border-bottom: 0;
+  }
+
+  .insights__method-icon {
+    transition: rotate var(--base) var(--ease);
+  }
+
+  .insights__method[open] .insights__method-icon {
+    rotate: 180deg;
+  }
+
+  .prose-small {
+    display: grid;
+    gap: var(--s-3);
+    max-width: 70ch;
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+}
