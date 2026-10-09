@@ -80,6 +80,11 @@
   </span>
 {%- endmacro %}
 
+{#- Tells password managers whose password a form asks for (forms without an email field). -#}
+{% macro username_hint(email) -%}
+<input type="text" name="username" value="{{ email }}" autocomplete="username" hidden>
+{%- endmacro %}
+
 {#- Hidden CSRF field for small action forms. -#}
 {% macro csrf() -%}
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

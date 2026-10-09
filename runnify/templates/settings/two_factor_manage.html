@@ -1,5 +1,5 @@
 {% extends "layouts/settings.html" %}
-{% from "macros/ui.html" import icon, field %}
+{% from "macros/ui.html" import icon, field, username_hint %}
 
 {% block title %}Two-step verification | Runnify{% endblock %}
 {% block crumb %}<p class="page-head__crumb"><a href="{{ url_for('settings.index') }}#security">{{ icon("arrow-left") }}Settings</a></p>{% endblock %}
@@ -14,6 +14,7 @@
   </header>
   <form class="sheet__body form settings__form" method="post" action="{{ url_for('settings.new_recovery_codes') }}" novalidate>
     {{ codes_form.csrf_token }}
+    {{ username_hint(current_user.email) }}
     <p>Each recovery code signs you in once if you don't have your phone. Making new ones cancels the old ones.</p>
     {{ field(codes_form.password, id="codes-password", reveal=True, autocomplete="current-password") }}
     <p><button class="btn" type="submit">Make new recovery codes</button></p>
@@ -26,6 +27,7 @@
   </header>
   <form class="sheet__body form settings__form" method="post" action="{{ url_for('settings.disable_two_factor') }}" novalidate data-confirm="Turn off two-step verification? Your password alone will then sign you in.">
     {{ disable_form.csrf_token }}
+    {{ username_hint(current_user.email) }}
     <p>Your password alone will then be enough to sign in. To confirm, enter your password and a code from your app or a recovery code.</p>
     {{ field(disable_form.password, id="off-password", reveal=True, autocomplete="current-password") }}
     {{ field(disable_form.code, id="off-code", input_class="input input--code", autocomplete="one-time-code", label="Code or recovery code") }}

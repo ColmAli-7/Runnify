@@ -1,5 +1,5 @@
 {% extends "layouts/settings.html" %}
-{% from "macros/ui.html" import icon, field %}
+{% from "macros/ui.html" import icon, field, username_hint %}
 
 {% block title %}Set up two-step verification | Runnify{% endblock %}
 {% block crumb %}<p class="page-head__crumb"><a href="{{ url_for('settings.index') }}#security">{{ icon("arrow-left") }}Settings</a></p>{% endblock %}
@@ -33,6 +33,7 @@
         <p class="step__title">Enter the code the app shows</p>
         <form class="form settings__form" method="post" novalidate>
           {{ form.csrf_token }}
+    {{ username_hint(current_user.email) }}
           {{ field(form.code, input_class="input input--code", autocomplete="one-time-code", inputmode="numeric", label="6-digit code") }}
           {{ field(form.password, reveal=True, autocomplete="current-password") }}
           <p><button class="btn btn--primary" type="submit">Turn on two-step verification</button></p>
