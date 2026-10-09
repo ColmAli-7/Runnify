@@ -57,58 +57,51 @@ class Band:
 
 @dataclass
 class RunChart:
-    """A pace-over-time chart with song bands. Faster pace is drawn higher."""
+    """A value-over-time chart (pace or heart rate) with song bands."""
 
     box: ClassVar[int] = BOX
     seconds: int = 0  # length of the run
-    fast: float = 0.0  # pace at the top edge (s/km)
-    slow: float = 0.0  # pace at the bottom edge
+    top: float = 0.0  # the value at the top edge
+    bottom: float = 0.0  # the value at the bottom edge
     lines: list[str] = field(default_factory=list)  # polyline points; a stop splits the line
     bands: list[Band] = field(default_factory=list)
-    y_ticks: list[tuple[float, str]] = field(default_factory=list)  # (percent from top, pace)
+    y_ticks: list[tuple[float, str]] = field(default_factory=list)  # (percent from top, label)
     x_ticks: list[tuple[float, str]] = field(default_factory=list)  # (percent from left, time)
-    points: list[float | None] = field(default_factory=list)  # the averaged paces drawn
+    points: list[float | None] = field(default_factory=list)  # the averaged values drawn
 
     @property
     def empty(self):
         return not self.lines
 
 
-def run_chart(paces, songs=(), points=240, max_x_ticks=6):
-    """Lay out a pace chart.
-
-    Args:
-        paces: Pace samples in seconds per km, one per second (``None`` = stopped).
-        songs: ``(start_second, end_second, label, kind)`` for each band.
-        points: How many points to draw (samples are averaged into this many).
-        max_x_ticks: The most time labels along the bottom.
-
-    Returns:
-        A :class:`RunChart`; ``chart.empty`` when there is too little movement to draw.
-    """
-    total = len(paces)
+def _time_chart(values, songs, points, max_x_ticks, *, higher_is_up, steps, label, min_margin):
+    """Lay out ``values`` (one per second, ``None`` for gaps) over time; see :func:`run_chart`."""
+    total = len(values)
     chart = RunChart(seconds=total)
-    moving = [p for p in paces if p is not None]
-    if len(moving) < 2:
+    present = [v for v in values if v is not None]
+    if len(present) < 2:
         return chart
 
-    if len(moving) >= 20:
-        cuts = quantiles(moving, n=20)
+    if len(present) >= 20:
+        cuts = quantiles(present, n=20)
         low, high = cuts[0], cuts[-1]  # ignore the most extreme 5% at each end
     else:
-        low, high = min(moving), max(moving)
-    margin = max((high - low) * 0.12, 4.0)
-    fast, slow = low - margin, high + margin
-    chart.fast, chart.slow = round(fast, 1), round(slow, 1)
+        low, high = min(present), max(present)
+    margin = max((high - low) * 0.12, min_margin)
+    low, high = low - margin, high + margin
+    chart.top, chart.bottom = (
+        (round(high, 1), round(low, 1)) if higher_is_up else (round(low, 1), round(high, 1))
+    )
 
     def x_at(second):
         return second / max(total - 1, 1)
 
-    def y_at(pace):
-        return (min(max(pace, fast), slow) - fast) / (slow - fast)
+    def y_at(value):
+        share = (min(max(value, low), high) - low) / (high - low)
+        return 1 - share if higher_is_up else share
 
     buckets = min(points, total)
-    chart.points = [None if v is None else round(v, 1) for v in _bucket_means(paces, buckets)]
+    chart.points = [None if v is None else round(v, 1) for v in _bucket_means(values, buckets)]
     line = []
     for i, value in enumerate(chart.points):
         if value is None:
@@ -121,19 +114,18 @@ def run_chart(paces, songs=(), points=240, max_x_ticks=6):
     if len(line) > 1:
         chart.lines.append(" ".join(line))
 
-    for index, (start, end, label, kind) in enumerate(songs):
+    for index, (start, end, band_label, kind) in enumerate(songs):
         x0, x1 = x_at(max(start, 0)), x_at(min(end, total - 1))
         if x1 > x0:
             chart.bands.append(
-                Band(_pct(x0), _pct(x1 - x0), label, kind, index, int(start), int(end))
+                Band(_pct(x0), _pct(x1 - x0), band_label, kind, index, int(start), int(end))
             )
 
-    spread = slow - fast
-    step = 30 if spread > 120 else 15 if spread > 50 else 10 if spread > 25 else 5
-    first = int(fast // step + 1) * step
-    chart.y_ticks = [
-        (_pct(y_at(p)), _pace_label(p)) for p in range(first, int(slow) + 1, step) if p < slow
-    ]
+    spread = high - low
+    step = next((size for limit, size in steps if spread <= limit), steps[-1][1])
+    first = int(low // step + 1) * step
+    ticks = [(_pct(y_at(v)), label(v)) for v in range(first, int(high) + 1, step) if v < high]
+    chart.y_ticks = sorted(ticks)
 
     minutes = total / 60
     every = next((m for m in (1, 2, 5, 10, 15, 20, 30, 60) if minutes / m <= max_x_ticks), 120)
@@ -143,6 +135,44 @@ def run_chart(paces, songs=(), points=240, max_x_ticks=6):
         if m * 60 < total
     ]
     return chart
+
+
+def run_chart(paces, songs=(), points=240, max_x_ticks=6):
+    """Lay out a pace chart, faster pace drawn higher.
+
+    Args:
+        paces: Pace samples in seconds per km, one per second (``None`` = stopped).
+        songs: ``(start_second, end_second, label, kind)`` for each band.
+        points: How many points to draw (samples are averaged into this many).
+        max_x_ticks: The most time labels along the bottom.
+
+    Returns:
+        A :class:`RunChart`; ``chart.empty`` when there is too little movement to draw.
+    """
+    return _time_chart(
+        paces,
+        songs,
+        points,
+        max_x_ticks,
+        higher_is_up=False,
+        steps=((25, 5), (50, 10), (120, 15), (float("inf"), 30)),
+        label=_pace_label,
+        min_margin=4.0,
+    )
+
+
+def heart_chart(heart_rates, songs=(), points=240, max_x_ticks=6):
+    """Lay out a heart-rate chart (beats per minute, higher drawn higher); see :func:`run_chart`."""
+    return _time_chart(
+        heart_rates,
+        songs,
+        points,
+        max_x_ticks,
+        higher_is_up=True,
+        steps=((25, 5), (60, 10), (float("inf"), 20)),
+        label=str,
+        min_margin=3.0,
+    )
 
 
 @dataclass

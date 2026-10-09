@@ -2,7 +2,7 @@
 
 import pytest
 
-from runnify.services.charts import BOX, bar_chart, run_chart
+from runnify.services.charts import BOX, bar_chart, heart_chart, run_chart
 
 
 def _points(line):
@@ -16,6 +16,16 @@ def test_faster_running_is_drawn_higher():
     points = _points(line)
     assert points[-1][1] < points[0][1]  # smaller y is higher up
     assert all(0 <= x <= BOX and 0 <= y <= BOX for x, y in points)
+
+
+def test_a_higher_heart_rate_is_drawn_higher():
+    rates = [140] * 300 + [170] * 300
+    chart = heart_chart(rates)
+    points = _points(chart.lines[0])
+    assert points[-1][1] < points[0][1]
+    assert chart.top > chart.bottom
+    labels = [int(label) for _, label in chart.y_ticks]
+    assert labels == sorted(labels, reverse=True)  # the highest rate at the top
 
 
 def test_a_stop_splits_the_line():
