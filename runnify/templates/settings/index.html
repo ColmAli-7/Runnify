@@ -1,0 +1,128 @@
+{% extends "layouts/settings.html" %}
+{% from "macros/ui.html" import icon, field, check, csrf %}
+
+{% block title %}Settings | Runnify{% endblock %}
+{% block head_meta %}<p class="page-head__meta">Signed in as {{ current_user.email }}</p>{% endblock %}
+
+{% block settings %}
+<section class="sheet" id="profile" aria-labelledby="profile-title">
+  <header class="sheet__head">
+    <h2 class="sheet__title" id="profile-title">Profile</h2>
+    <p class="sheet__meta">Friends see your name on the leaderboard</p>
+  </header>
+  <div class="sheet__body">
+    <dl class="facts settings__facts">
+      <dt>Name</dt><dd>{{ current_user.name }}</dd>
+      <dt>Email</dt><dd>{{ current_user.email }}</dd>
+      <dt>Member since</dt><dd>{{ current_user.created_at|day }}</dd>
+    </dl>
+    <form class="form settings__form" method="post" novalidate>
+      {{ name_form.csrf_token }}
+      <input type="hidden" name="action" value="change_name">
+      {{ field(name_form.new_name, id="name-new", label="New name", autocomplete="name") }}
+      {{ field(name_form.password, id="name-password", reveal=True, autocomplete="current-password") }}
+      <p><button class="btn" type="submit">Change name</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="sheet" id="password" aria-labelledby="password-title">
+  <header class="sheet__head">
+    <h2 class="sheet__title" id="password-title">Password</h2>
+    <p class="sheet__meta">Changing it signs you out everywhere else</p>
+  </header>
+  <form class="sheet__body form settings__form" method="post" novalidate>
+    {{ password_form.csrf_token }}
+    <input type="hidden" name="action" value="change_password">
+    {{ field(password_form.password, id="pw-current", reveal=True, autocomplete="current-password") }}
+    {{ field(password_form.new_password, id="pw-new", hint="At least 12 characters. A few unrelated words work well.", reveal=True, autocomplete="new-password") }}
+    {{ field(password_form.confirm_password, id="pw-confirm", reveal=True, autocomplete="new-password") }}
+    <p><button class="btn" type="submit">Change password</button></p>
+  </form>
+</section>
+
+<section class="sheet" id="security" aria-labelledby="security-title">
+  <header class="sheet__head">
+    <h2 class="sheet__title" id="security-title">Sign-in security</h2>
+  </header>
+  <div class="settings__rows">
+    <div class="settings__row">
+      <div>
+        <p class="settings__row-title">Two-step verification {% if current_user.two_factor_enabled %}<span class="tag tag--go">On</span>{% else %}<span class="tag">Off</span>{% endif %}</p>
+        <p class="settings__row-text">{% if current_user.two_factor_enabled %}A code from your authenticator app is needed at every sign-in.{% else %}Add a code from your phone at every sign-in, so a stolen password isn't enough.{% endif %}</p>
+      </div>
+      <a class="btn{% if not current_user.two_factor_enabled %} btn--primary{% endif %}" href="{{ url_for('settings.two_factor') }}">{{ "Manage" if current_user.two_factor_enabled else "Set up" }}</a>
+    </div>
+    <div class="settings__row">
+      <div>
+        <p class="settings__row-title">Other devices</p>
+        <p class="settings__row-text">Sign out everywhere except this browser, for example on a shared or lost device.</p>
+      </div>
+      <form method="post" class="inline-form" data-confirm="Sign out on every other device?">
+        {{ csrf() }}
+        <input type="hidden" name="action" value="sign_out_everywhere">
+        <button class="btn" type="submit">Sign out everywhere else</button>
+      </form>
+    </div>
+  </div>
+  <div class="settings__activity">
+    <h3 class="settings__subhead">Recent activity</h3>
+    {% if activity %}
+      <div class="table-wrap">
+        <table class="results activity">
+          <caption class="visually-hidden">Recent sign-ins and account changes, newest first</caption>
+          <thead>
+            <tr>
+              <th scope="col">What happened</th>
+              <th scope="col">When <span class="results__unit">UTC</span></th>
+              <th scope="col" class="results__optional">Device</th>
+              <th scope="col" class="results__optional">Network</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for event, description in activity %}
+              <tr{% if event.kind in ("sign_in_failed", "account_locked") %} class="activity__alert"{% endif %}>
+                <td>{{ description }}</td>
+                <td class="nowrap">{{ event.created_at|short_day }}, {{ event.created_at|clock }}</td>
+                <td class="results__optional">{{ event.user_agent|device }}</td>
+                <td class="results__optional num">{{ event.ip_prefix|network }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="sheet__foot">Kept for 90 days. Something you don't recognise? Change your password and sign out everywhere else.</p>
+    {% else %}
+      <p class="empty">Nothing recorded yet.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="sheet" id="data" aria-labelledby="data-title">
+  <header class="sheet__head">
+    <h2 class="sheet__title" id="data-title">Your data</h2>
+    <p class="sheet__meta"><a href="{{ url_for('legal.privacy') }}">How your data is used</a></p>
+  </header>
+  <div class="settings__rows">
+    <form class="settings__row settings__row--form" method="post" action="{{ url_for('settings.export_data') }}" novalidate>
+      {{ export_form.csrf_token }}
+      <div>
+        <p class="settings__row-title">Download your data</p>
+        <p class="settings__row-text">Everything Runnify holds about you, as a JSON file: your account, runs, songs, results, playlists and friends.</p>
+        {{ field(export_form.password, id="export-password", reveal=True, autocomplete="current-password") }}
+      </div>
+      <button class="btn" type="submit">{{ icon("download") }}Download</button>
+    </form>
+    <form class="settings__row settings__row--form settings__row--danger" method="post" action="{{ url_for('settings.delete_account') }}" novalidate data-confirm="Delete your account and all of its data? This can't be undone.">
+      {{ delete_form.csrf_token }}
+      <div>
+        <p class="settings__row-title">Delete your account</p>
+        <p class="settings__row-text">Permanently removes your account, runs, songs, results, playlists and friendships straight away. It can't be undone.</p>
+        {{ field(delete_form.password, id="delete-password", reveal=True, autocomplete="current-password") }}
+        {{ check(delete_form.confirm, id="delete-confirm") }}
+      </div>
+      <button class="btn btn--danger" type="submit">{{ icon("trash") }}Delete account</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

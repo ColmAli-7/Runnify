@@ -1,0 +1,37 @@
+{#- Settings pages: a list of sections beside the content on wide screens. -#}
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/settings.css') }}">
+{% endblock %}
+
+{% set settings_sections = [
+  (url_for("settings.index") ~ "#profile", "Profile", "user"),
+  (url_for("settings.index") ~ "#password", "Password", "key"),
+  (url_for("settings.index") ~ "#security", "Sign-in security", "shield"),
+  (url_for("connections.index"), "Connections", "link"),
+  (url_for("settings.index") ~ "#data", "Your data", "download"),
+] %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    {% block crumb %}{% endblock %}
+    <h1>{% block heading %}Settings{% endblock %}</h1>
+    {% block head_meta %}{% endblock %}
+  </div>
+</header>
+<div class="settings">
+  <nav class="settings__nav" aria-label="Settings">
+    <ul>
+      {% for href, label, icon_name in settings_sections %}
+        <li><a href="{{ href }}">{{ icon(icon_name) }}{{ label }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+  <div class="settings__main">
+    {% block settings %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

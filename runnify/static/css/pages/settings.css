@@ -1,0 +1,224 @@
+/* Settings, two-step verification and recovery codes. */
+
+@layer pages {
+  .settings {
+    display: grid;
+    gap: var(--s-6);
+    align-items: start;
+  }
+
+  .settings__nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: 0;
+    list-style: none;
+  }
+
+  .settings__nav a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: 40px;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .settings__nav a:hover {
+    border-color: var(--ink);
+    background: none;
+  }
+
+  .settings__main {
+    display: grid;
+    gap: var(--s-5);
+    min-width: 0;
+  }
+
+  .settings__main > .sheet {
+    scroll-margin-top: calc(var(--header-h) + var(--s-5));
+  }
+
+  @media (min-width: 1024px) {
+    .settings {
+      grid-template-columns: 14rem minmax(0, 1fr);
+      column-gap: var(--s-8);
+    }
+
+    .settings__nav {
+      position: sticky;
+      top: calc(var(--header-h) + var(--s-5));
+    }
+
+    .settings__nav ul {
+      flex-direction: column;
+      gap: 0;
+      border-top: var(--heavy);
+    }
+
+    .settings__nav a {
+      display: flex;
+      min-height: 44px;
+      border: 0;
+      border-bottom: var(--hair);
+      border-radius: 0;
+    }
+
+    .settings__nav a:hover {
+      background: var(--highlight-soft);
+    }
+  }
+
+  .settings__form {
+    max-width: 30rem;
+  }
+
+  .settings__facts {
+    margin-bottom: var(--s-6);
+    padding-bottom: var(--s-5);
+    border-bottom: var(--hair);
+  }
+
+  /* rows: a setting on the left, its action on the right */
+  .settings__rows {
+    display: grid;
+  }
+
+  .settings__row {
+    display: grid;
+    gap: var(--s-4);
+    padding: var(--s-5);
+    border-bottom: var(--hair);
+  }
+
+  .settings__row:last-child {
+    border-bottom: 0;
+  }
+
+  @media (min-width: 760px) {
+    .settings__row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      column-gap: var(--s-6);
+    }
+
+    .settings__row--form {
+      align-items: end;
+    }
+  }
+
+  .settings__row-title {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font-weight: 700;
+  }
+
+  .settings__row-text {
+    max-width: 56ch;
+    margin-top: var(--s-1);
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+
+  .settings__row--form .field {
+    max-width: 24rem;
+    margin-top: var(--s-4);
+  }
+
+  .settings__row--danger {
+    border-top: 2px solid var(--pen);
+    box-shadow: inset 4px 0 0 var(--pen);
+  }
+
+  .settings__row--danger .settings__row-title {
+    color: var(--pen);
+  }
+
+  .settings__activity {
+    border-top: var(--heavy);
+  }
+
+  .settings__subhead {
+    padding: var(--s-4) var(--s-5) var(--s-2);
+    font-size: var(--text-md);
+    font-weight: 750;
+  }
+
+  .activity td {
+    padding-block: var(--s-3);
+  }
+
+  .activity__alert td:first-child {
+    color: var(--pen);
+    font-weight: 650;
+  }
+
+  .settings__steps {
+    padding-inline: var(--s-5);
+  }
+
+  /* two-step set-up */
+  .qr {
+    display: grid;
+    gap: var(--s-5);
+    margin-top: var(--s-3);
+  }
+
+  @media (min-width: 640px) {
+    .qr {
+      grid-template-columns: 11rem minmax(0, 1fr);
+      align-items: center;
+    }
+  }
+
+  .qr__code {
+    width: 11rem;
+    padding: var(--s-2);
+    background: var(--paper);
+    border: 1px solid var(--rule);
+  }
+
+  .qr__code svg {
+    width: 100%;
+    height: auto;
+  }
+
+  .qr__manual {
+    display: grid;
+    justify-items: start;
+    gap: var(--s-2);
+  }
+
+  .qr__secret code {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+  }
+
+  /* recovery codes */
+  .recovery {
+    display: grid;
+    gap: var(--s-5);
+  }
+
+  .recovery > p:first-child {
+    max-width: 56ch;
+    color: var(--ink-2);
+  }
+
+  @media print {
+    .app-header,
+    .app-footer,
+    .settings__nav,
+    .page-head,
+    .recovery .cluster {
+      display: none !important;
+    }
+  }
+}

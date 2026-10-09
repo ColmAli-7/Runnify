@@ -1,0 +1,44 @@
+{% extends "layouts/settings.html" %}
+{% from "macros/ui.html" import icon, field %}
+
+{% block title %}Set up two-step verification | Runnify{% endblock %}
+{% block crumb %}<p class="page-head__crumb"><a href="{{ url_for('settings.index') }}#security">{{ icon("arrow-left") }}Settings</a></p>{% endblock %}
+{% block heading %}Two-step verification{% endblock %}
+
+{% block settings %}
+<section class="sheet" aria-labelledby="setup-title">
+  <header class="sheet__head">
+    <h2 class="sheet__title" id="setup-title">Set it up</h2>
+    <p class="sheet__meta">Takes about a minute</p>
+  </header>
+  <ol class="steps settings__steps">
+    <li class="step">
+      <span class="step__mark" aria-hidden="true"></span>
+      <div class="step__body">
+        <p class="step__title">Scan this code with an authenticator app</p>
+        <p>Any app that makes 6-digit codes works, such as 1Password, Google Authenticator or Microsoft Authenticator.</p>
+        <div class="qr">
+          <div class="qr__code" role="img" aria-label="QR code for setting up Runnify in your authenticator app">{{ qr_svg|safe }}</div>
+          <div class="qr__manual">
+            <p>Can't scan it? Enter this key in the app instead:</p>
+            <p class="qr__secret" id="totp-secret"><code>{{ secret }}</code></p>
+            <button class="btn btn--sm" type="button" data-copy="totp-secret">{{ icon("copy") }}Copy key</button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <li class="step">
+      <span class="step__mark" aria-hidden="true"></span>
+      <div class="step__body">
+        <p class="step__title">Enter the code the app shows</p>
+        <form class="form settings__form" method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ field(form.code, input_class="input input--code", autocomplete="one-time-code", inputmode="numeric", label="6-digit code") }}
+          {{ field(form.password, reveal=True, autocomplete="current-password") }}
+          <p><button class="btn btn--primary" type="submit">Turn on two-step verification</button></p>
+        </form>
+      </div>
+    </li>
+  </ol>
+</section>
+{% endblock %}

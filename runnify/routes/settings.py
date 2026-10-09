@@ -50,7 +50,7 @@ def index():
         elif form is name_form:
             current_user.name = form.new_name.data
             db.session.commit()
-            flash("Name updated", "success")
+            flash("Name updated.", "success")
         elif problems := password_problems(
             form.new_password.data, email=current_user.email, name=current_user.name
         ):
@@ -63,7 +63,7 @@ def index():
             flash("Password updated. You've been signed out on every other device.", "success")
         return redirect(url_for("settings.index"))
     return render_template(
-        "manage.html",
+        "settings/index.html",
         name_form=name_form,
         password_form=password_form,
         export_form=PasswordConfirmForm(),
@@ -90,7 +90,7 @@ def two_factor_settings():
     """
     if current_user.two_factor_enabled:
         return render_template(
-            "two_factor_manage.html",
+            "settings/two_factor_manage.html",
             remaining=two_factor.remaining_recovery_codes(current_user),
             disable_form=TwoFactorDisableForm(),
             codes_form=PasswordConfirmForm(),
@@ -110,12 +110,12 @@ def two_factor_settings():
             _restart_sessions()  # also commits
             send_two_factor_changed(current_user, enabled=True)
             flash("Two-step verification is on. Other devices were signed out.", "success")
-            return render_template("recovery_codes.html", codes=codes)
+            return render_template("settings/recovery_codes.html", codes=codes)
     elif form.errors:
         flash(first_error(form), "error")
     uri = two_factor.provisioning_uri(secret, current_user.email)
     return render_template(
-        "two_factor_setup.html",
+        "settings/two_factor_setup.html",
         form=form,
         qr_svg=two_factor.qr_svg(uri),
         secret=two_factor.format_secret(secret),
@@ -163,7 +163,7 @@ def new_recovery_codes():
     codes = two_factor.replace_recovery_codes(current_user)
     audit.record(current_user, "recovery_codes_replaced")
     db.session.commit()
-    return render_template("recovery_codes.html", codes=codes)
+    return render_template("settings/recovery_codes.html", codes=codes)
 
 
 @bp.route("/settings/export", methods=["POST"])

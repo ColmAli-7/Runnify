@@ -1,0 +1,25 @@
+{% extends "layouts/settings.html" %}
+{% from "macros/ui.html" import icon %}
+
+{% block title %}Your recovery codes | Runnify{% endblock %}
+{% block heading %}Save your recovery codes{% endblock %}
+
+{% block settings %}
+<section class="sheet" aria-labelledby="codes-title">
+  <header class="sheet__head">
+    <h2 class="sheet__title" id="codes-title">{{ codes|length }} recovery codes</h2>
+    <p class="sheet__meta">Shown once</p>
+  </header>
+  <div class="sheet__body recovery">
+    <p>If you lose your phone, each of these signs you in once. Keep them somewhere safe, such as a password manager. They won't be shown again.</p>
+    <ul class="code-list" id="recovery-codes">
+      {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}
+    </ul>
+    <p class="cluster">
+      <button class="btn" type="button" data-copy="recovery-codes">{{ icon("copy") }}Copy codes</button>
+      <button class="btn" type="button" data-print>Print</button>
+      <a class="btn btn--primary" href="{{ url_for('settings.index') }}#security">I've saved them</a>
+    </p>
+  </div>
+</section>
+{% endblock %}
