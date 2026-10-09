@@ -110,6 +110,7 @@ uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_
 | Run the tests | `uv run pytest` |
 | Lint and format | `uv run ruff check .` and `uv run ruff format .` |
 | Check colour contrast | `uv run python scripts/check_contrast.py` |
+| Rebuild the favicon and app icons | `uv run python scripts/build_icons.py` |
 | List every URL | `uv run flask --app runnify routes` |
 | Re-score every run after the method changes | `uv run flask --app runnify scores rebuild` |
 | Move old FIT files into the database | `uv run flask --app runnify streams backfill` |
