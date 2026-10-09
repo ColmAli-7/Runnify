@@ -12,8 +12,10 @@
 
 @layer reset, base, layout, components, pages, utilities;
 
+/* Geist (SIL Open Font License, vendored): picked for its tabular figures and its open
+   licence, which ruled out the first choice. The detector's overused-font rule is waived. */
 @font-face {
-  font-family: "Geist";
+  font-family: "Geist"; /* impeccable-disable-line overused-font */
   src: url("../../fonts/geist/Geist-Variable.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;

@@ -99,8 +99,13 @@
 
   .auth__points--plain li {
     grid-template-columns: minmax(0, 1fr);
-    padding-left: var(--s-4);
-    border-left: 2px solid var(--ink);
+    padding-top: var(--s-3);
+    border-top: var(--hair);
+  }
+
+  .auth__points--plain li:first-child {
+    padding-top: 0;
+    border-top: 0;
   }
 
   .auth__aside .steps {

@@ -77,14 +77,14 @@
 
   .upload__status {
     padding: var(--s-3) var(--s-4);
-    border-left: 4px solid var(--ink);
+    border-top: 3px solid var(--ink);
     background: var(--board);
     font-size: var(--text-sm);
     font-weight: 550;
   }
 
   .upload__status--failed {
-    border-left-color: var(--pen);
+    border-top-color: var(--pen);
     background: var(--pen-soft);
   }
 

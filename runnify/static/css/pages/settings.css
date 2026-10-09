@@ -134,7 +134,6 @@
 
   .settings__row--danger {
     border-top: 2px solid var(--pen);
-    box-shadow: inset 4px 0 0 var(--pen);
   }
 
   .settings__row--danger .settings__row-title {
