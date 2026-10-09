@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from types import SimpleNamespace
 
-from runnify.filters import NBSP, plural
+from runnify.filters import NBSP, lift_number, plural
 from runnify.services import charts, insights
 from runnify.services.demo import SONGS, _simulate
 from runnify.services.playlists import PlannedTrack, arrange
@@ -217,7 +217,7 @@ def landing_sample():
         playlist=playlist,
         ramp=charts.bar_chart(
             [(str(i), track.lift) for i, (track, _) in enumerate(playlist, start=1)],
-            value_format=lambda lift: f"+{round(lift)}",
+            value_format=lift_number,
         ),
         runs_simulated=1 + len(OTHER_RUNS),
     )

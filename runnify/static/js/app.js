@@ -25,7 +25,7 @@ document.addEventListener("click", (event) => {
   if (button) button.closest(".notice")?.remove();
 });
 
-// show / hide password
+// show / hide password: the button's label always says what it will do next
 for (const toggle of document.querySelectorAll("[data-reveal]")) {
   const input = document.getElementById(toggle.dataset.reveal);
   if (!input) continue;
@@ -33,10 +33,21 @@ for (const toggle of document.querySelectorAll("[data-reveal]")) {
     const show = input.type === "password";
     input.type = show ? "text" : "password";
     toggle.textContent = show ? "Hide" : "Show";
-    toggle.setAttribute("aria-pressed", String(show));
+    toggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
     input.focus();
   });
 }
+
+// table rows that lead somewhere: a click anywhere on the row follows its link
+document.addEventListener("click", (event) => {
+  const row = event.target.closest("tr.is-linked");
+  if (!row || event.target.closest("a, button, input, select, textarea, label")) return;
+  if (window.getSelection()?.toString()) return; // the reader was selecting text
+  const link = row.querySelector("a[href]");
+  if (!link) return;
+  if (event.metaKey || event.ctrlKey) window.open(link.href, "_blank", "noopener");
+  else link.click();
+});
 
 // forms that need a second thought (deleting, disconnecting) ask first
 document.addEventListener("submit", (event) => {

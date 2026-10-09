@@ -1,0 +1,62 @@
+{#- Results tables: songs ranked by how they changed the runner's pace. -#}
+{% from "macros/ui.html" import lift %}
+
+{#- `rows` are services.results.ResultRow in rank order. With `top`, only the
+    first `top` rows and the last one are shown, with a count of the rest. -#}
+{% macro results_table(rows, caption, top=None, show_heart=False) %}
+  {%- set shown = rows if not top or rows|length <= top + 1 else rows[:top] -%}
+  {%- set hidden = rows|length - shown|length - 1 if shown|length < rows|length else 0 -%}
+  <div class="table-wrap">
+    <table class="results">
+      <caption class="visually-hidden">{{ caption }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Pos</th>
+          <th scope="col">Track</th>
+          <th scope="col" class="is-numeric">On at</th>
+          {% if show_heart %}<th scope="col" class="is-numeric results__optional">Heart rate <span class="results__unit">bpm</span></th>{% endif %}
+          <th scope="col" class="is-numeric">Lift <span class="results__unit">s/km</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in shown %}{{ _row(row, show_heart) }}{% endfor %}
+        {% if hidden > 0 %}
+          <tr class="results__gap"><td colspan="{{ 5 if show_heart else 4 }}">{{ hidden|plural("more song") }}</td></tr>
+        {% endif %}
+        {% if shown|length < rows|length %}{{ _row(rows[-1], show_heart) }}{% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endmacro %}
+
+{% macro _row(row, show_heart) %}
+  <tr{% if row.kind == "best" %} class="is-best"{% endif %}>
+    <td class="results__pos">{{ row.position }}</td>
+    <td class="results__track">{{ row.song.name or "Unknown track" }}<span class="results__sub">{{ row.song.artist }}</span></td>
+    <td class="is-numeric">{{ row.start|duration }}</td>
+    {% if show_heart %}<td class="is-numeric results__optional">{{ row.hr_delta|lift_number if row.hr_delta is not none else "-" }}</td>{% endif %}
+    <td class="is-numeric">{{ lift(row.lift, unit=False) }}</td>
+  </tr>
+{% endmacro %}
+
+{#- Songs or artists ranked by their effect (insights.Effect). `measure` picks the
+    figure shown: "lift" (s/km), "heart" (bpm) or "skips". -#}
+{% macro effect_list(effects, struck=False, highlight=False, measure="lift") %}
+  <ol class="ranks">
+    {% for effect in effects %}
+      <li class="ranks__row{% if highlight and loop.first %} is-best{% endif %}">
+        <span class="ranks__pos">{{ loop.index }}</span>
+        <span class="ranks__name">
+          {%- if struck %}<span class="ranks__struck">{{ effect.label }}</span>{% else %}{{ effect.label }}{% endif -%}
+          {%- if effect.detail %}<span class="ranks__sub">{{ effect.detail }}</span>{% endif -%}
+        </span>
+        <span class="ranks__value">
+          {%- if measure == "heart" %}<span class="ranks__figure">{{ effect.hr_delta|lift_number }} bpm</span>
+          {%- elif measure == "skips" %}<span class="ranks__figure">{{ effect.skips }} of {{ effect.plays|plural("play") }}</span>
+          {%- else %}{{ lift(effect.shrunk_lift) }}{% endif -%}
+          <span class="ranks__runs">{{ effect.runs|length|plural("run") }}</span>
+        </span>
+      </li>
+    {% endfor %}
+  </ol>
+{% endmacro %}

@@ -85,6 +85,7 @@
     min-height: 40px;
     padding-inline: var(--s-2);
     border-color: transparent;
+    background: transparent;
     text-decoration: underline;
     text-underline-offset: 0.2em;
   }
@@ -195,6 +196,15 @@
     background-repeat: no-repeat;
     background-position: right var(--s-3) center;
     background-size: 20px;
+  }
+
+  /* one-time codes */
+  .input--code {
+    max-width: 16rem;
+    font-size: var(--text-xl);
+    font-weight: 650;
+    letter-spacing: 0.18em;
+    font-variant-numeric: tabular-nums;
   }
 
   /* password field with a show/hide button inside */
@@ -352,6 +362,13 @@
     white-space: nowrap;
   }
 
+  /* columns that make way on phones */
+  @media (max-width: 759px) {
+    .results__optional {
+      display: none;
+    }
+  }
+
   .results__unit {
     text-transform: none;
     letter-spacing: 0;
@@ -459,6 +476,7 @@
 
   .stat dd {
     margin-top: var(--s-2);
+    white-space: nowrap;
   }
 
   .stat__value {
@@ -490,6 +508,26 @@
 
     .stats--3 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /* stats inside a sheet: the sheet already draws the outer edges */
+  .stats--flush {
+    border-top: 0;
+    border-left: 0;
+  }
+
+  .stats--flush .stat:nth-child(2n) {
+    border-right: 0;
+  }
+
+  @media (min-width: 760px) {
+    .stats--flush.stats--4 .stat:nth-child(2n) {
+      border-right: var(--hair);
+    }
+
+    .stats--flush.stats--4 .stat:nth-child(4n) {
+      border-right: 0;
     }
   }
 
@@ -1113,6 +1151,12 @@
     display: grid;
     justify-items: end;
     gap: 2px;
+  }
+
+  .ranks__figure {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .ranks__runs {

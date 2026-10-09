@@ -226,6 +226,24 @@
     font-size: var(--text-sm);
   }
 
+  /* a link back up, above the page title */
+  .page-head__crumb {
+    margin-bottom: var(--s-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .page-head__crumb a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    text-decoration: none;
+  }
+
+  .page-head__crumb a:hover {
+    text-decoration: underline;
+  }
+
   .page-head__actions {
     display: flex;
     flex-wrap: wrap;

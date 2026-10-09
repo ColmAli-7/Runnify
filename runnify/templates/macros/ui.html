@@ -28,22 +28,25 @@
 {% endmacro %}
 
 {#- A labelled form field with optional hint and inline error, wired up with aria-describedby.
-    `reveal=True` adds a show/hide button for passwords. -#}
-{% macro field(f, hint=None, reveal=False, input_class="input") %}
-  {%- set hint_id = f.id ~ "-hint" -%}
-  {%- set error_id = f.id ~ "-error" -%}
+    `reveal=True` adds a show/hide button for passwords. `id` and `label` override the
+    form's own (several forms on one page must not share ids). -#}
+{% macro field(f, hint=None, reveal=False, input_class="input", id=None, label=None) %}
+  {%- set field_id = id or f.id -%}
+  {%- set hint_id = field_id ~ "-hint" -%}
+  {%- set error_id = field_id ~ "-error" -%}
   {%- set described = ([hint_id] if hint else []) + ([error_id] if f.errors else []) -%}
   {%- set attrs = kwargs -%}
+  {%- set _ = attrs.update({"id": field_id}) -%}
   {%- if described %}{% set _ = attrs.update({"aria-describedby": described|join(" ")}) %}{% endif -%}
   {%- if f.errors %}{% set _ = attrs.update({"aria-invalid": "true"}) %}{% endif -%}
   {%- if f.flags.required %}{% set _ = attrs.update({"required": True}) %}{% endif -%}
   <div class="field">
-    <label class="field__label" for="{{ f.id }}">{{ f.label.text }}</label>
+    <label class="field__label" for="{{ field_id }}">{{ label or f.label.text }}</label>
     {% if hint %}<p class="field__hint" id="{{ hint_id }}">{{ hint }}</p>{% endif %}
     {% if reveal %}
       <div class="reveal">
         {{ f(class_=input_class, **attrs) }}
-        <button type="button" class="reveal__toggle" data-reveal="{{ f.id }}" aria-controls="{{ f.id }}" aria-pressed="false">Show</button>
+        <button type="button" class="reveal__toggle" data-reveal="{{ field_id }}" aria-controls="{{ field_id }}" aria-label="Show password">Show</button>
       </div>
     {% else %}
       {{ f(class_=input_class, **attrs) }}
@@ -53,11 +56,14 @@
 {% endmacro %}
 
 {#- A checkbox with its label text (which may contain links) passed as the caller body. -#}
-{% macro check(f) %}
-  {%- set error_id = f.id ~ "-error" -%}
+{% macro check(f, id=None) %}
+  {%- set field_id = id or f.id -%}
+  {%- set error_id = field_id ~ "-error" -%}
+  {%- set attrs = {"id": field_id} -%}
+  {%- if f.errors %}{% set _ = attrs.update({"aria-invalid": "true", "aria-describedby": error_id}) %}{% endif -%}
   <div class="field">
     <label class="check">
-      {{ f(**({"aria-invalid": "true", "aria-describedby": error_id} if f.errors else {})) }}
+      {{ f(**attrs) }}
       <span>{{ caller() if caller else f.label.text }}</span>
     </label>
     {% if f.errors %}<p class="field__error" id="{{ error_id }}">{{ icon("alert") }}<span>{{ f.errors[0] }}</span></p>{% endif %}

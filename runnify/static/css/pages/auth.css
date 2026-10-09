@@ -133,15 +133,6 @@
     color: var(--ink-3);
   }
 
-  /* one-time codes */
-  .input--code {
-    max-width: 16rem;
-    font-size: var(--text-xl);
-    font-weight: 650;
-    letter-spacing: 0.18em;
-    font-variant-numeric: tabular-nums;
-  }
-
   @media (min-width: 1024px) {
     .auth {
       grid-template-columns: minmax(0, 30rem) minmax(0, 26rem);
