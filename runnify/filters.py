@@ -100,6 +100,67 @@ def ago(value, now=None):
     return f"{days} day{'s' if days != 1 else ''} ago" if days < 30 else day(value)
 
 
+def run_name(started):
+    """A name from the time of day, as watches do: ``07:04`` -> ``"Morning run"``."""
+    if started is None:
+        return "Run"
+    hour = started.hour
+    if 5 <= hour < 11:
+        return "Morning run"
+    if 11 <= hour < 14:
+        return "Lunch run"
+    if 14 <= hour < 17:
+        return "Afternoon run"
+    if 17 <= hour < 21:
+        return "Evening run"
+    return "Night run"
+
+
+_BROWSERS = (
+    ("Edg", "Edge"),
+    ("OPR/", "Opera"),
+    ("CriOS/", "Chrome"),
+    ("FxiOS/", "Firefox"),
+    ("Firefox/", "Firefox"),
+    ("Chrome/", "Chrome"),
+    ("Safari/", "Safari"),
+)
+_SYSTEMS = (
+    ("iPhone", "iPhone"),
+    ("iPad", "iPad"),
+    ("Android", "Android"),
+    ("Windows", "Windows"),
+    ("Mac OS X", "macOS"),
+    ("CrOS", "ChromeOS"),
+    ("Linux", "Linux"),
+)
+
+
+def device(user_agent):
+    """A short description of a browser: ``"Chrome on Windows"``, or ``"Unknown device"``."""
+    agent = user_agent or ""
+    browser = next((name for marker, name in _BROWSERS if marker in agent), None)
+    system = next((name for marker, name in _SYSTEMS if marker in agent), None)
+    if browser and system:
+        return f"{browser} on {system}"
+    return browser or system or "Unknown device"
+
+
+def network(prefix):
+    """A stored network prefix for display: ``"203.0.113.0"`` -> ``"203.0.113.x"``."""
+    if not prefix:
+        return MISSING
+    if "." in prefix:
+        return prefix.rsplit(".", 1)[0] + ".x"
+    return f"{prefix}/48"
+
+
+def first_name(name):
+    """``"Colm Ali"`` -> ``"Colm"``."""
+    parts = (name or "").split()
+    return parts[0] if parts else ""
+
+
 def plural(count, singular, plural_form=None):
     """``plural(1, "run")`` -> ``"1 run"``; ``plural(3, "run")`` -> ``"3 runs"``."""
     word = singular if count == 1 else (plural_form or singular + "s")
@@ -127,6 +188,10 @@ FILTERS = {
     "clock": clock,
     "ago": ago,
     "plural": plural,
+    "run_name": run_name,
+    "first_name": first_name,
+    "device": device,
+    "network": network,
     "initials": initials,
 }
 

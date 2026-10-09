@@ -68,3 +68,56 @@ def test_plural_and_initials():
     assert filters.initials("Colm Ali") == "CA"
     assert filters.initials("Cher") == "C"
     assert filters.initials("") == "?"
+
+
+@pytest.mark.parametrize(
+    ("hour", "name"),
+    [
+        (6, "Morning run"),
+        (12, "Lunch run"),
+        (15, "Afternoon run"),
+        (19, "Evening run"),
+        (23, "Night run"),
+        (2, "Night run"),
+    ],
+)
+def test_run_name(hour, name):
+    assert filters.run_name(datetime(2026, 10, 5, hour, 30)) == name
+
+
+def test_first_name():
+    assert filters.first_name("Colm Ali") == "Colm"
+    assert filters.first_name("  ") == ""
+
+
+@pytest.mark.parametrize(
+    ("agent", "expected"),
+    [
+        (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36",
+            "Chrome on Windows",
+        ),
+        (
+            "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/130.0 Safari/537.36 Edg/130.0",
+            "Edge on Windows",
+        ),
+        (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Safari/604.1",
+            "Safari on iPhone",
+        ),
+        (
+            "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
+            "Firefox on Linux",
+        ),
+        ("", "Unknown device"),
+        (None, "Unknown device"),
+    ],
+)
+def test_device(agent, expected):
+    assert filters.device(agent) == expected
+
+
+def test_network():
+    assert filters.network("203.0.113.0") == "203.0.113.x"
+    assert filters.network("2001:db8:1::") == "2001:db8:1::/48"
+    assert filters.network(None) == "-"
