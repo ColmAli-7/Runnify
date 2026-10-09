@@ -167,6 +167,7 @@ class DevelopmentConfig(Config):
 
     ENV_NAME = "development"
     SECRET_KEY = Config.SECRET_KEY or secrets.token_hex(32)
+    TEMPLATES_AUTO_RELOAD = True  # pick up template edits without restarting the server
 
 
 class ProductionConfig(Config):
