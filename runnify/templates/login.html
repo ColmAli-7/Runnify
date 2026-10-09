@@ -28,6 +28,7 @@
         </div>
 
         {% if form_type == 'login' %}
+          <label class="remember"><input type="checkbox" name="remember" value="y"> Keep me signed in</label>
           <!-- link for users who forgot password -->
           <div class="form-options">
             <a href="{{ url_for('auth.forgot_password') }}" class="forgot-link">Forgot password?</a>

@@ -9,65 +9,83 @@ from flask import (
     request,
     url_for,
 )
-from flask_login import login_required, login_user, logout_user
+from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from runnify.extensions import db, limiter
+from runnify.forms import (
+    ForgotPasswordForm,
+    LoginForm,
+    RegisterForm,
+    ResetPasswordForm,
+    first_error,
+)
 from runnify.models import User
 from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config
+from runnify.security.redirects import safe_next_url
 from runnify.services.mail import send_email
 
 bp = Blueprint("auth", __name__)  # handles auth routes
+
+LOGIN_FAILED = "That email and password combination didn't work."
+
+
+def _home():
+    return url_for("dash.dashboard")
 
 
 @bp.route("/login", methods=["GET", "POST"])
 @limiter.limit(limit_from_config("LOGIN"), methods=["POST"])
 def login():
-    """Show the login form; on POST, verify credentials and start a session."""
-    if request.method == "POST":
-        email = request.form.get("email").strip().lower()  # normalise email
-        password = request.form.get("password")
-        user = User.query.filter_by(email=email).first()  # find user
-        matches, needs_rehash = verify_password(user.password_hash if user else None, password)
-        if not matches:  # invalid login
-            flash("Invalid email or password", "error")
-            return render_template("login.html", form_type="login")
-        if needs_rehash:  # upgrade legacy or outdated hashes now that we know the password
-            user.password_hash = hash_password(password)
-            db.session.commit()
-        login_user(user)  # start user session
-        flash("Logged in successfully!", "success")
-        return redirect(url_for("dash.dashboard"))  # go to dashboard
-    return render_template("login.html", form_type="login")
+    """Show the login form; on POST, verify credentials and start a session.
+
+    After signing in the user goes to ``?next=`` when it is a local path,
+    otherwise to the dashboard.
+    """
+    if current_user.is_authenticated:
+        return redirect(_home())
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        matches, needs_rehash = verify_password(
+            user.password_hash if user else None, form.password.data
+        )
+        if matches:
+            if needs_rehash:  # upgrade legacy or outdated hashes now that we know the password
+                user.password_hash = hash_password(form.password.data)
+                db.session.commit()
+            login_user(user, remember=form.remember.data)
+            return redirect(safe_next_url(request.args.get("next")) or _home())
+        flash(LOGIN_FAILED, "error")
+    elif form.errors:
+        flash(first_error(form), "error")
+    return render_template("login.html", form_type="login", form=form)
 
 
 @bp.route("/register", methods=["GET", "POST"])
 @limiter.limit(limit_from_config("REGISTER"), methods=["POST"])
 def register():
     """Show the registration form; on POST, validate and create a new account."""
-    if request.method == "POST":
-        name = request.form.get("name")
-        email = request.form.get("email").strip().lower()
-        password = request.form.get("password")
-        problems = password_problems(password, email=email, name=name)
-        if problems:
-            flash(problems[0], "error")
-            return render_template("login.html", form_type="register")
-        existing_user = User.query.filter_by(email=email).first()  # check duplicate
-        if existing_user:
+    if current_user.is_authenticated:
+        return redirect(_home())
+    form = RegisterForm()
+    if form.validate_on_submit():
+        if User.query.filter_by(email=form.email.data).first():  # check duplicate
             flash("That email is already registered.", "error")
-            return render_template("login.html", form_type="register")
-        user = User(
-            name=name,
-            email=email,
-            password_hash=hash_password(password),
-        )
-        db.session.add(user)
-        db.session.commit()
-        flash("Account created! You can now log in.", "success")
-        return redirect(url_for("auth.login"))
-    return render_template("login.html", form_type="register")
+        else:
+            user = User(
+                name=form.name.data,
+                email=form.email.data,
+                password_hash=hash_password(form.password.data),
+            )
+            db.session.add(user)
+            db.session.commit()
+            flash("Account created! You can now log in.", "success")
+            return redirect(url_for("auth.login"))
+    elif form.errors:
+        flash(first_error(form), "error")
+    return render_template("login.html", form_type="register", form=form)
 
 
 @bp.route("/logout", methods=["POST"])
@@ -115,18 +133,20 @@ If you didn't request this, please ignore this email.""",
 @limiter.limit(limit_from_config("PASSWORD_RESET"), methods=["POST"])
 def forgot_password():
     """Show the forgot-password form; on POST, email a reset link (valid for 1 hour)."""
-    if request.method == "POST":
-        email = request.form.get("email").strip().lower()
-        user = User.query.filter_by(email=email).first()
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
         if not user:  # email not found
             flash("That email is not registered.", "error")
-            return render_template("forgot.html")
-        token = generate_reset_token(email)  # create token
+            return render_template("forgot.html", form=form)
+        token = generate_reset_token(user.email)  # create token
         reset_link = url_for("auth.reset_password", token=token, _external=True)  # build reset link
-        send_reset_email(email, reset_link)  # send email
+        send_reset_email(user.email, reset_link)  # send email
         flash("A reset link has been sent to your email.", "info")
         return redirect(url_for("auth.login"))
-    return render_template("forgot.html")
+    if form.errors:
+        flash(first_error(form), "error")
+    return render_template("forgot.html", form=form)
 
 
 @bp.route("/reset/<token>", methods=["GET", "POST"])
@@ -138,14 +158,16 @@ def reset_password(token):
         flash("The reset link is invalid or has expired.", "error")
         return redirect(url_for("auth.forgot_password"))
     user = User.query.filter_by(email=email).first_or_404()
-    if request.method == "POST":
-        new_password = request.form.get("password")
-        problems = password_problems(new_password, email=user.email, name=user.name)
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        problems = password_problems(form.password.data, email=user.email, name=user.name)
         if problems:
             flash(problems[0], "error")
-            return render_template("reset.html", token=token)
-        user.password_hash = hash_password(new_password)  # update password
-        db.session.commit()
-        flash("Password reset successful. Please log in.", "success")
-        return redirect(url_for("auth.login"))
-    return render_template("reset.html", token=token)
+        else:
+            user.password_hash = hash_password(form.password.data)  # update password
+            db.session.commit()
+            flash("Password reset successful. Please log in.", "success")
+            return redirect(url_for("auth.login"))
+    elif form.errors:
+        flash(first_error(form), "error")
+    return render_template("reset.html", token=token, form=form)
