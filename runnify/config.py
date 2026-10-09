@@ -55,3 +55,17 @@ class Config:
     MAIL_DEFAULT_SENDER = os.getenv(
         "MAIL_DEFAULT_SENDER", "runnify.dev@gmail.com"
     )  # default email sender
+
+
+class TestConfig(Config):
+    """Configuration for the test suite: in-memory database, dummy credentials, no real mail."""
+
+    TESTING = True
+    SECRET_KEY = "test-secret-key"  # noqa: S105  (tests only)
+    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    FERNET_KEY = "x3HpWkM5yMTkNmGF9v8xB2o1C0Gq4WqY7d0Zr6Jc1sE="  # dummy key, tests only
+    SPOTIFY_CLIENT_ID = "test-client-id"
+    SPOTIFY_CLIENT_SECRET = "test-client-secret"
+    SPOTIFY_REDIRECT_URI = "http://127.0.0.1:5000/spotify/callback"
+    SPOTIFY_SCOPE = "user-read-email"
+    MAIL_SUPPRESS_SEND = True
