@@ -67,23 +67,19 @@ def _rank_key(session):
     return lambda effect: effect.shrunk_lift
 
 
-def _order(session, chosen):
-    """Arrange chosen tracks (best first on entry) to suit the session."""
+def arrange(session, chosen):
+    """Order chosen tracks (best first on entry) to suit the session."""
     if session == "tempo":
         return sorted(chosen, key=lambda t: t.lift)
     if session in {"long", "race"}:
         held_back = 2 if session == "race" else max(1, len(chosen) // 5)
         best, rest = chosen[:held_back], chosen[held_back:]
-        rest = (
-            rest[::2] + rest[1::2][::-1] if session == "long" else rest
-        )  # long: spread the middle
+        if session == "long":  # spread the middle: alternate stronger and calmer songs
+            rest = rest[::2] + rest[1::2][::-1]
         return rest + best[::-1]
     if session == "intervals":
-        ordered, strong, calm = (
-            [],
-            chosen[: (len(chosen) + 1) // 2],
-            chosen[(len(chosen) + 1) // 2 :],
-        )
+        half = (len(chosen) + 1) // 2
+        ordered, strong, calm = [], chosen[:half], chosen[half:]
         for i in range(len(chosen)):
             pool = strong if i % 2 == 0 else calm
             if not pool:
@@ -134,7 +130,7 @@ def plan(user_id, session, target_minutes, include_untested=False):
                 plays=effect.plays,
             )
         )
-    result.tracks = _order(session, chosen)
+    result.tracks = arrange(session, chosen)
     if result.total_seconds < target * 0.9:
         minutes = round(result.total_seconds / 60)
         result.note = (
