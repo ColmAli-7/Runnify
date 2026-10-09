@@ -7,6 +7,7 @@ from runnify.extensions import db, limiter
 from runnify.forms import ChangeNameForm, ChangePasswordForm, first_error
 from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config, user_or_ip
+from runnify.services.notifications import send_password_changed
 
 bp = Blueprint("manage", __name__)  # user account management routes
 
@@ -38,6 +39,7 @@ def managing():
         else:
             current_user.password_hash = hash_password(form.new_password.data)
             _restart_sessions()
+            send_password_changed(current_user)
             flash("Password updated. You've been signed out on every other device.", "success")
         return redirect(url_for("manage.managing"))
     return render_template("manage.html", name_form=name_form, password_form=password_form)

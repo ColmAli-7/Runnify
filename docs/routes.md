@@ -11,8 +11,9 @@ with `@login_required`; anonymous users are redirected to the login page.
 | GET | `/` | `main.home` | Landing page, personalised when logged in |
 | GET, POST | `/login` | `auth.login` | Log in. Form: `email`, `password` |
 | GET, POST | `/register` | `auth.register` | Create an account. Form: `name`, `email`, `password` (strength rules apply) |
-| GET, POST | `/forgot` | `auth.forgot_password` | Email a password-reset link. Form: `email` |
-| GET, POST | `/reset/<token>` | `auth.reset_password` | Set a new password with a reset token (valid 1 hour). Form: `password` |
+| GET, POST | `/forgot` | `auth.forgot_password` | Email a password-reset link; same response whether or not the account exists. Form: `email` |
+| GET | `/reset/<token>` | `auth.reset_password` | Emailed link: validates the single-use token (30 min), stores it in the session and redirects to `/reset` |
+| GET, POST | `/reset` | `auth.choose_new_password` | Choose a new password for the account in the session's reset token. Form: `password`, `confirm` |
 | GET | `/static/<path:filename>` | `static` | CSS and JS assets |
 
 ## Logged-in users

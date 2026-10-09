@@ -116,6 +116,9 @@ class Config:
     LOGIN_LOCKOUT_THRESHOLD = 5
     LOGIN_LOCKOUT_MINUTES = 15
 
+    # password-reset links are single-use and expire after this many seconds
+    PASSWORD_RESET_MAX_AGE = 30 * 60
+
     # CSRF tokens are tied to the session, so they need no separate expiry
     WTF_CSRF_TIME_LIMIT = None
 

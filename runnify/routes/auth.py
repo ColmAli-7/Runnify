@@ -7,10 +7,10 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
 )
 from flask_login import current_user, login_required, login_user, logout_user
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from runnify.extensions import db, limiter
 from runnify.forms import (
@@ -25,7 +25,12 @@ from runnify.security.lockout import clear_failures, is_locked, record_failure
 from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config
 from runnify.security.redirects import safe_next_url
-from runnify.services.mail import send_email
+from runnify.security.tokens import make_reset_token, user_from_reset_token
+from runnify.services.notifications import (
+    send_lockout_notice,
+    send_password_changed,
+    send_password_reset,
+)
 
 bp = Blueprint("auth", __name__)  # handles auth routes
 
@@ -65,7 +70,7 @@ def login():
             login_user(user, remember=form.remember.data)
             return redirect(safe_next_url(request.args.get("next")) or _home())
         if user and record_failure(user):
-            send_lockout_email(user)
+            send_lockout_notice(user)
         db.session.commit()
         flash(LOGIN_FAILED, "error")
     elif form.errors:
@@ -107,104 +112,71 @@ def logout():
     return redirect(url_for("auth.login"))
 
 
-def send_lockout_email(user):
-    """Tell the account owner that sign-in was paused after repeated failures."""
-    until = user.locked_until.strftime("%H:%M UTC on %d %b %Y")
-    send_email(
-        user.email,
-        "Runnify: sign-in paused after failed attempts",
-        f"""Hello {user.name},
-
-Several attempts to sign in to your Runnify account used the wrong password, so
-sign-in is paused until {until}.
-
-If that was you, wait until then or reset your password to get back in straight
-away: {_external_url("auth.forgot_password")}
-
-If it wasn't you, someone may be trying to guess your password. Your account is
-safe while sign-in is paused; consider choosing a new, unique password.""",
-    )
-
-
-def _external_url(endpoint, **values):
-    """Absolute URL for emails, built from PUBLIC_BASE_URL rather than the request's Host header."""
-    base = current_app.config.get("PUBLIC_BASE_URL")
-    if base:
-        return base + url_for(endpoint, **values)
-    return url_for(endpoint, _external=True, **values)
-
-
-def generate_reset_token(email):
-    """Return a signed, timestamped password-reset token encoding ``email``."""
-    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])  # create serialiser
-    return s.dumps(email, salt="password-reset")  # encode email as token
-
-
-def verify_reset_token(token, max_age=3600):
-    """Return the email inside a reset token, or ``None`` if it is invalid or older than ``max_age`` seconds."""
-    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
-    try:
-        email = s.loads(token, salt="password-reset", max_age=max_age)  # decode token
-        return email
-    except (SignatureExpired, BadSignature):
-        return None  # invalid or expired token
-
-
-def send_reset_email(to_email, reset_link):
-    """Email a password-reset link."""
-    send_email(
-        to_email,
-        "Runnify Password Reset",
-        f"""Hello,
-
-We received a request to reset your Runnify password.
-
-To reset your password, click the link below:
-{reset_link}
-
-If you didn't request this, please ignore this email.""",
-    )
+RESET_TOKEN_KEY = "password_reset_token"  # noqa: S105  (a session key name, not a secret)
 
 
 @bp.route("/forgot", methods=["GET", "POST"])
 @limiter.limit(limit_from_config("PASSWORD_RESET"), methods=["POST"])
 def forgot_password():
-    """Show the forgot-password form; on POST, email a reset link (valid for 1 hour)."""
+    """Show the forgot-password form; on POST, email a single-use reset link.
+
+    The response is the same whether or not the email has an account, so the
+    form cannot be used to find out who is registered.
+    """
     form = ForgotPasswordForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
-        if not user:  # email not found
-            flash("That email is not registered.", "error")
-            return render_template("forgot.html", form=form)
-        token = generate_reset_token(user.email)  # create token
-        reset_link = url_for("auth.reset_password", token=token, _external=True)  # build reset link
-        send_reset_email(user.email, reset_link)  # send email
-        flash("A reset link has been sent to your email.", "info")
+        if user:
+            send_password_reset(user, make_reset_token(user))
+        minutes = current_app.config["PASSWORD_RESET_MAX_AGE"] // 60
+        flash(
+            f"If an account exists for {form.email.data}, we've emailed it a reset link. "
+            f"The link expires in {minutes} minutes.",
+            "info",
+        )
         return redirect(url_for("auth.login"))
     if form.errors:
         flash(first_error(form), "error")
     return render_template("forgot.html", form=form)
 
 
-@bp.route("/reset/<token>", methods=["GET", "POST"])
-@limiter.limit(limit_from_config("PASSWORD_RESET"), methods=["POST"])
+@bp.route("/reset/<token>")
 def reset_password(token):
-    """Validate a reset token and, on POST, set the user's new password."""
-    email = verify_reset_token(token)  # validate token
-    if not email:
-        flash("The reset link is invalid or has expired.", "error")
+    """Landing point for the emailed link.
+
+    A valid token is moved into the session and the browser is redirected to a
+    URL without it, so the token doesn't linger in history, logs or referrers.
+    """
+    if user_from_reset_token(token) is None:
+        flash("That reset link is invalid, already used or expired. Request a new one.", "error")
         return redirect(url_for("auth.forgot_password"))
-    user = User.query.filter_by(email=email).first_or_404()
+    session[RESET_TOKEN_KEY] = token
+    return redirect(url_for("auth.choose_new_password"))
+
+
+@bp.route("/reset", methods=["GET", "POST"])
+@limiter.limit(limit_from_config("PASSWORD_RESET"), methods=["POST"])
+def choose_new_password():
+    """Choose a new password for the account named by the reset token in the session."""
+    user = user_from_reset_token(session.get(RESET_TOKEN_KEY))
+    if user is None:
+        session.pop(RESET_TOKEN_KEY, None)
+        flash("That reset link is invalid, already used or expired. Request a new one.", "error")
+        return redirect(url_for("auth.forgot_password"))
     form = ResetPasswordForm()
     if form.validate_on_submit():
         problems = password_problems(form.password.data, email=user.email, name=user.name)
         if problems:
             flash(problems[0], "error")
         else:
-            user.password_hash = hash_password(form.password.data)  # update password
+            user.password_hash = hash_password(form.password.data)
+            clear_failures(user)  # a reset also lifts any lockout
+            user.rotate_session_token()  # signs out every device and voids the reset link
             db.session.commit()
-            flash("Password reset successful. Please log in.", "success")
+            session.pop(RESET_TOKEN_KEY, None)
+            send_password_changed(user)
+            flash("Your password has been reset. Sign in with your new password.", "success")
             return redirect(url_for("auth.login"))
     elif form.errors:
         flash(first_error(form), "error")
-    return render_template("reset.html", token=token, form=form)
+    return render_template("reset.html", form=form)
