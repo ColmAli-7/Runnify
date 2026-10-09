@@ -1,0 +1,317 @@
+{% extends "layouts/public.html" %}
+{% from "macros/ui.html" import icon, lift %}
+{% from "macros/charts.html" import run_chart, bar_chart %}
+
+{% block title %}Runnify: find the songs that make you run faster{% endblock %}
+{% block body_class %}page-home{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/home.css') }}">
+  <noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/pages/home-noscript.css') }}"></noscript>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='vendor/gsap/gsap.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='vendor/gsap/ScrollTrigger.min.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/pages/home.js') }}"></script>
+{% endblock %}
+
+{% set best = sample.best %}
+{% set worst = sample.worst %}
+{% set top = sample.power[0] %}
+{% set steps = [
+  ("Connect Garmin", "Sign in to Garmin Connect once. Runnify keeps an encrypted session token, never your password, and brings in each run with its second-by-second pace and heart rate."),
+  ("Request your Spotify history", "In Spotify's privacy settings, ask for your extended streaming history. Spotify emails it to you, which can take up to 30 days."),
+  ("Upload the file", "Drop the zip into Runnify. Only the songs that played during your runs are kept, and the upload is deleted as soon as it has been read."),
+  ("Read your results", "Every run gets a results sheet: each song, the moment it came on, and how much faster or slower you ran while it played."),
+] %}
+
+{% block content %}
+
+{# ---- hero: the headline left, a sample results sheet overlapping from the lower right ---- #}
+<section class="hero" aria-labelledby="hero-title">
+  <div class="container hero__grid">
+    <div class="hero__copy">
+      <h1 id="hero-title" class="hero__title" data-hero-title>Find the songs that make you run faster.</h1>
+      <p class="hero__lede" data-hero-fade>
+        Runnify lines up your Spotify listening history with the second-by-second pace from your Garmin runs,
+        then ranks every song by how much faster or slower you ran while it played.
+      </p>
+      <div class="hero__actions" data-hero-fade>
+        <a class="btn btn--primary btn--lg" href="{{ url_for('auth.register') }}">Create free account</a>
+        <a class="btn btn--lg" href="#sample">See a sample result</a>
+      </div>
+      <p class="hero__note" data-hero-fade>You'll need a Garmin watch and a Spotify account.</p>
+    </div>
+
+    <figure class="hero__sheet sample-sheet" aria-labelledby="sample-sheet-title" data-hero-sheet>
+      <div class="sample-sheet__head">
+        <p class="sample-sheet__title" id="sample-sheet-title">{{ sample.run_label }} results</p>
+        <span class="tag tag--ink">Sample data</span>
+      </div>
+      <dl class="sample-sheet__meta">
+        <div><dt>Date</dt><dd>{{ sample.run_date|day }}</dd></div>
+        <div><dt>Distance</dt><dd class="num">{{ sample.distance_m|km }} km</dd></div>
+        <div><dt>Time</dt><dd class="num">{{ sample.duration_s|duration }}</dd></div>
+        <div><dt>Pace</dt><dd class="num">{{ sample.distance_m|run_pace(sample.duration_s) }} /km</dd></div>
+      </dl>
+      <div data-sweep-host>
+        <table class="results results--sheet">
+          <caption class="visually-hidden">Songs from the sample run, ranked by how they changed the pace</caption>
+          <thead>
+            <tr>
+              <th scope="col">Pos</th>
+              <th scope="col">Track</th>
+              <th scope="col" class="is-numeric">On at</th>
+              <th scope="col" class="is-numeric">Lift <span class="results__unit">s/km</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sample.rows[:4] %}
+              <tr{% if loop.first %} class="is-best" data-sweep{% endif %}>
+                <td class="results__pos">{{ row.position }}</td>
+                <td class="results__track">{{ row.song.name }}<span class="results__sub">{{ row.song.artist }}</span></td>
+                <td class="is-numeric">{{ row.at_second|duration }}</td>
+                <td class="is-numeric">{{ lift(row.lift, unit=False) }}</td>
+              </tr>
+            {% endfor %}
+            <tr class="results__gap">
+              <td colspan="4">{{ (sample.rows|length - 5)|plural("more song") }}</td>
+            </tr>
+            <tr>
+              <td class="results__pos">{{ worst.position }}</td>
+              <td class="results__track">{{ worst.song.name }}<span class="results__sub">{{ worst.song.artist }}</span></td>
+              <td class="is-numeric">{{ worst.at_second|duration }}</td>
+              <td class="is-numeric">{{ lift(worst.lift, unit=False) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption class="results-note">
+        Lift: how much faster you ran during the song than in the five minutes either side.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+{# ---- results ticker ---- #}
+<section class="ticker" aria-label="More sample results">
+  <label class="ticker__toggle">
+    <input type="checkbox" class="ticker__pause">
+    {{ icon("pause", class="ticker__icon ticker__icon--pause") }}{{ icon("play", class="ticker__icon ticker__icon--play") }}
+    <span class="visually-hidden">Pause the moving results</span>
+  </label>
+  <ol class="visually-hidden">
+    {% for row in sample.rows %}<li>{{ row.song.name }}, {{ row.lift|lift }}</li>{% endfor %}
+  </ol>
+  <div class="ticker__viewport" aria-hidden="true">
+    <div class="ticker__track">
+      {% for _ in range(2) %}
+        <ul class="ticker__group">
+          {% for row in sample.rows %}
+            <li class="ticker__item">
+              <span class="ticker__pos">{{ row.position }}</span>
+              <span class="ticker__name">{{ row.song.name }}</span>
+              <span class="ticker__lift ticker__lift--{{ row.lift|lift_kind }}">{{ row.lift|lift }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---- how it works: four steps, as a horizontal accordion on wide screens ---- #}
+<section class="section" id="how" aria-labelledby="how-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 id="how-title" class="section__title">How it works</h2>
+      <p class="section__lede">
+        Connect two accounts and upload one file. The only slow part is waiting for Spotify to send your history.
+      </p>
+    </div>
+    <ol class="how" data-accordion>
+      {% for title, text in steps %}
+        <li class="how__item">
+          <details class="how__details" name="how-it-works"{% if loop.first %} open{% endif %}>
+            <summary class="how__summary">
+              <span class="how__num" aria-hidden="true">{{ loop.index }}</span>
+              <span class="how__title"><span class="visually-hidden">Step {{ loop.index }}: </span>{{ title }}</span>
+              {{ icon("plus", class="how__toggle") }}
+            </summary>
+            <p class="how__text">{{ text }}</p>
+          </details>
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+
+{# ---- what you get back: a ruled grid of sample results ---- #}
+<section class="section section--board" id="sample" aria-labelledby="sample-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 id="sample-title" class="section__title">What you get back</h2>
+      <p class="section__lede">
+        Everything here is sample data from {{ sample.runs_simulated }} simulated runs, worked out exactly the way Runnify works out yours.
+      </p>
+    </div>
+    <div class="board">
+      <article class="board__panel board__panel--run" data-reveal>
+        <header class="board__head">
+          <h3 class="board__title">Every run, song by song</h3>
+          <p class="board__meta">{{ sample.run_label }}, {{ sample.run_date|day }}, {{ sample.distance_m|km }} km</p>
+        </header>
+        {{ run_chart(sample.chart, "Pace through the sample run, faster higher. " ~ best.song.name ~ " was the fastest stretch and " ~ worst.song.name ~ " the slowest.", class="chart--tall") }}
+        <ul class="legend">
+          <li><span class="legend__swatch legend__swatch--best" aria-hidden="true"></span>{{ best.song.name }} <strong class="num">{{ best.lift|lift }}</strong></li>
+          <li><span class="legend__swatch legend__swatch--worst" aria-hidden="true"></span>{{ worst.song.name }} <strong class="num">{{ worst.lift|lift }}</strong></li>
+          <li class="legend__note">Pace per km, faster higher. Gaps are stops.</li>
+        </ul>
+      </article>
+
+      <article class="board__panel board__panel--power" data-reveal>
+        <header class="board__head">
+          <h3 class="board__title">Power songs</h3>
+          <p class="board__meta">Your most reliable lifts</p>
+        </header>
+        <ol class="ranks" data-sweep-host>
+          {% for effect in sample.power %}
+            <li class="ranks__row{% if loop.first %} is-best{% endif %}"{% if loop.first %} data-sweep{% endif %}>
+              <span class="ranks__pos">{{ loop.index }}</span>
+              <span class="ranks__name">{{ effect.label }}<span class="ranks__sub">{{ effect.detail }}</span></span>
+              <span class="ranks__value">{{ lift(effect.shrunk_lift) }}<span class="ranks__runs">{{ effect.runs|length|plural("run") }}</span></span>
+            </li>
+          {% endfor %}
+        </ol>
+      </article>
+
+      <article class="board__panel board__panel--drag" data-reveal>
+        <header class="board__head">
+          <h3 class="board__title">Drag songs</h3>
+          <p class="board__meta">Better saved for the cool-down</p>
+        </header>
+        <ol class="ranks">
+          {% for effect in sample.drag %}
+            <li class="ranks__row">
+              <span class="ranks__pos">{{ loop.index }}</span>
+              <span class="ranks__name"><span class="ranks__struck">{{ effect.label }}</span><span class="ranks__sub">{{ effect.detail }}</span></span>
+              <span class="ranks__value">{{ lift(effect.shrunk_lift) }}<span class="ranks__runs">{{ effect.runs|length|plural("run") }}</span></span>
+            </li>
+          {% endfor %}
+        </ol>
+      </article>
+
+      <article class="board__panel board__panel--playlist" data-reveal>
+        <header class="board__head">
+          <h3 class="board__title">A playlist built for the session</h3>
+          <p class="board__meta">Tempo run, 30 minutes, building to your strongest song</p>
+        </header>
+        <div class="playlist-sample">
+          <figure class="ramp">
+            {{ bar_chart(sample.ramp, "Each track's lift in playing order, building from " ~ (sample.playlist[0][0].lift|lift) ~ " to " ~ (sample.playlist[-1][0].lift|lift) ~ ".", class="chart--ramp") }}
+            <figcaption class="chart-caption">Lift of each track in s/km, in playing order</figcaption>
+          </figure>
+          <ol class="startlist">
+            {% for track, start in sample.playlist %}
+              <li class="startlist__item{% if loop.last %} is-best{% endif %}">
+                <span class="startlist__time">{{ start|duration }}</span>
+                <span class="startlist__name">{{ track.song.name }}</span>
+                <span class="startlist__lift">{{ track.lift|lift }}</span>
+              </li>
+            {% endfor %}
+          </ol>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+{# ---- how a song is measured: three sheets that stack as you scroll ---- #}
+<section class="section method" aria-labelledby="method-title">
+  <div class="container method__grid">
+    <div class="method__intro">
+      <h2 id="method-title" class="section__title">Measured against your own running</h2>
+      <p class="section__lede">
+        A song isn't judged against other runners or a tempo chart. It's judged against you, a few minutes earlier and later in the same run.
+      </p>
+    </div>
+    <ol class="method__stack" data-stack>
+      <li class="method__card">
+        <p class="method__step">1</p>
+        <h3 class="method__title">Your pace, second by second</h3>
+        <p class="method__text">Runnify reads the pace your watch recorded every second. Moments when you stopped, at lights or for a breather, are left out.</p>
+        {{ run_chart(sample.stage_charts["pace"], "Pace through the sample run, with gaps where the runner stopped.", class="chart--compact") }}
+      </li>
+      <li class="method__card">
+        <p class="method__step">2</p>
+        <h3 class="method__title">The song, and the minutes around it</h3>
+        <p class="method__text">Each song is compared with how you ran in the five minutes before and after it, so a warm-up, a hill or tired legs mostly cancel out.</p>
+        {{ run_chart(sample.stage_charts["context"], best.song.name ~ " highlighted, with the five minutes either side of it shaded.", class="chart--compact") }}
+      </li>
+      <li class="method__card method__card--result">
+        <p class="method__step">3</p>
+        <h3 class="method__title">A result you can trust</h3>
+        <p class="method__text">A song only ranks once it has played on at least two runs, and the fewer runs behind it, the more its lift is held back. One lucky play can't top the chart.</p>
+        <p class="verdict" data-sweep-host>
+          <span class="verdict__song" data-sweep>{{ top.label }}</span>
+          <span class="verdict__lift">{{ top.shrunk_lift|lift }}</span>
+          <span class="verdict__basis">faster, across {{ top.runs|length|plural("run") }}</span>
+        </p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+{# ---- sample findings ---- #}
+{% set findings = sample.findings %}
+<section class="section findings" aria-labelledby="findings-title">
+  <div class="container">
+    <div class="findings__head">
+      <div class="section__head">
+        <h2 id="findings-title" class="section__title">The kind of thing you'll find out</h2>
+        <p class="section__lede">Findings from the same {{ sample.runs_simulated }} simulated runs.</p>
+      </div>
+      <div class="findings__controls" data-carousel-controls hidden>
+        <button type="button" class="btn btn--sm btn--icon" data-carousel-prev aria-label="Previous finding">{{ icon("arrow-left") }}</button>
+        <p class="findings__count" data-carousel-count aria-live="polite">1 of {{ findings|length }}</p>
+        <button type="button" class="btn btn--sm btn--icon" data-carousel-next aria-label="Next finding">{{ icon("arrow-right") }}</button>
+      </div>
+    </div>
+    <ul class="findings__track" data-carousel aria-label="Sample findings" tabindex="0">
+      {% for label, text in findings %}
+        <li class="finding">
+          <p class="finding__label"><span class="tag">Sample</span>{{ label }}</p>
+          <p class="finding__text">{{ text }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+{# ---- privacy commitments ---- #}
+<section class="section section--ink" id="privacy" aria-labelledby="privacy-title">
+  <div class="container privacy-band">
+    <div>
+      <h2 id="privacy-title" class="section__title">Private by default</h2>
+      <p class="privacy-band__more"><a href="{{ url_for('legal.privacy') }}">Read the privacy policy</a></p>
+    </div>
+    <ul class="commitments">
+      <li>{{ icon("lock") }}<p><strong>Your Garmin password is never stored.</strong> Runnify signs in once and keeps an encrypted session token instead.</p></li>
+      <li>{{ icon("music") }}<p><strong>Only songs from your runs are kept.</strong> The rest of your listening history is ignored, and the upload is deleted once it's read.</p></li>
+      <li>{{ icon("shield") }}<p><strong>No ads, trackers or third-party scripts.</strong> Every page, font and script is served by Runnify itself.</p></li>
+      <li>{{ icon("download") }}<p><strong>Your data stays yours.</strong> Download all of it, or delete your account, from Settings at any time.</p></li>
+    </ul>
+  </div>
+</section>
+
+{# ---- final call to action ---- #}
+<section class="section cta" aria-labelledby="cta-title">
+  <div class="container cta__inner">
+    <h2 id="cta-title" class="cta__title">Get your results.</h2>
+    <p class="cta__text">Spotify can take a few weeks to send your history, so request it today and connect Garmin while you wait.</p>
+    <a class="btn btn--primary btn--lg" href="{{ url_for('auth.register') }}">Create free account</a>
+  </div>
+</section>
+
+{% endblock %}

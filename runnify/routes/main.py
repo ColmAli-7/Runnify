@@ -1,14 +1,16 @@
 """Public landing page."""
 
-from flask import Blueprint, render_template
+from flask import Blueprint, redirect, render_template, url_for
 from flask_login import current_user
 
-bp = Blueprint("main", __name__)  # main site routes
+from runnify.content.sample import landing_sample
+
+bp = Blueprint("main", __name__)
 
 
 @bp.route("/")
 def home():
-    """Render the homepage, personalised when a user is logged in."""
-    if current_user.is_authenticated:  # show personalised home if logged in
-        return render_template("index.html", user=current_user)
-    return render_template("index.html")  # default homepage for visitors
+    """The landing page; signed-in runners go straight to their dashboard."""
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard.index"))
+    return render_template("marketing/home.html", sample=landing_sample())

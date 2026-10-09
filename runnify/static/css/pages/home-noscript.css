@@ -1,0 +1,13 @@
+/* Loaded only when scripts can't run: draw the highlighter marks the sweep would have drawn. */
+
+[data-sweep-host] tr[data-sweep] > * {
+  background-color: var(--highlight);
+}
+
+[data-sweep-host] li[data-sweep] {
+  background-color: var(--highlight);
+}
+
+[data-sweep-host] .verdict__song {
+  box-shadow: inset 0 -0.55em 0 var(--highlight);
+}
