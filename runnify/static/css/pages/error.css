@@ -3,6 +3,7 @@
 @layer pages {
   .error-page {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-6);
     align-items: end;
     padding-block: var(--s-9) var(--s-10);

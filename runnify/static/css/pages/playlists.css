@@ -3,6 +3,7 @@
 @layer pages {
   .playlists {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
     align-items: start;
   }
@@ -151,6 +152,7 @@
   /* one playlist */
   .playlist {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
   }
 

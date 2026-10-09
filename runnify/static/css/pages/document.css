@@ -3,6 +3,7 @@
 @layer pages {
   .document {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-7);
     padding-block: var(--s-8) var(--s-10);
   }

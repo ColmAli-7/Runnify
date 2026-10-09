@@ -964,6 +964,13 @@
     fill: var(--ink-3);
   }
 
+  @media (max-width: 559px) {
+    /* every other time label, so long runs don't crowd the axis */
+    .chart--run .chart__x text:nth-child(even) {
+      display: none;
+    }
+  }
+
   .chart .grid {
     stroke: var(--rule);
     stroke-width: 1;

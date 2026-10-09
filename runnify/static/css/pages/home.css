@@ -54,6 +54,7 @@
 
   .hero__grid {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-7);
   }
 
@@ -666,6 +667,7 @@
 
   .method__grid {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-7);
   }
 
@@ -856,6 +858,7 @@
 
   .privacy-band {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-7);
   }
 

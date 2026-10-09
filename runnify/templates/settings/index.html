@@ -17,7 +17,7 @@
       <dt>Member since</dt><dd>{{ current_user.created_at|day }}</dd>
     </dl>
     <form class="form settings__form" method="post" novalidate>
-      {{ name_form.csrf_token }}
+      {{ csrf() }}
       {{ username_hint(current_user.email) }}
       <input type="hidden" name="action" value="change_name">
       {{ field(name_form.new_name, id="name-new", label="New name", autocomplete="name") }}
@@ -33,7 +33,7 @@
     <p class="sheet__meta">Changing it signs you out everywhere else</p>
   </header>
   <form class="sheet__body form settings__form" method="post" novalidate>
-    {{ password_form.csrf_token }}
+    {{ csrf() }}
       {{ username_hint(current_user.email) }}
     <input type="hidden" name="action" value="change_password">
     {{ field(password_form.password, id="pw-current", reveal=True, autocomplete="current-password") }}
@@ -107,7 +107,7 @@
   </header>
   <div class="settings__rows">
     <form class="settings__row settings__row--form" method="post" action="{{ url_for('settings.export_data') }}" novalidate>
-      {{ export_form.csrf_token }}
+      {{ csrf() }}
       {{ username_hint(current_user.email) }}
       <div>
         <p class="settings__row-title">Download your data</p>
@@ -117,7 +117,7 @@
       <button class="btn" type="submit">{{ icon("download") }}Download</button>
     </form>
     <form class="settings__row settings__row--form settings__row--danger" method="post" action="{{ url_for('settings.delete_account') }}" novalidate data-confirm="Delete your account and all of its data? This can't be undone.">
-      {{ delete_form.csrf_token }}
+      {{ csrf() }}
       {{ username_hint(current_user.email) }}
       <div>
         <p class="settings__row-title">Delete your account</p>

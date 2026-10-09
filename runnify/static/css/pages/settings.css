@@ -3,6 +3,7 @@
 @layer pages {
   .settings {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-6);
     align-items: start;
   }
@@ -35,6 +36,7 @@
 
   .settings__main {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
     min-width: 0;
   }
