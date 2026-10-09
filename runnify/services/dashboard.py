@@ -78,18 +78,18 @@ def week_start(moment):
 
 
 def weekly_distance(user_id, weeks=12, now=None):
-    """Metres run in each of the last ``weeks`` weeks (Monday to Sunday), oldest first.
+    """Metres run in each of the last ``weeks`` weeks (Monday to Sunday, local time), oldest first.
 
     Returns:
         ``(week_start, metres)`` pairs; weeks without runs are included with 0.
     """
     first = week_start(now or utcnow()) - timedelta(weeks=weeks - 1)
     by_week = {first + timedelta(weeks=i): 0.0 for i in range(weeks)}
-    runs = db.session.query(Run.date_time, Run.distance).filter(
-        Run.user_id == user_id, Run.date_time >= first
+    runs = db.session.query(Run.date_time, Run.utc_offset, Run.distance).filter(
+        Run.user_id == user_id, Run.date_time >= first - timedelta(days=1)
     )
-    for started, metres in runs:
-        key = week_start(started)
+    for started, offset, metres in runs:
+        key = week_start(started + timedelta(minutes=offset or 0))  # the runner's own calendar
         if key in by_week:
             by_week[key] += metres or 0.0
     return sorted(by_week.items())

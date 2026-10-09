@@ -41,8 +41,8 @@
             {% set summary = summaries[run.id] %}
             <tr class="is-linked">
               <td class="results__track">
-                <a class="runs-table__link" href="{{ url_for('runs.detail', run_id=run.id) }}">{{ run.date_time|run_name }}</a>
-                <span class="results__sub">{{ run.date_time|day }}, {{ run.date_time|clock }}</span>
+                <a class="runs-table__link" href="{{ url_for('runs.detail', run_id=run.id) }}">{{ run.local_start|run_name }}</a>
+                <span class="results__sub">{{ run.local_start|day }}, {{ run.local_start|clock }}</span>
               </td>
               <td class="is-numeric">{{ run.distance|km }} <span class="results__unit">km</span></td>
               <td class="is-numeric">{{ run.duration|duration }}</td>

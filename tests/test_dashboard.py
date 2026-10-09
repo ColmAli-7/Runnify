@@ -106,3 +106,20 @@ def test_a_run_page_shows_its_results(app, auth_client, user):
     page = auth_client.get(f"/runs/{run_id}").get_data(as_text=True)
     assert "Fast Song" in page and "Skipped" in page and 'id="timeline-data"' in page
     assert auth_client.get("/runs/999999").status_code == 404
+
+
+def test_weeks_follow_the_runners_own_calendar(app, user):
+    with app.app_context():
+        # 23:30 UTC on Sunday is already Monday morning on Irish summer time
+        db.session.add(
+            Run(
+                user_id=user,
+                activity_id="late",
+                date_time=datetime(2026, 10, 4, 23, 30),
+                utc_offset=60,
+                distance=4000,
+            )
+        )
+        db.session.commit()
+        weeks = dashboard.weekly_distance(user, weeks=2, now=datetime(2026, 10, 7, 12))
+        assert weeks == [(datetime(2026, 9, 28), 0.0), (datetime(2026, 10, 5), 4000.0)]

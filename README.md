@@ -162,8 +162,9 @@ Every module, class and function also has a docstring.
   history on request, by email, which can take up to 30 days.
 - **Spotify's Web API is needed only to save playlists**, and that path is
   covered by tests with a stubbed client rather than live calls.
-- **Times are shown in UTC.** Runnify doesn't yet know each runner's time zone,
-  so a run's start time can differ from the watch by the UTC offset.
+- **Run times follow the watch.** Each run is shown on the clock it was
+  recorded in, from Garmin's local start time; runs imported before that was
+  stored show UTC until Garmin is next synced.
 - **Garmin rate limits.** Large first syncs may be throttled by Garmin.
 
 ## Author

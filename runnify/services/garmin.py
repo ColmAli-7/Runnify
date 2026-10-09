@@ -186,6 +186,21 @@ def _download_series(activity_id, client):
         return None
 
 
+GARMIN_TIME = "%Y-%m-%d %H:%M:%S"
+
+
+def _utc_offset(local_text, started_utc):
+    """Minutes the runner's clock was ahead of UTC, from Garmin's local start time (or ``None``)."""
+    try:
+        local = datetime.strptime(local_text or "", GARMIN_TIME)
+    except ValueError:
+        return None
+    minutes = (
+        round((local - started_utc).total_seconds() / 60 / 15) * 15
+    )  # zones run in quarter hours
+    return minutes if abs(minutes) <= 14 * 60 else None
+
+
 def fetch_and_store_garmin_activities(user, pause=1.0):
     """Download all new running activities for ``user`` and save them as ``Run`` rows.
 
@@ -212,13 +227,20 @@ def fetch_and_store_garmin_activities(user, pause=1.0):
             activity_id = str(activity["activityId"])
             if "running" not in activity.get("activityType", {}).get("typeKey", ""):
                 continue
-            if Run.query.filter_by(user_id=user.id, activity_id=activity_id).first():
+            stored = Run.query.filter_by(user_id=user.id, activity_id=activity_id).first()
+            if stored:
+                if stored.utc_offset is None:  # runs imported before local times were kept
+                    stored.utc_offset = _utc_offset(
+                        activity.get("startTimeLocal"), stored.date_time
+                    )
                 continue
             avg_speed = activity.get("averageSpeed") or 0.0
+            started = datetime.strptime(activity["startTimeGMT"], GARMIN_TIME)
             run = Run(
                 user_id=user.id,
                 activity_id=activity_id,
-                date_time=datetime.strptime(activity["startTimeGMT"], "%Y-%m-%d %H:%M:%S"),
+                date_time=started,
+                utc_offset=_utc_offset(activity.get("startTimeLocal"), started),
                 distance=float(activity.get("distance") or 0),
                 duration=int(activity.get("duration") or 0),
                 avg_hr=activity.get("averageHR"),

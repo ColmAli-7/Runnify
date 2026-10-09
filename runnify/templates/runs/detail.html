@@ -3,8 +3,8 @@
 {% from "macros/charts.html" import run_chart %}
 {% from "macros/results.html" import results_table %}
 
-{% set title = run.date_time|run_name %}
-{% block title %}{{ title }}, {{ run.date_time|short_day }} | Runnify{% endblock %}
+{% set title = run.local_start|run_name %}
+{% block title %}{{ title }}, {{ run.local_start|short_day }} | Runnify{% endblock %}
 
 {% block styles %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/runs.css') }}">
@@ -19,7 +19,7 @@
   <div>
     <p class="page-head__crumb"><a href="{{ url_for('runs.index') }}">{{ icon("arrow-left") }}All runs</a></p>
     <h1>{{ title }}</h1>
-    <p class="page-head__meta">{{ run.date_time|day }} at {{ run.date_time|clock }}</p>
+    <p class="page-head__meta">{{ run.local_start|day }} at {{ run.local_start|clock }}</p>
   </div>
   <nav class="page-head__actions" aria-label="Other runs">
     {% if older %}<a class="btn btn--sm" href="{{ url_for('runs.detail', run_id=older.id) }}" rel="prev">{{ icon("arrow-left") }}Older run</a>{% endif %}

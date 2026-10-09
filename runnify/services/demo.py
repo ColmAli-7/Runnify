@@ -202,6 +202,7 @@ def seed(app, password, now=None):
             user_id=user.id,
             activity_id=f"demo-{n:03d}",
             date_time=start,
+            utc_offset=60,  # Irish summer time
             distance=round(metres, 1),
             duration=seconds,
             avg_hr=avg_hr,

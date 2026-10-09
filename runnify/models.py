@@ -14,7 +14,7 @@ Users are linked to each other through the ``friends`` association table and
 
 import hmac
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from flask_login import UserMixin
 
@@ -163,9 +163,18 @@ class Run(db.Model):
     avg_hr = db.Column(db.Integer)
     avg_pace = db.Column(db.Float)
     fit_file_path = db.Column(db.String)
+    # minutes the runner's clock was ahead of UTC at the start (from Garmin's local start time)
+    utc_offset = db.Column(db.Integer)
 
     user = db.relationship("User", back_populates="runs")  # link run to user
     analysis = db.relationship("RunSongAnalysis", back_populates="run")  # link run to analysis
+
+    @property
+    def local_start(self):
+        """When the run started on the runner's own clock (UTC when the offset is unknown)."""
+        if self.date_time is None:
+            return None
+        return self.date_time + timedelta(minutes=self.utc_offset or 0)
 
 
 class Song(db.Model):

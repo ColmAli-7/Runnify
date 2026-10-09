@@ -60,7 +60,12 @@ class FakeGarmin:
     def get_activities(self, start, limit):
         if start:
             return []
-        common = {"startTimeGMT": "2026-10-01 07:00:00", "duration": 1800.0, "distance": 5000.0}
+        common = {
+            "startTimeGMT": "2026-10-01 07:00:00",
+            "startTimeLocal": "2026-10-01 08:00:00",  # Irish summer time
+            "duration": 1800.0,
+            "distance": 5000.0,
+        }
         return [
             {
                 "activityId": 123,
@@ -112,6 +117,7 @@ def test_sync_from_tokens_saves_runs_and_their_streams(app, user):
         assert FakeGarmin.instances[0].tokenstore == TOKENS
         assert db.session.get(RunStream, run.id).sample_count == 60
         assert run.fit_file_path is None  # no FIT file is kept
+        assert run.utc_offset == 60 and run.local_start.hour == 8
 
 
 def test_legacy_password_is_swapped_for_tokens(app, user):
@@ -228,3 +234,26 @@ def test_background_sync_records_the_outcome(app, user, monkeypatch):
         assert account.garmin_sync_state == "ok"
         assert account.garmin_sync_message == "1 new run imported."
         assert account.garmin_last_synced_at is not None
+
+
+@pytest.mark.parametrize(
+    ("local", "expected"),
+    [
+        ("2026-10-01 08:00:00", 60),
+        ("2026-10-01 01:30:01", -330),  # a stray second rounds to the zone
+        ("2026-10-02 07:00:00", None),  # a day out is not a time zone
+        (None, None),
+        ("not a time", None),
+    ],
+)
+def test_utc_offset_from_garmin_local_time(local, expected):
+    assert garmin_service._utc_offset(local, datetime(2026, 10, 1, 7, 0)) == expected
+
+
+def test_sync_fills_in_local_time_for_runs_stored_without_it(app, user):
+    _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
+    with app.app_context():
+        db.session.add(Run(user_id=user, activity_id="123", date_time=datetime(2026, 10, 1, 7, 0)))
+        db.session.commit()
+        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
+        assert Run.query.one().utc_offset == 60

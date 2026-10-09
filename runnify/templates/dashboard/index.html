@@ -80,7 +80,7 @@
     <header class="sheet__head">
       <div>
         <h2 class="sheet__title" id="latest-title">Latest run</h2>
-        <p class="sheet__meta">{{ latest.date_time|run_name }}, {{ latest.date_time|day }} at {{ latest.date_time|clock }}</p>
+        <p class="sheet__meta">{{ latest.local_start|run_name }}, {{ latest.local_start|day }} at {{ latest.local_start|clock }}</p>
       </div>
       <a class="btn btn--sm" href="{{ url_for('runs.detail', run_id=latest.id) }}">Full results{{ icon("arrow-right") }}</a>
     </header>
