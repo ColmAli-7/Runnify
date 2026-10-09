@@ -127,8 +127,8 @@ class Run(db.Model):
     """A running activity imported from Garmin Connect.
 
     ``distance`` is in metres, ``duration`` in seconds and ``avg_pace`` in
-    minutes per km. ``fit_file_path`` points at the downloaded ``.fit`` file
-    (or holds the Garmin activity id if the download failed).
+    minutes per km. Second-by-second samples live in :class:`RunStream`;
+    ``fit_file_path`` only exists on runs imported before streams did.
     """
 
     __tablename__ = "runs"
@@ -265,3 +265,14 @@ class SecurityEvent(db.Model):
     ip_prefix = db.Column(db.String(45))
     user_agent = db.Column(db.String(160))
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow, index=True)
+
+
+class RunStream(db.Model):
+    """A run's pace and heart-rate samples, compressed (see :mod:`runnify.services.streams`)."""
+
+    __tablename__ = "run_streams"
+
+    run_id = db.Column(db.Integer, db.ForeignKey("runs.id", ondelete="CASCADE"), primary_key=True)
+    started_at = db.Column(db.DateTime, nullable=False)  # UTC time of the first sample
+    sample_count = db.Column(db.Integer, nullable=False)
+    samples = db.Column(db.LargeBinary, nullable=False)

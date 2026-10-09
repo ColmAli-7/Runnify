@@ -15,13 +15,13 @@ from flask import current_app
 
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory, utcnow
-from runnify.services.fit import read_fit_to_series
 from runnify.services.history_import import (
     HistoryArchiveError,
     import_history_zip_overlapping_runs,
     inspect_archive,
 )
 from runnify.services.scoring import score_segment
+from runnify.services.streams import load_series
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def run_import(user_id, path):
             SongModel=Song,
             UserSongHistoryModel=UserSongHistory,
             RunSongAnalysisModel=RunSongAnalysis,
-            read_fit_to_series=read_fit_to_series,
+            read_series=load_series,
             score_segment=score_segment,
             batch_size=current_app.config["HISTORY_BATCH_SIZE"],
             min_overlap_seconds=current_app.config["HISTORY_MIN_OVERLAP_SECONDS"],

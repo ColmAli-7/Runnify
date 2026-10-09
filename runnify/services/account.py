@@ -18,6 +18,7 @@ from runnify.models import (
     RecoveryCode,
     Run,
     RunSongAnalysis,
+    RunStream,
     SecurityEvent,
     Song,
     UserSongHistory,
@@ -124,6 +125,7 @@ def delete_account(user):
             or_(RunSongAnalysis.user_id == user.id, RunSongAnalysis.run_id.in_(run_ids))
         )
     )
+    db.session.execute(delete(RunStream).where(RunStream.run_id.in_(run_ids)))
     db.session.execute(delete(UserSongHistory).where(UserSongHistory.user_id == user.id))
     db.session.execute(delete(Run).where(Run.user_id == user.id))
     db.session.execute(

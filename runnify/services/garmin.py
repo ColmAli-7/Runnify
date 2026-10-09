@@ -19,9 +19,8 @@ import threading
 import time
 import zipfile
 from datetime import datetime
-from pathlib import Path
 
-from flask import current_app
+from fitparse import FitParseError
 from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
@@ -31,6 +30,8 @@ from garminconnect import (
 
 from runnify.extensions import db
 from runnify.models import Run, User, utcnow
+from runnify.services.fit import parse_fit
+from runnify.services.streams import save_stream
 
 logger = logging.getLogger(__name__)
 
@@ -162,16 +163,11 @@ def _client_for(user):
     return client
 
 
-def fit_path(user_id, activity_id):
-    """Where the FIT file for one activity is stored."""
-    return Path(current_app.config["FIT_STORAGE_DIR"]) / str(user_id) / f"{activity_id}.fit"
-
-
 def _extract_fit(zip_bytes):
     """Return the bytes of the first ``.fit`` file in a Garmin download, or ``None``.
 
     Only the FIT entry is read, in memory and with a size cap; nothing in the
-    archive decides where files are written.
+    archive is ever written to disk.
     """
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
         for entry in archive.infolist():
@@ -180,27 +176,22 @@ def _extract_fit(zip_bytes):
     return None
 
 
-def _save_fit(user_id, activity_id, client):
-    """Download and store one activity's FIT file; returns its path or ``None``."""
+def _download_series(activity_id, client):
+    """Download one activity and parse its FIT data into a :class:`Series` (``None`` on failure)."""
     try:
         data = _extract_fit(client.download_activity(activity_id, dl_fmt=DOWNLOAD_FORMAT))
-    except (*GARMIN_ERRORS, zipfile.BadZipFile) as error:
-        logger.warning("Could not download FIT for activity %s: %s", activity_id, error)
+        return parse_fit(data) if data else None
+    except (*GARMIN_ERRORS, zipfile.BadZipFile, FitParseError) as error:
+        logger.warning("Could not read FIT data for activity %s: %s", activity_id, error)
         return None
-    if not data:
-        return None
-    path = fit_path(user_id, activity_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
-    return str(path)
 
 
 def fetch_and_store_garmin_activities(user, pause=1.0):
     """Download all new running activities for ``user`` and save them as ``Run`` rows.
 
     Pages through the user's Garmin activities, skips ones already stored and
-    anything that isn't a run, stores each run's FIT file and commits one page
-    at a time. Afterwards the (possibly refreshed) Garmin tokens are saved and
+    anything that isn't a run, stores each run's pace and heart-rate stream
+    and commits one page at a time. Afterwards the (possibly refreshed) Garmin tokens are saved and
     any legacy stored password is erased.
 
     Args:
@@ -224,18 +215,20 @@ def fetch_and_store_garmin_activities(user, pause=1.0):
             if Run.query.filter_by(user_id=user.id, activity_id=activity_id).first():
                 continue
             avg_speed = activity.get("averageSpeed") or 0.0
-            db.session.add(
-                Run(
-                    user_id=user.id,
-                    activity_id=activity_id,
-                    date_time=datetime.strptime(activity["startTimeGMT"], "%Y-%m-%d %H:%M:%S"),
-                    distance=float(activity.get("distance") or 0),
-                    duration=int(activity.get("duration") or 0),
-                    avg_hr=activity.get("averageHR"),
-                    avg_pace=(1000 / avg_speed / 60) if avg_speed > 0 else None,  # min/km
-                    fit_file_path=_save_fit(user.id, activity_id, client),
-                )
+            run = Run(
+                user_id=user.id,
+                activity_id=activity_id,
+                date_time=datetime.strptime(activity["startTimeGMT"], "%Y-%m-%d %H:%M:%S"),
+                distance=float(activity.get("distance") or 0),
+                duration=int(activity.get("duration") or 0),
+                avg_hr=activity.get("averageHR"),
+                avg_pace=(1000 / avg_speed / 60) if avg_speed > 0 else None,  # min/km
             )
+            db.session.add(run)
+            db.session.flush()  # assigns run.id for the stream
+            series = _download_series(activity_id, client)
+            if series is not None:
+                save_stream(run, series)
             added += 1
             time.sleep(pause)
         db.session.commit()

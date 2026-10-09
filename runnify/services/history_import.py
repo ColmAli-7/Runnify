@@ -160,7 +160,7 @@ def import_history_zip_overlapping_runs(
     SongModel,
     UserSongHistoryModel,
     RunSongAnalysisModel,
-    read_fit_to_series,
+    read_series,
     score_segment,
     batch_size: int = 500,
     min_overlap_seconds: int = 1,
@@ -176,8 +176,8 @@ def import_history_zip_overlapping_runs(
         db: Flask-SQLAlchemy ``db`` instance.
         RunModel, SongModel, UserSongHistoryModel, RunSongAnalysisModel:
             The model classes to read and write.
-        read_fit_to_series: Callable that parses a FIT file into
-            ``(timestamps, heart_rates, paces)``.
+        read_series: Callable returning a run's :class:`~runnify.services.fit.Series`
+            of samples (empty when none were recorded).
         score_segment: Callable that scores one song segment of a run.
         batch_size: How many rows to add before each commit.
         min_overlap_seconds: Plays overlapping a run by less than this are
@@ -297,11 +297,7 @@ def import_history_zip_overlapping_runs(
     try:
         for run_id, _, _ in run_intervals:
             run = db.session.get(RunModel, run_id)
-            if run and getattr(run, "fit_file_path", None):
-                timestamps, pace_s_per_km, hr = read_fit_to_series(run.fit_file_path)
-                run_data_cache[run_id] = (timestamps, pace_s_per_km, hr)
-            else:
-                run_data_cache[run_id] = ([], [], [])
+            run_data_cache[run_id] = read_series(run).as_tuple() if run else ([], [], [])
 
         user_songs = (
             db.session.query(UserSongHistoryModel)

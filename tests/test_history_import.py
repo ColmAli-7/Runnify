@@ -7,6 +7,7 @@ from datetime import datetime
 
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory
+from runnify.services.fit import Series
 from runnify.services.history_import import import_history_zip_overlapping_runs
 from runnify.services.scoring import score_segment
 
@@ -65,7 +66,7 @@ def test_import_links_overlapping_music_and_skips_the_rest(app):
             SongModel=Song,
             UserSongHistoryModel=UserSongHistory,
             RunSongAnalysisModel=RunSongAnalysis,
-            read_fit_to_series=lambda path: ([], [], []),
+            read_series=lambda run: Series(),
             score_segment=score_segment,
         )
 
@@ -94,7 +95,7 @@ def test_import_without_runs_does_nothing(app):
             SongModel=Song,
             UserSongHistoryModel=UserSongHistory,
             RunSongAnalysisModel=RunSongAnalysis,
-            read_fit_to_series=lambda path: ([], [], []),
+            read_series=lambda run: Series(),
             score_segment=score_segment,
         )
         assert stats["note"] == "User has no runs"

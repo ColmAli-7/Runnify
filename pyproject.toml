@@ -36,6 +36,10 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra --strict-markers"
+filterwarnings = [
+    # fitparse still calls datetime.utcfromtimestamp(); harmless until Python removes it
+    "ignore:datetime.datetime.utcfromtimestamp:DeprecationWarning:fitparse",
+]
 
 [tool.ruff]
 line-length = 100

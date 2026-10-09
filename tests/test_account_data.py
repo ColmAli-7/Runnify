@@ -9,6 +9,7 @@ from runnify.models import (
     FriendRequest,
     Run,
     RunSongAnalysis,
+    RunStream,
     SecurityEvent,
     Song,
     User,
@@ -55,6 +56,9 @@ def _seed(app, user_id):
         fit_dir.mkdir(parents=True)
         (fit_dir / "42.fit").write_bytes(b"FIT")
         run.fit_file_path = str(fit_dir / "42.fit")
+        db.session.add(
+            RunStream(run_id=run.id, started_at=run.date_time, sample_count=1, samples=b"x")
+        )
         db.session.commit()
         return other.id
 
@@ -86,7 +90,14 @@ def test_deleting_removes_everything_personal(app, auth_client, user):
     assert outbox[0].subject == "Your Runnify account was deleted"
     with app.app_context():
         assert db.session.get(User, user) is None
-        for model in (Run, UserSongHistory, RunSongAnalysis, FriendRequest, SecurityEvent):
+        for model in (
+            Run,
+            RunStream,
+            UserSongHistory,
+            RunSongAnalysis,
+            FriendRequest,
+            SecurityEvent,
+        ):
             assert model.query.count() == 0, model.__name__
         assert db.session.get(User, other) is not None  # the friend's account is untouched
         assert db.session.get(Song, "trk") is not None  # the shared catalogue is kept

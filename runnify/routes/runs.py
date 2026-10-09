@@ -5,9 +5,9 @@ from flask_login import current_user, login_required
 from sqlalchemy import and_, exists
 
 from runnify.models import Run, UserSongHistory
-from runnify.services.fit import read_fit_to_series
 from runnify.services.scoring import score_segment
 from runnify.services.segments import load_song_segments
+from runnify.services.streams import load_series
 
 bp = Blueprint("activities", __name__)  # blueprint for activity routes
 
@@ -43,12 +43,9 @@ def activity_detail(run_id):
     run = Run.query.filter_by(id=run_id, user_id=current_user.id).first()
     if not run:
         abort(404, description="Run not found")  # invalid id or unauthorised access
-    if not run.fit_file_path:
-        abort(400, description="No FIT file recorded for this run")  # no fit file present
-
-    ts, hr, pace = read_fit_to_series(run.fit_file_path)  # parse FIT file
+    ts, hr, pace = load_series(run).as_tuple()  # second-by-second samples
     if not ts:
-        abort(400, description="No records found in FIT")  # empty FIT file
+        abort(400, description="No second-by-second data was recorded for this run")
 
     run_start, run_end = ts[0], ts[-1]
     segments = load_song_segments(run.user_id, run_start, run_end)  # get songs played during run

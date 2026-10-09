@@ -4,20 +4,27 @@ import io
 import json
 import pathlib
 import zipfile
+from datetime import datetime, timedelta
 
 import pytest
 
 from runnify.extensions import db
-from runnify.models import Run, User
+from runnify.models import Run, RunStream, User
 from runnify.services import garmin as garmin_service
+from tests.fit_builder import build_fit
 
 TOKENS = json.dumps({"di_token": "t", "di_refresh_token": "r", "di_client_id": "c"})
 
 
-def _fit_zip(name="123_ACTIVITY.fit"):
+FIT = build_fit(
+    [(datetime(2026, 10, 1, 7) + timedelta(seconds=i), 150, 3.0 * i, 3.0) for i in range(60)]
+)
+
+
+def _fit_zip(name="123_ACTIVITY.fit", data=FIT):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
-        archive.writestr(name, b"FAKEFIT")
+        archive.writestr(name, data)
     return buffer.getvalue()
 
 
@@ -94,7 +101,7 @@ def _set(app, user_id, **fields):
         db.session.commit()
 
 
-def test_sync_from_tokens_saves_runs_and_fit_files(app, user):
+def test_sync_from_tokens_saves_runs_and_their_streams(app, user):
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     with app.app_context():
         added = garmin_service.fetch_and_store_garmin_activities(
@@ -103,9 +110,8 @@ def test_sync_from_tokens_saves_runs_and_fit_files(app, user):
         run = Run.query.one()  # the swim is skipped
         assert added == 1
         assert FakeGarmin.instances[0].tokenstore == TOKENS
-        saved = pathlib.Path(run.fit_file_path)
-        assert saved == pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user) / "123.fit"
-        assert saved.read_bytes() == b"FAKEFIT"
+        assert db.session.get(RunStream, run.id).sample_count == 60
+        assert run.fit_file_path is None  # no FIT file is kept
 
 
 def test_legacy_password_is_swapped_for_tokens(app, user):
@@ -126,16 +132,25 @@ def test_sync_skips_runs_already_stored(app, user):
         assert Run.query.count() == 1
 
 
-def test_archive_paths_never_decide_where_files_go(app, user, monkeypatch):
+def test_downloads_are_never_written_to_disk(app, user, monkeypatch, tmp_path):
     monkeypatch.setattr(
         FakeGarmin, "download_activity", lambda self, a, dl_fmt=None: _fit_zip("../../evil.fit")
     )
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     with app.app_context():
         garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
-        saved = pathlib.Path(Run.query.one().fit_file_path)
-        assert saved.parent == pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user)
-    assert not (pathlib.Path(app.config["FIT_STORAGE_DIR"]).parent.parent / "evil.fit").exists()
+        assert db.session.get(RunStream, Run.query.one().id) is not None
+    assert not list(pathlib.Path(tmp_path).rglob("*.fit"))
+
+
+def test_unreadable_fit_data_still_saves_the_run(app, user, monkeypatch):
+    monkeypatch.setattr(
+        FakeGarmin, "download_activity", lambda self, a, dl_fmt=None: _fit_zip(data=b"not fit")
+    )
+    _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
+    with app.app_context():
+        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
+        assert db.session.get(RunStream, Run.query.one().id) is None
 
 
 def test_linking_stores_tokens_never_the_password(app, auth_client, user, syncs):
