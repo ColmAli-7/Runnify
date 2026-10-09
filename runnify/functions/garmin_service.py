@@ -1,8 +1,9 @@
 """Garmin Connect activity sync."""
 
 import os
+import time
 import zipfile
-from datetime import datetime, time
+from datetime import datetime
 from garminconnect import Garmin
 from models import db, Run
 

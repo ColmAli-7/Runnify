@@ -98,7 +98,6 @@ These were found while documenting the code and have **not** been fixed yet.
 
 | # | Where | Issue | Effect |
 |---|---|---|---|
-| 2 | `runnify/functions/garmin_service.py` | `from datetime import datetime, time` shadows the `time` module, so `time.sleep(1)` raises `AttributeError`. The broad `except` swallows it | Every FIT download is treated as failed: the file is never saved and `fit_file_path` holds the activity id. Run analysis and scoring then fail for synced runs |
 | 3 | `runnify/routes/get_activities.py` | `@login_required` is placed above `@get_activities.route(...)` | Login is not enforced on `/activity/<id>` (data is still scoped to `current_user`) |
 | 4 | `runnify/config.py` vs `routes/spocon.py` | Config defines `HISTORY_BATCH_COMMIT_EVERY`, but the upload reads `HISTORY_BATCH_SIZE` | The config value is ignored (the fallback of 1000 is used) |
 | 5 | various | `datetime.utcnow()` (deprecated since Python 3.12) and `Query.get()` (legacy in SQLAlchemy 2.x) | Deprecation warnings only |
