@@ -6,9 +6,21 @@ importing the app; :func:`runnify.create_app` binds them to the application.
 
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import MetaData
 
-db = SQLAlchemy()
+# Deterministic constraint names, so Alembic migrations can reliably alter or drop them.
+NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+db = SQLAlchemy(metadata=MetaData(naming_convention=NAMING_CONVENTION))
+migrate = Migrate()
 mail = Mail()
 
 login_manager = LoginManager()

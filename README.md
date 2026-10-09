@@ -61,11 +61,14 @@ uv sync
 # create your local config, then fill in the values (see below)
 cp .env.example .env
 
+# create the database tables
+uv run flask --app runnify db upgrade
+
 # run the development server
 uv run flask --app runnify run --debug
 ```
 
-Open <http://127.0.0.1:5000>. Database tables are created automatically on first start.
+Open <http://127.0.0.1:5000>.
 
 > **Behind a corporate proxy?** If `uv sync` fails with `invalid peer certificate: UnknownIssuer`,
 > run it with `--system-certs` (or set `UV_SYSTEM_CERTS=true`) so uv trusts your OS certificate store.
@@ -172,8 +175,6 @@ All Python modules, classes and functions also have docstrings.
 
 ## Limitations
 
-- **No migrations.** Tables are created with `db.create_all()` on start-up.
-  Schema changes to existing tables must be applied manually.
 - **Playlist generator is a work in progress.** The form is captured but no playlist is built yet.
 - **Garmin rate limits.** Requests may be throttled if made too frequently.
 - **Spotify history is manual.** Extended streaming history has to be requested

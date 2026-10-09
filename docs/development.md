@@ -58,7 +58,8 @@ export UV_SYSTEM_CERTS=true
    (the app will not start without `FERNET_KEY`).
 3. Optionally point `DATABASE_URL` at PostgreSQL. Without it, a SQLite file is
    created at `runnify/instance/runnify.db`.
-4. `uv run flask --app runnify run --debug` from the repository root.
+4. `uv run flask --app runnify db upgrade` to create the database tables.
+5. `uv run flask --app runnify run --debug` from the repository root.
 
 To reset the local SQLite database, stop the server and delete `runnify/instance/runnify.db`.
 
@@ -87,9 +88,25 @@ To reset the local SQLite database, stop the server and delete `runnify/instance
 
 ### Changing the schema
 
-There are no migrations. `db.create_all()` creates missing tables only. For
-changes to existing tables, either alter them manually or recreate the
-database. Consider adding Flask-Migrate (Alembic) if the schema starts changing often.
+The schema is managed with Alembic through Flask-Migrate; revisions live in
+`migrations/versions/`. After changing a model:
+
+```bash
+uv run flask --app runnify db migrate -m "describe the change"   # autogenerate a revision
+# review the generated file, then apply it
+uv run flask --app runnify db upgrade
+```
+
+`tests/test_migrations.py` fails if the models and migrations ever drift apart.
+
+A database created before migrations existed (by the old `db.create_all()`)
+already has the baseline tables. Mark it as being at the baseline once, then
+upgrade as normal:
+
+```bash
+uv run flask --app runnify db stamp 0001
+uv run flask --app runnify db upgrade
+```
 
 ## Known issues
 

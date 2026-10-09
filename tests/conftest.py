@@ -14,6 +14,8 @@ def app(tmp_path, monkeypatch):
     """A fresh application with an in-memory database, run from a temp directory."""
     monkeypatch.chdir(tmp_path)  # files the app writes (e.g. fit_files/) land in tmp
     app = create_app(TestConfig)
+    with app.app_context():
+        _db.create_all()
     yield app
     with app.app_context():
         _db.session.remove()

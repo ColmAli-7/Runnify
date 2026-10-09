@@ -21,8 +21,9 @@ flowchart LR
 
 | Layer | Location | Responsibility |
 |---|---|---|
-| App factory | `runnify/__init__.py` | `create_app()` builds the `Flask` app, loads `Config`, binds the extensions, runs `db.create_all()`, registers blueprints and the 404 handler |
-| Extensions | `runnify/extensions.py` | Unbound `db`, `mail` and `login_manager` instances shared by every module |
+| App factory | `runnify/__init__.py` | `create_app()` builds the `Flask` app, loads `Config`, binds the extensions, registers blueprints and the 404 handler |
+| Extensions | `runnify/extensions.py` | Unbound `db`, `migrate`, `mail` and `login_manager` instances shared by every module |
+| Migrations | `migrations/` | Alembic revisions that create and evolve the schema (`flask db upgrade`) |
 | Config | `runnify/config.py` | Reads environment variables (via `python-dotenv`) into the `Config` class |
 | Models | `runnify/models.py` | SQLAlchemy models and the `friends` association table |
 | Routes | `runnify/routes/` | One blueprint per feature; request handling and template rendering |
@@ -113,7 +114,7 @@ Notes:
 
 - All timestamps are stored as **naive UTC** datetimes.
 - Friendships are stored **in both directions** (two rows in `friends`) when a request is accepted.
-- There are no migrations. `db.create_all()` creates missing tables at start-up but does not alter existing ones.
+- The schema is created and evolved by Alembic migrations in `migrations/`; constraint names follow a fixed naming convention so migrations can alter them reliably.
 
 ## Pipeline 1: Garmin sync
 
