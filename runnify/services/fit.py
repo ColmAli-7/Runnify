@@ -21,11 +21,8 @@ def _ema(values, alpha=0.2):  # exponential moving average smoothing
         if value is None:
             ema_values.append(prev_ema)
             continue
-        if prev_ema is None:  # start with first available value
-            prev_ema = value
-        else:
-            # alpha x current value + (1 - alpha) x previous ema
-            prev_ema = alpha * value + (1 - alpha) * prev_ema
+        # start with the first available value, then alpha x value + (1 - alpha) x previous ema
+        prev_ema = value if prev_ema is None else alpha * value + (1 - alpha) * prev_ema
         ema_values.append(prev_ema)
     return ema_values  # smoothed list output
 

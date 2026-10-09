@@ -11,6 +11,7 @@ from flask import (
     Blueprint,
     abort,
     current_app,
+    flash,
     redirect,
     render_template,
     request,
@@ -54,7 +55,7 @@ def callback():
     code = request.args.get("code")  # code returned after user authorises app
     token_info = _oauth().get_access_token(code)  # exchange code for tokens
     sp = spotipy.Spotify(auth=token_info["access_token"])
-    profile = sp.current_user()  # get user profile from spotify
+    sp.current_user()  # confirms the new token works before it is stored
     user = db.session.get(User, current_user.id)
     user.spotify_token = token_info["access_token"]
     user.spotify_refresh_token = token_info["refresh_token"]
@@ -109,6 +110,8 @@ def upload_history():
         min_overlap_seconds=current_app.config.get("HISTORY_MIN_OVERLAP_SECONDS", 1),
     )
 
-    # stats includes counts of processed runs, matched songs, and created analyses
-
+    if stats["note"]:
+        flash(stats["note"], "info")
+    else:
+        flash(f"Matched {stats['saved']} song plays to your runs.", "success")
     return redirect(url_for("dash.dashboard"))  # go back to dashboard after upload

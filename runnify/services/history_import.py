@@ -145,7 +145,15 @@ def import_history_zip_overlapping_runs(
         A stats dict with counts for ``files``, ``json_files``, ``rows``,
         ``saved``, ``skipped`` and ``errors``, plus an optional ``note``.
     """
-    stats = dict(files=0, json_files=0, rows=0, saved=0, skipped=0, errors=0, note=None)
+    stats = {
+        "files": 0,
+        "json_files": 0,
+        "rows": 0,
+        "saved": 0,
+        "skipped": 0,
+        "errors": 0,
+        "note": None,
+    }
     run_intervals = _collect_run_intervals(db, RunModel, user_id)
     if not run_intervals:
         return {**stats, "note": "User has no runs"}
@@ -182,7 +190,7 @@ def import_history_zip_overlapping_runs(
                     if track_id not in seen_songs:
                         seen_songs.add(track_id)
                         if not db.session.get(SongModel, track_id):
-                            track, artist, album = _names(row)
+                            track, artist, _album = _names(row)
                             db.session.add(
                                 SongModel(
                                     id=track_id,

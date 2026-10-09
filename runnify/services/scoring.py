@@ -22,7 +22,7 @@ def score_segment(seg, timestamps, pace_s_per_km, hr=None):
     """
     song_paces = [
         pace
-        for t, pace in zip(timestamps, pace_s_per_km)
+        for t, pace in zip(timestamps, pace_s_per_km, strict=False)
         if pace is not None and seg["start_time"] <= t <= seg["end_time"]
     ]  # paces during song segment
     run_paces = [pace for pace in pace_s_per_km if pace is not None]  # all valid paces
@@ -31,9 +31,7 @@ def score_segment(seg, timestamps, pace_s_per_km, hr=None):
     run_avg_pace = mean(run_paces)
     run_std_pace = pstdev(run_paces) if len(run_paces) > 1 else 0
     song_avg_pace = mean(song_paces)
-    if run_std_pace == 0:
-        z_score = 0
-    else:
-        z_score = (run_avg_pace - song_avg_pace) / run_std_pace  # compare to mean pace
-    score = 50 + 20 * z_score  # scale to 0–100 range
+    # how many standard deviations faster than the run average the song was
+    z_score = 0 if run_std_pace == 0 else (run_avg_pace - song_avg_pace) / run_std_pace
+    score = 50 + 20 * z_score  # scale to the 0-100 range
     return round(max(0, min(100, score)), 1)

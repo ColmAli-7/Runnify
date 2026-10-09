@@ -46,10 +46,7 @@ def dashboard():
         pace_s = (
             last_run.duration / (last_run.distance / 1000) if last_run.distance else None
         )  # sec per km
-        if pace_s:
-            pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km"
-        else:
-            pace_str = "—"
+        pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km" if pace_s else "—"
         last_run_display = f"{(last_run.distance / 1000):.1f} km | {pace_str} | Avg HR: {last_run.avg_hr or '—'}"  # format last run summary
 
     fastest_km_display = "—"
@@ -70,10 +67,7 @@ def dashboard():
             .order_by(UserSongHistory.played_at.asc())
             .first()
         )
-        if song:
-            fastest_km_display = f"{pace_str} — {song[1]} - {song[0]}"  # show artist and song
-        else:
-            fastest_km_display = pace_str
+        fastest_km_display = f"{pace_str} — {song[1]} - {song[0]}" if song else pace_str
         fastest_km_date = fastest_km_run.date_time.strftime("%d %b %Y")  # format date
 
     longest_run_display = "—"
@@ -90,10 +84,7 @@ def dashboard():
         pace_s = (
             longest_run.duration / (longest_run.distance / 1000) if longest_run.distance else None
         )
-        if pace_s:
-            pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km"
-        else:
-            pace_str = "—"
+        pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km" if pace_s else "—"
         longest_run_display = f"{dist_km:.1f} km | {pace_str} | Avg HR: {longest_run.avg_hr or '—'}"
         longest_run_date = longest_run.date_time.strftime("%d %b %Y")
 
