@@ -159,8 +159,7 @@ Runnify/
     │   ├── garmin.py           # sync running activities from Garmin Connect
     │   ├── history_import.py   # import Spotify history zip and match plays to runs
     │   ├── segments.py         # songs that were playing during a given run
-    │   ├── scoring.py          # per-song performance score
-    │   └── passwords.py        # password strength rules
+    │   └── scoring.py          # per-song performance score
     ├── routes/             # one Flask blueprint per feature area
     │   ├── auth.py  dashboard.py  friends.py  garmin.py  help.py  insights.py
     │   ├── main.py  playlists.py  runs.py  settings.py  spotify.py

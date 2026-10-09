@@ -14,10 +14,9 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from runnify.extensions import db, limiter
 from runnify.models import User
-from runnify.security.passwords import hash_password, verify_password
+from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config
 from runnify.services.mail import send_email
-from runnify.services.passwords import passw_strength
 
 bp = Blueprint("auth", __name__)  # handles auth routes
 
@@ -51,9 +50,9 @@ def register():
         name = request.form.get("name")
         email = request.form.get("email").strip().lower()
         password = request.form.get("password")
-        strong = passw_strength(password)  # check password strength
-        if not strong[0]:
-            flash(strong[1][0], strong[1][1])
+        problems = password_problems(password, email=email, name=name)
+        if problems:
+            flash(problems[0], "error")
             return render_template("login.html", form_type="register")
         existing_user = User.query.filter_by(email=email).first()  # check duplicate
         if existing_user:
@@ -141,9 +140,9 @@ def reset_password(token):
     user = User.query.filter_by(email=email).first_or_404()
     if request.method == "POST":
         new_password = request.form.get("password")
-        strong = passw_strength(new_password)  # check strength
-        if not strong[0]:
-            flash(strong[1][0], strong[1][1])
+        problems = password_problems(new_password, email=user.email, name=user.name)
+        if problems:
+            flash(problems[0], "error")
             return render_template("reset.html", token=token)
         user.password_hash = hash_password(new_password)  # update password
         db.session.commit()

@@ -4,9 +4,8 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from runnify.extensions import db, limiter
-from runnify.security.passwords import hash_password, verify_password
+from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config, user_or_ip
-from runnify.services.passwords import passw_strength
 
 bp = Blueprint("manage", __name__)  # user account management routes
 
@@ -34,9 +33,9 @@ def managing():
         else:  # change password
             new_pw = request.form.get("new_password")
             confirm_pw = request.form.get("confirm_password")
-            strong = passw_strength(new_pw)  # validate password strength
-            if not strong[0]:
-                flash(strong[1][0], strong[1][1])
+            problems = password_problems(new_pw, email=current_user.email, name=current_user.name)
+            if problems:
+                flash(problems[0], "error")
                 return redirect(url_for("manage.managing"))
             if new_pw != confirm_pw:  # ensure both inputs match
                 flash("Passwords do not match", "error")

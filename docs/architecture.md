@@ -161,7 +161,7 @@ uploaded history zip, not the live API.
 ## Authentication and security
 
 - Passwords are hashed with Werkzeug (`generate_password_hash` / `check_password_hash`).
-- Password strength rules: at least 8 characters, with a letter, a digit and a special character (`services/passwords.py`).
+- Password policy (`security/passwords.py`), following NIST SP 800-63B: 12 to 128 characters; common passwords (including leetspeak and digit-padded variants), sequences, repetitive passwords and passwords containing the user's name or email are refused. No arbitrary composition rules.
 - Password reset uses an `itsdangerous.URLSafeTimedSerializer` token signed with
   `SECRET_KEY` (salt `password-reset`, valid for 1 hour), sent by Flask-Mail.
 - Garmin passwords are stored encrypted with Fernet (`FERNET_KEY`), because the background sync needs them to log in.
