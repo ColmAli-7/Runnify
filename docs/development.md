@@ -107,11 +107,3 @@ upgrade as normal:
 uv run flask --app runnify db stamp 0001
 uv run flask --app runnify db upgrade
 ```
-
-## Known issues
-
-These were found while documenting the code and have **not** been fixed yet.
-
-| # | Where | Issue | Effect |
-|---|---|---|---|
-| 6 | security | `SECRET_KEY` has a hard-coded fallback; forms have no CSRF protection; friend actions are state-changing `GET` requests | Set a real `SECRET_KEY` in every environment; consider Flask-WTF / CSRF tokens |

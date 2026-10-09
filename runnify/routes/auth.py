@@ -64,7 +64,7 @@ def register():
     return render_template("login.html", form_type="register")
 
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
     """End the current session and return to the login page."""

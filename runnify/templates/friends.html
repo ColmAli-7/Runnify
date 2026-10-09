@@ -37,8 +37,8 @@
         <div class="request-card">
           <p><strong>{{ req.sender.name }}</strong> wants to be your friend</p>
           <!-- accept or decline friend request -->
-          <a href="{{ url_for('friends.accept_request', request_id=req.id) }}" class="btn">Accept</a>
-          <a href="{{ url_for('friends.decline_request', request_id=req.id) }}" class="btn btn-decline">Decline</a>
+          <form method="POST" action="{{ url_for('friends.accept_request', request_id=req.id) }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn">Accept</button></form>
+          <form method="POST" action="{{ url_for('friends.decline_request', request_id=req.id) }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-decline">Decline</button></form>
         </div>
       {% endfor %}
     {% else %}

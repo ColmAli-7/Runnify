@@ -350,3 +350,16 @@ body.dark .help-floating {
 	background: #fb923c;
 	color: #111;
 }
+
+/* actions that change state are POST forms; keep them looking like the links they replaced */
+.inline-form {
+	display: inline;
+}
+.link-button {
+	background: none;
+	border: 0;
+	padding: 0;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}

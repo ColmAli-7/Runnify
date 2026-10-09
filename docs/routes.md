@@ -19,7 +19,7 @@ with `@login_required`; anonymous users are redirected to the login page.
 
 | Method | URL | Endpoint | Purpose |
 |---|---|---|---|
-| GET | `/logout` | `auth.logout` | End the session |
+| POST | `/logout` | `auth.logout` | End the session |
 | GET | `/dashboard` | `dash.dashboard` | Headline stats and monthly mileage chart |
 | GET | `/activities` | `activities.activities` | List runs, newest first. Query: `music_only=true` to show only runs with matched songs |
 | GET | `/activity/<int:run_id>` | `activities.activity_detail` | Pace/HR timeline with song segments and per-song scores for one of your runs |
@@ -31,9 +31,9 @@ with `@login_required`; anonymous users are redirected to the login page.
 | GET | `/music-insights` | `music_insights.music_insights_page` | Aggregate song performance. Query: `range` = `Last 7 days`, `Last 30 days` (default), `Last 90 days`, `Year to date`, any other value = all time |
 | GET | `/friends` | `friends.friends_page` | Friends leaderboard (total km) and pending requests |
 | GET, POST | `/friends/search` | `friends.search_users` | Search users by name. Query: `q` |
-| GET | `/friends/send/<int:user_id>` | `friends.send_request` | Send a friend request |
-| GET | `/friends/accept/<int:request_id>` | `friends.accept_request` | Accept a request addressed to you |
-| GET | `/friends/decline/<int:request_id>` | `friends.decline_request` | Decline a request addressed to you |
+| POST | `/friends/send/<int:user_id>` | `friends.send_request` | Send a friend request |
+| POST | `/friends/accept/<int:request_id>` | `friends.accept_request` | Accept a request addressed to you |
+| POST | `/friends/decline/<int:request_id>` | `friends.decline_request` | Decline a request addressed to you |
 | GET, POST | `/manage` | `manage.managing` | Change name (`action=change_name`, `new_name`) or password (`new_password`, `confirm_password`). Always requires current `password` |
 | GET, POST | `/playlist` | `playlist.playlists` | Playlist generator form (`type`, `pace`, `length`, `mood`). Work in progress |
 

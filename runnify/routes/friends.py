@@ -38,7 +38,7 @@ def friends_page():
     )
 
 
-@bp.route("/friends/send/<int:user_id>")
+@bp.route("/friends/send/<int:user_id>", methods=["POST"])
 @login_required
 def send_request(user_id):
     """Send a friend request to ``user_id`` unless already friends or one is pending."""
@@ -66,7 +66,7 @@ def send_request(user_id):
     return redirect(url_for("friends.friends_page"))
 
 
-@bp.route("/friends/accept/<int:request_id>")
+@bp.route("/friends/accept/<int:request_id>", methods=["POST"])
 @login_required
 def accept_request(request_id):
     """Accept a friend request addressed to the current user (adds the friendship both ways)."""
@@ -82,7 +82,7 @@ def accept_request(request_id):
     return redirect(url_for("friends.friends_page"))
 
 
-@bp.route("/friends/decline/<int:request_id>")
+@bp.route("/friends/decline/<int:request_id>", methods=["POST"])
 @login_required
 def decline_request(request_id):
     """Decline a friend request addressed to the current user."""
