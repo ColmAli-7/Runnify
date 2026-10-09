@@ -1,0 +1,143 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, lift, csrf %}
+{% from "macros/charts.html" import run_chart, bar_chart %}
+{% from "macros/results.html" import results_table, effect_list %}
+
+{% block title %}Dashboard | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="page-head__meta">
+      {% if all_time.runs %}{{ all_time.runs|plural("run") }}, {{ all_time.metres|km(0) }} km in total.{% endif %}
+      {% if setup.garmin_linked %}Garmin synced {{ current_user.garmin_last_synced_at|ago }}.{% endif %}
+    </p>
+  </div>
+  <div class="page-head__actions">
+    {% if setup.garmin_linked %}
+      <form method="post" action="{{ url_for('connections.sync_garmin') }}" class="inline-form">
+        {{ csrf() }}
+        <button class="btn" type="submit">{{ icon("sync") }}Sync runs</button>
+      </form>
+    {% endif %}
+    {% if setup.has_results %}
+      <a class="btn btn--primary" href="{{ url_for('playlists.index') }}">Build a playlist</a>
+    {% endif %}
+  </div>
+</header>
+
+{% if not setup.complete %}
+  {% set done = [setup.has_runs, setup.has_music, setup.has_results]|select|list|length %}
+  <section class="sheet setup" aria-labelledby="setup-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="setup-title">Get your first results</h2>
+      <p class="sheet__meta">{{ done }} of 3 done</p>
+    </header>
+    <ol class="steps setup__steps">
+      <li class="step{% if setup.has_runs %} is-done{% endif %}">
+        <span class="step__mark" aria-hidden="true">{% if setup.has_runs %}{{ icon("check") }}{% endif %}</span>
+        <div class="step__body">
+          <p class="step__title">Connect Garmin{% if setup.has_runs %}<span class="visually-hidden"> (done)</span>{% endif %}</p>
+          {% if setup.has_runs %}
+            <p>Your runs are in.</p>
+          {% else %}
+            <p>Sign in to Garmin Connect once and Runnify brings in your runs with their second-by-second pace and heart rate.</p>
+            <p class="cluster"><a class="btn btn--sm btn--primary" href="{{ url_for('connections.index') }}">Connect Garmin</a></p>
+          {% endif %}
+        </div>
+      </li>
+      <li class="step{% if setup.has_music %} is-done{% endif %}">
+        <span class="step__mark" aria-hidden="true">{% if setup.has_music %}{{ icon("check") }}{% endif %}</span>
+        <div class="step__body">
+          <p class="step__title">Add your Spotify history{% if setup.has_music %}<span class="visually-hidden"> (done)</span>{% endif %}</p>
+          {% if setup.has_music %}
+            <p>Your songs are matched to your runs.</p>
+          {% else %}
+            <p>Ask Spotify for your extended streaming history, then upload the zip it emails you. Spotify can take up to 30 days, so ask today.</p>
+            <p class="cluster"><a class="btn btn--sm{% if setup.has_runs %} btn--primary{% endif %}" href="{{ url_for('imports.index') }}">Show me how</a></p>
+          {% endif %}
+        </div>
+      </li>
+      <li class="step{% if setup.has_results %} is-done{% endif %}">
+        <span class="step__mark" aria-hidden="true">{% if setup.has_results %}{{ icon("check") }}{% endif %}</span>
+        <div class="step__body">
+          <p class="step__title">Read your results</p>
+          <p>Once songs have played during your runs, each run gets a results sheet and your best songs appear here.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+{% endif %}
+
+{% if latest %}
+<div class="dash">
+  <section class="sheet dash__latest" aria-labelledby="latest-title">
+    <header class="sheet__head">
+      <div>
+        <h2 class="sheet__title" id="latest-title">Latest run</h2>
+        <p class="sheet__meta">{{ latest.date_time|run_name }}, {{ latest.date_time|day }} at {{ latest.date_time|clock }}</p>
+      </div>
+      <a class="btn btn--sm" href="{{ url_for('runs.detail', run_id=latest.id) }}">Full results{{ icon("arrow-right") }}</a>
+    </header>
+    <dl class="stats stats--4 stats--flush">
+      <div class="stat"><dt>Distance</dt><dd><span class="stat__value">{{ latest.distance|km }}</span><span class="stat__unit">km</span></dd></div>
+      <div class="stat"><dt>Time</dt><dd><span class="stat__value">{{ latest.duration|duration }}</span></dd></div>
+      <div class="stat"><dt>Pace</dt><dd><span class="stat__value">{{ latest.distance|run_pace(latest.duration) }}</span><span class="stat__unit">/km</span></dd></div>
+      <div class="stat"><dt>Heart rate</dt><dd><span class="stat__value">{{ latest.avg_hr or "-" }}</span>{% if latest.avg_hr %}<span class="stat__unit">bpm</span>{% endif %}</dd></div>
+    </dl>
+    {% if results.ranked %}
+      <div class="sheet__body">
+        {{ run_chart(latest_chart, "Pace through the run, faster higher, with a band for each song." ~ (" " ~ results.best.song.name ~ " was the fastest stretch." if results.best else ""), class="chart--compact") }}
+      </div>
+      {{ results_table(results.ranked, "Songs from your latest run, ranked by how they changed your pace", top=3) }}
+    {% else %}
+      <div class="empty">
+        <p class="empty__title">No song results for this run</p>
+        <p>{% if not setup.has_music %}Upload your Spotify history and the songs you heard on this run will be ranked here.{% else %}No songs were matched to this run, or none played long enough to measure.{% endif %}</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="sheet dash__songs" aria-labelledby="power-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="power-title">Power songs</h2>
+      <p class="sheet__meta">Last 90 days</p>
+    </header>
+    {% if power %}
+      {{ effect_list(power, highlight=True) }}
+    {% else %}
+      <p class="empty">Songs appear here once they've played on at least two runs and lifted your pace.</p>
+    {% endif %}
+    {% if drag %}
+      <h3 class="dash__subhead">Drag songs</h3>
+      {{ effect_list(drag, struck=True) }}
+    {% endif %}
+    <p class="sheet__foot"><a href="{{ url_for('insights.index') }}">All insights</a></p>
+  </section>
+
+  <section class="sheet dash__weeks" aria-labelledby="weeks-title">
+    <header class="sheet__head">
+      <h2 class="sheet__title" id="weeks-title">Last {{ weeks|length }} weeks</h2>
+      <p class="sheet__meta">Kilometres per week</p>
+    </header>
+    <div class="dash__weeks-body">
+      <dl class="stats stats--flush dash__period">
+        <div class="stat"><dt>Runs</dt><dd><span class="stat__value">{{ period.runs }}</span></dd></div>
+        <div class="stat"><dt>Distance</dt><dd><span class="stat__value">{{ period.metres|km(0) }}</span><span class="stat__unit">km</span></dd></div>
+        <div class="stat"><dt>Time</dt><dd><span class="stat__value">{{ (period.seconds / 3600)|round(1) }}</span><span class="stat__unit">h</span></dd></div>
+        <div class="stat"><dt>Avg pace</dt><dd><span class="stat__value">{{ period.pace|pace }}</span><span class="stat__unit">/km</span></dd></div>
+      </dl>
+      {% set summary %}Kilometres run each week: {% for start, metres in weeks %}week of {{ start|short_day }}, {{ metres|km(1) }}{{ "; " if not loop.last else "." }}{% endfor %}{% endset %}
+      <div class="sheet__body">
+        {{ bar_chart(week_chart, summary, class="chart--weeks") }}
+      </div>
+    </div>
+  </section>
+</div>
+{% endif %}
+{% endblock %}

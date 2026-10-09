@@ -1,0 +1,83 @@
+/* The dashboard. */
+
+@layer pages {
+  .setup {
+    margin-bottom: var(--s-6);
+  }
+
+  .setup__steps {
+    padding-inline: var(--s-5);
+  }
+
+  .step__mark .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dash {
+    display: grid;
+    gap: var(--s-5);
+    align-items: start;
+  }
+
+  .dash__subhead {
+    padding: var(--s-4) var(--s-5) var(--s-2);
+    margin-top: var(--s-2);
+    border-top: var(--heavy);
+    font-size: var(--text-md);
+    font-weight: 750;
+  }
+
+  .dash__songs .ranks {
+    padding-inline: var(--s-3);
+  }
+
+  .dash__songs > .empty {
+    padding: var(--s-5);
+    color: var(--ink-2);
+  }
+
+  .chart--weeks {
+    --chart-h: 170px;
+  }
+
+  @media (max-width: 759px) {
+    /* every other week label, so they don't collide */
+    .chart--weeks .chart__x text:nth-child(even) {
+      display: none;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .dash {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .dash__latest {
+      grid-column: span 8;
+    }
+
+    .dash__songs {
+      grid-column: span 4;
+    }
+
+    .dash__weeks {
+      grid-column: 1 / -1;
+    }
+
+    .dash__weeks-body {
+      display: grid;
+      grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+      align-items: stretch;
+    }
+
+    .dash__period {
+      border-right: var(--hair);
+    }
+  }
+
+  .dash__period {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+}

@@ -1,112 +1,44 @@
-"""User dashboard: headline stats and monthly mileage."""
-
-from collections import defaultdict
+"""The dashboard: setup progress, the latest run's results, recent weeks and standout songs."""
 
 from flask import Blueprint, render_template
 from flask_login import current_user, login_required
-from sqlalchemy import func
 
-from runnify.extensions import db
-from runnify.models import Run, Song, UserSongHistory
+from runnify.filters import short_day
+from runnify.models import Run
+from runnify.services import charts, insights
+from runnify.services import dashboard as dashboard_service
+from runnify.services.results import run_results
 
-bp = Blueprint("dashboard", __name__)  # dashboard blueprint
+bp = Blueprint("dashboard", __name__)
+
+WEEKS = 12
 
 
 @bp.route("/dashboard")
 @login_required
 def index():
-    """Render the dashboard.
-
-    Shows total runs, songs and distance, favourite artist, last run,
-    fastest-paced run (with the first song played), longest run and a
-    monthly mileage chart.
-    """
+    """Show where the runner is in setup and how their running and music are going."""
     user = current_user
-    total_runs = Run.query.filter_by(user_id=user.id).count()  # total run count
-    total_songs = UserSongHistory.query.filter_by(user_id=user.id).count()  # total songs played
-    total_distance = (
-        db.session.query(func.sum(Run.distance)).filter(Run.user_id == user.id).scalar()
+    setup = dashboard_service.setup_state(user)
+    latest = Run.query.filter_by(user_id=user.id).order_by(Run.date_time.desc()).first()
+    results = run_results(latest) if latest else None
+
+    weeks = dashboard_service.weekly_distance(user.id, weeks=WEEKS)
+    week_chart = charts.bar_chart(
+        [(short_day(start), metres / 1000) for start, metres in weeks],
+        value_format=lambda km: f"{km:.0f}" if km >= 0.5 else "",
     )
-    total_distance = total_distance if total_distance else 0  # handle null distance
-
-    favourite_artist = (
-        db.session.query(Song.artist, func.count(UserSongHistory.id))
-        .join(UserSongHistory, Song.id == UserSongHistory.song_id)
-        .filter(UserSongHistory.user_id == user.id)
-        .group_by(Song.artist)
-        .order_by(func.count(UserSongHistory.id).desc())
-        .first()
-    )
-    favourite_artist = favourite_artist[0] if favourite_artist else "—"  # most played artist
-
-    last_run = Run.query.filter_by(user_id=user.id).order_by(Run.date_time.desc()).first()
-
-    last_run_display = "—"
-    if last_run:
-        pace_s = (
-            last_run.duration / (last_run.distance / 1000) if last_run.distance else None
-        )  # sec per km
-        pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km" if pace_s else "—"
-        last_run_display = f"{(last_run.distance / 1000):.1f} km | {pace_str} | Avg HR: {last_run.avg_hr or '—'}"  # format last run summary
-
-    fastest_km_display = "—"
-    fastest_km_date = None
-
-    fastest_km_run = (
-        Run.query.filter(Run.user_id == user.id, Run.distance >= 1000)
-        .order_by((Run.duration / (Run.distance / 1000)).asc())  # lowest pace first
-        .first()
-    )
-    if fastest_km_run:
-        pace_s = fastest_km_run.duration / (fastest_km_run.distance / 1000)
-        pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}"
-        song = (
-            db.session.query(Song.name, Song.artist)
-            .join(UserSongHistory, Song.id == UserSongHistory.song_id)
-            .filter(UserSongHistory.run_id == fastest_km_run.id)
-            .order_by(UserSongHistory.played_at.asc())
-            .first()
-        )
-        fastest_km_display = f"{pace_str} — {song[1]} - {song[0]}" if song else pace_str
-        fastest_km_date = fastest_km_run.date_time.strftime("%d %b %Y")  # format date
-
-    longest_run_display = "—"
-    longest_run_date = None
-
-    longest_run = (
-        Run.query.filter(Run.user_id == user.id)
-        .order_by(Run.distance.desc())  # highest distance first
-        .first()
-    )
-
-    if longest_run:
-        dist_km = longest_run.distance / 1000 if longest_run.distance else 0
-        pace_s = (
-            longest_run.duration / (longest_run.distance / 1000) if longest_run.distance else None
-        )
-        pace_str = f"{int(pace_s // 60)}:{int(pace_s % 60):02d}/km" if pace_s else "—"
-        longest_run_display = f"{dist_km:.1f} km | {pace_str} | Avg HR: {longest_run.avg_hr or '—'}"
-        longest_run_date = longest_run.date_time.strftime("%d %b %Y")
-
-    monthly_mileage = defaultdict(float)
-    runs = Run.query.filter_by(user_id=user.id).all()
-    for run in runs:
-        month_key = run.date_time.strftime("%Y-%m")  # month grouping key
-        monthly_mileage[month_key] += run.distance / 1000  # convert to km
-    monthly_mileage = dict(sorted(monthly_mileage.items()))  # sort chronologically
-
-    # render all stats to dashboard
+    effects = insights.song_effects(user.id, since=insights.range_start("90d"))
     return render_template(
-        "dashboard.html",
-        monthly_labels=list(monthly_mileage.keys()),
-        monthly_values=list(monthly_mileage.values()),
-        total_runs=total_runs,
-        total_songs=total_songs,
-        total_distance=total_distance,
-        favourite_artist=favourite_artist,
-        last_run_display=last_run_display,
-        fastest_km_display=fastest_km_display,
-        fastest_km_date=fastest_km_date,
-        longest_run_display=longest_run_display,
-        longest_run_date=longest_run_date,
+        "dashboard/index.html",
+        setup=setup,
+        latest=latest,
+        results=results,
+        latest_chart=charts.run_chart(results.series.paces, results.bands()) if results else None,
+        weeks=weeks,
+        week_chart=week_chart,
+        period=dashboard_service.totals(user.id, since=weeks[0][0]),
+        all_time=dashboard_service.totals(user.id),
+        power=insights.ranked(effects, best=True, limit=3),
+        drag=insights.ranked(effects, best=False, limit=3),
     )
