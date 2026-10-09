@@ -75,6 +75,21 @@
     display: none;
   }
 
+  /* "Create free account" becomes "Sign up" on the narrowest phones */
+  .label-short {
+    display: none;
+  }
+
+  @media (max-width: 419px) {
+    .label-long {
+      display: none;
+    }
+
+    .label-short {
+      display: inline;
+    }
+  }
+
   @media (min-width: 760px) {
     .site-nav__extra {
       display: inline;
