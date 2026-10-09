@@ -113,6 +113,7 @@ class Config:
     RATE_LIMIT_GARMIN_SYNC = "6 per hour"
     RATE_LIMIT_UPLOAD = "10 per hour"
     RATE_LIMIT_SEARCH = "30 per minute"
+    RATE_LIMIT_SPOTIFY_EXPORT = "10 per hour"
 
     # account lockout: after this many consecutive failed sign-ins the account is locked,
     # first for LOGIN_LOCKOUT_MINUTES, doubling with each further failure (max 24 hours)

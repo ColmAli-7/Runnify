@@ -11,7 +11,7 @@ PROTECTED_PAGES = [
     "/friends",
     "/friends/search",
     "/manage",
-    "/playlist",
+    "/playlists",
     "/garmin",
     "/spotify/login",
     "/spotify/history/upload",

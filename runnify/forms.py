@@ -8,7 +8,7 @@ input can be arbitrarily large.
 import re
 
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, EmailField, PasswordField, StringField
+from wtforms import BooleanField, EmailField, PasswordField, SelectField, StringField
 from wtforms.validators import DataRequired, EqualTo, Length, Regexp, ValidationError
 
 from runnify.security.passwords import MAX_LENGTH, password_problems
@@ -161,6 +161,29 @@ class DeleteAccountForm(FlaskForm):
         "I understand this permanently deletes my account and data",
         validators=[DataRequired("Tick the box to confirm.")],
     )
+
+
+class PlaylistForm(FlaskForm):
+    """Build a playlist for a running session."""
+
+    session = SelectField(
+        "Session",
+        choices=[
+            ("easy", "Easy run"),
+            ("tempo", "Tempo run"),
+            ("long", "Long run"),
+            ("race", "Race"),
+            ("intervals", "Intervals"),
+        ],
+        default="tempo",
+    )
+    minutes = SelectField(
+        "Length",
+        choices=[(m, f"{m} minutes") for m in (20, 30, 45, 60, 75, 90, 120)],
+        coerce=int,
+        default=45,
+    )
+    include_untested = BooleanField("Include songs heard on only one run")
 
 
 def first_error(form):

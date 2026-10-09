@@ -290,3 +290,48 @@ class RunStream(db.Model):
     started_at = db.Column(db.DateTime, nullable=False)  # UTC time of the first sample
     sample_count = db.Column(db.Integer, nullable=False)
     samples = db.Column(db.LargeBinary, nullable=False)
+
+
+class Playlist(db.Model):
+    """A playlist built from the runner's proven songs (see :mod:`runnify.services.playlists`)."""
+
+    __tablename__ = "playlists"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = db.Column(db.String(100), nullable=False)
+    session = db.Column(db.String(20), nullable=False)  # easy, tempo, long, race or intervals
+    target_minutes = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    spotify_playlist_id = db.Column(db.String(64))
+    spotify_url = db.Column(db.String(200))
+
+    tracks = db.relationship(
+        "PlaylistTrack",
+        order_by="PlaylistTrack.position",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    @property
+    def total_seconds(self):
+        return sum(track.seconds for track in self.tracks)
+
+
+class PlaylistTrack(db.Model):
+    """One position in a playlist, with the evidence it was chosen on."""
+
+    __tablename__ = "playlist_tracks"
+
+    playlist_id = db.Column(
+        db.Integer, db.ForeignKey("playlists.id", ondelete="CASCADE"), primary_key=True
+    )
+    position = db.Column(db.Integer, primary_key=True)
+    song_id = db.Column(db.String, db.ForeignKey("songs.id"), nullable=False)
+    seconds = db.Column(db.Integer, nullable=False)  # track length used to fit the target time
+    lift = db.Column(db.Float)  # s/km effect when the playlist was built
+    plays = db.Column(db.Integer)  # scored plays behind that effect
+
+    song = db.relationship("Song")

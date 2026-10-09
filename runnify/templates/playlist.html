@@ -1,64 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Runnify | Playlist Builder</title>
-  <title>Runnify | My Activities</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/activities.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/playlist.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/friends.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/leaderboard.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/manage.css') }}">
-</head>
-<body class="page-playlist">
-  <header class="navbar">
-    <div class="nav-container">
-      <a href="/" class="nav-logo">Runnify</a>
-      <nav class="nav-links">
-        <a href="/">Home</a>
-        <a href="/dashboard">Dashboard</a>
-        <a href="/activities">Activities</a>
-        <a href="/playlist">Playlist</a>
-        <a href="/friends">Friends</a>
-        <form method="POST" action="{{ url_for('auth.logout') }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="link-button">Log Out</button></form>
-        <a href="/manage" class="user-initials">
-          {{ current_user.name[0:1] }}{{ current_user.name.split(" ")[-1][0:1] if " " in current_user.name else "" }}
-        </a>
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌓</button>
-      </nav>
-    </div>
-  </header>
-  <section class="playlist-builder">
-    <h2>🎧 Playlist Builder</h2>
-    <form method="POST" class="builder-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label for="type">Run Type</label>
-      <select id="type" name="type" required>
-        <option value="">Select run type...</option>
-        <option value="race">Race</option>
-        <option value="interval">Interval Session</option>
-        <option value="easy">Easy / Recovery</option>
-      </select>
-      <label for="pace">Target Pace (min/km)</label>
-      <input type="text" id="pace" name="pace" placeholder="e.g. 4:30" required>
-      <label for="length">Playlist Length (minutes)</label>
-      <input type="number" id="length" name="length" placeholder="e.g. 30" min="5" required>
-      <label for="mood">Mood / Energy</label>
-      <select id="mood" name="mood">
-        <option value="">Any</option>
-        <option value="hype">Hype / Motivated</option>
-        <option value="chill">Chill / Flow</option>
-        <option value="angry">Aggressive / Push Hard</option>
-      </select>
-      <button type="submit">Generate Playlist</button>
+{% extends "base.html" %}
+{% block title %}Runnify | Playlists{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+{% block content %}
+  <div class="auth-container">
+    <h2>Build a playlist</h2>
+    <form method="POST" class="auth-form">
+      {{ form.csrf_token }}
+      {{ form.session.label }} {{ form.session() }}
+      {{ form.minutes.label }} {{ form.minutes() }}
+      <label>{{ form.include_untested() }} {{ form.include_untested.label.text }}</label>
+      <button type="submit">Build playlist</button>
     </form>
-  </section>
-  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-</body>
-</html>
+    {% if saved %}
+      <h3>Your playlists</h3>
+      <ul>{% for p in saved %}<li><a href="{{ url_for('playlist.detail', playlist_id=p.id) }}">{{ p.name }}</a></li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+{% endblock %}

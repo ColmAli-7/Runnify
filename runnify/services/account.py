@@ -15,6 +15,8 @@ from sqlalchemy import delete, or_
 from runnify.extensions import db
 from runnify.models import (
     FriendRequest,
+    Playlist,
+    PlaylistTrack,
     RecoveryCode,
     Run,
     RunSongAnalysis,
@@ -91,6 +93,15 @@ def export_data(user):
             }
             for analysis, play in scores
         ],
+        "playlists": [
+            {
+                "name": playlist.name,
+                "created_at": _iso(playlist.created_at),
+                "spotify_url": playlist.spotify_url,
+                "spotify_track_ids": [track.song_id for track in playlist.tracks],
+            }
+            for playlist in Playlist.query.filter_by(user_id=user.id).order_by(Playlist.created_at)
+        ],
         "friends": sorted(friend.name for friend in user.friends),
         "security_activity": [
             {
@@ -136,6 +147,9 @@ def delete_account(user):
     db.session.execute(
         delete(friends).where(or_(friends.c.user_id == user.id, friends.c.friend_id == user.id))
     )
+    playlist_ids = db.session.query(Playlist.id).filter(Playlist.user_id == user.id)
+    db.session.execute(delete(PlaylistTrack).where(PlaylistTrack.playlist_id.in_(playlist_ids)))
+    db.session.execute(delete(Playlist).where(Playlist.user_id == user.id))
     db.session.execute(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
     db.session.execute(delete(SecurityEvent).where(SecurityEvent.user_id == user.id))
     db.session.delete(user)
