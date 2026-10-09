@@ -69,24 +69,75 @@ To reset the local SQLite database, stop the server and delete `runnify/instance
 
 - **Package imports.** Modules import each other absolutely (`from runnify.models import User`);
   shared extension instances live in `runnify/extensions.py`.
-- **One blueprint per feature** in `runnify/routes/`. Every blueprint is
-  registered in `routes/__init__.py::register_blueprints`.
-- **Domain logic lives in `runnify/services/`** and has no knowledge of
-  requests or templates. `history_import.py` goes further and takes models and
-  helpers as arguments, so it has no app imports.
+- **One blueprint per area** in `runnify/routes/`, registered in
+  `routes/__init__.py::register_blueprints`. Routes stay thin: they read the
+  request, call services and render.
+- **Domain logic lives in `runnify/services/`** and knows nothing about
+  requests or templates, so it can be tested directly.
+- **Numbers are formatted in one place**, the Jinja filters in
+  `runnify/filters.py` (`pace`, `run_pace`, `duration`, `km`, `lift`,
+  `lift_number`, `day`, `ago` and so on). Effects always read "+9 s/km" with a
+  true minus sign for negatives.
 - **Docstrings** use Google style (`Args:` / `Returns:`) on every module, class
-  and function. Short inline comments are lower-case.
+  and function. Comments are short and lower-case, and say why rather than what.
 - **Timestamps** are naive UTC `datetime`s throughout.
+- **Copy** is plain and specific, in sentence case, with no em dashes.
+
+### Frontend rules
+
+- Pages extend a layout: `layouts/public.html` for signed-out pages,
+  `layouts/app.html` for signed-in ones (`layouts/auth.html` and
+  `layouts/settings.html` build on those).
+- Use the macros in `templates/macros/`: `field` and `check` for form fields
+  (labels, hints, inline errors and `aria-describedby` are wired for you),
+  `results_table` and `effect_list` for ranked songs, `run_chart`,
+  `bar_chart` and `meter` for charts, `lift` for an effect badge.
+- **No inline code.** No `style="..."`, no inline `<script>`, no `on*=`
+  handlers: the Content-Security-Policy blocks them and
+  `tests/test_security_headers.py` fails if a template uses one. Pass data to a
+  script with the `data_island` macro and attach behaviour in a module under
+  `static/js/` through `data-*` attributes. Scripts may set styles through
+  `element.style`, which the policy allows.
+- Styles go in the right cascade layer: shared pieces in `static/css/ui/`,
+  page-only styles in `static/css/pages/<page>.css`, loaded from the page's
+  `styles` block. Use the tokens in `tokens.css`; never hard-code a colour.
+- Every page works without JavaScript, and nothing moves when the visitor
+  prefers reduced motion.
+- After changing colours, run `uv run python scripts/check_contrast.py`.
 
 ### Adding a page
 
-1. Create `runnify/routes/<feature>.py` with a `bp = Blueprint(...)` and view functions
-   (add `@login_required` **below** `@<bp>.route(...)`).
-2. Register it in `runnify/routes/__init__.py`.
-3. Add the template to `runnify/templates/`, extending `base.html`, and any
-   assets to `runnify/static/`.
-4. Check the URL appears in `uv run flask --app runnify routes`, and
+1. Add a view to the area's blueprint in `runnify/routes/` (put
+   `@login_required` below `@bp.route(...)`), or create a blueprint and
+   register it.
+2. Add the template under `runnify/templates/<area>/`, extending a layout.
+3. Add any page styles to `runnify/static/css/pages/` and scripts to
+   `runnify/static/js/pages/`.
+4. Check the URL appears in `uv run flask --app runnify routes`, add a test, and
    update [routes.md](routes.md).
+
+## Tests and linting
+
+```bash
+uv run pytest                # about 280 tests, around a minute
+uv run ruff check .          # lint: pycodestyle, pyflakes, imports, bugbear, bandit and more
+uv run ruff format .         # format
+```
+
+The tests use an in-memory SQLite database, CSRF and rate limits switched off,
+and outgoing mail suppressed. `tests/factories.py` builds a run with a recorded
+stream and scored songs; `tests/test_demo.py` seeds the full demo and checks the
+scoring pipeline finds the songs' hidden effects.
+
+## Demo data
+
+```bash
+uv run flask --app runnify demo seed     # asks for the demo account's password
+```
+
+Creates `demo@runnify.test` with 36 simulated runs over four months, their
+songs and scores, three friends, a pending friend request and a playlist.
+Running it again replaces the demo. It refuses to run in production.
 
 ### Changing the schema
 

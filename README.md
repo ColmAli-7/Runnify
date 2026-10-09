@@ -1,190 +1,170 @@
 # Runnify
 
-Analyse how music impacts your running performance.
+Find the songs that make you run faster.
 
-Runnify is a Flask web application that combines **Garmin** running activities
-with your **Spotify** extended streaming history. It works out which songs were
-playing during each run and scores how fast you ran during each song compared
-with the rest of that run, so you can see which tracks actually push your pace.
+Runnify lines up your Spotify listening history with the second-by-second pace
+from your Garmin runs, then ranks every song by how much faster or slower you
+ran while it played. Each song is measured against your own running in the
+minutes around it, in the same run, so warm-ups, hills and tired legs mostly
+cancel out.
 
 ## Contents
 
-- [Features](#features)
+- [What it does](#what-it-does)
 - [Tech stack](#tech-stack)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
-- [Running the app](#running-the-app)
-- [Using Runnify](#using-runnify)
+- [Everyday commands](#everyday-commands)
 - [Project structure](#project-structure)
 - [Documentation](#documentation)
-- [Limitations](#limitations)
-- [Author](#author)
+- [Known limitations](#known-limitations)
 
-## Features
+## What it does
 
-- **Garmin integration**: link your Garmin Connect account and every running
-  activity, including its `.fit` file, is imported in the background
-- **Spotify history matching**: upload your extended streaming history and plays
-  are matched to runs by timestamp overlap
-- **Per-song performance score**: a 0–100 score for every song played during a
-  run, where 50 is your average pace for that run (see [docs/scoring.md](docs/scoring.md))
-- **Run analysis**: pace and heart-rate charts with song segments overlaid
-- **Dashboard and Music Insights**: headline stats, monthly mileage, best and
-  most-played songs, score trends
-- **Friends and leaderboard**: send friend requests and compare total distance
-- **Account management**: password reset by email, and name and password changes
+- **Garmin sync.** Link Garmin Connect once; Runnify keeps an encrypted session
+  token (never the password) and imports each run with its second-by-second
+  pace and heart rate, in the background.
+- **Spotify history matching.** Upload the extended streaming history zip
+  Spotify emails you. Only plays that overlap a run are kept; the file is
+  deleted as soon as it has been read.
+- **A results sheet for every run.** Pace and heart rate through the run with a
+  band for each song, and every song ranked by its lift in s/km.
+- **Insights.** Power songs and drag songs (ranked on shrunk effects, so one
+  lucky play can't top the chart), where in a run songs work hardest, top
+  artists, heart raisers and the most skipped songs, over a chosen range.
+- **Playlists for a session.** Easy, tempo, long, race or intervals, built from
+  the songs that have actually lifted your pace and ordered to suit the
+  session; save them to Spotify as private playlists.
+- **Friends.** A monthly distance leaderboard, friend requests and search.
+- **Account security.** Argon2id passwords, optional two-step verification
+  with recovery codes, lockout after repeated failures, a security activity
+  log, signing out other devices, and downloading or deleting all of your data.
 
 ## Tech stack
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.13+, Flask, Flask-Login, Flask-Mail |
-| Database | SQLite by default (PostgreSQL supported) via SQLAlchemy / Flask-SQLAlchemy, Alembic migrations |
-| Integrations | `garminconnect`, `spotipy`, `fitparse`, `ijson` |
-| Security | Werkzeug password hashing, `itsdangerous` reset tokens, Fernet-encrypted Garmin passwords |
-| Frontend | Jinja2 templates, CSS, vanilla JavaScript, Chart.js, Bootstrap, Font Awesome |
-| Tooling | [uv](https://docs.astral.sh/uv/) for Python, dependency and lock-file management |
+| Backend | Python 3.13+, Flask, Flask-Login, Flask-WTF, Flask-Limiter, Flask-Mail |
+| Data | SQLAlchemy 2 with Flask-SQLAlchemy, Alembic through Flask-Migrate. SQLite by default, PostgreSQL supported |
+| Integrations | `garminconnect`, `fitparse`, `spotipy`, `ijson` |
+| Security | Argon2id (`argon2-cffi`), Fernet encryption at rest (`cryptography`), TOTP (`pyotp`), QR codes (`segno`), a strict Content-Security-Policy |
+| Frontend | Server-rendered Jinja templates, plain CSS with cascade layers, plain JavaScript modules, inline SVG charts drawn on the server, GSAP for the landing page motion, the Geist typeface. Everything is self-hosted |
+| Tooling | [uv](https://docs.astral.sh/uv/), pytest, ruff |
 
 ## Quick start
 
-**Prerequisites:** [uv](https://docs.astral.sh/uv/getting-started/installation/),
-Nothing else is needed: the database is a local SQLite file by default. uv installs the
-pinned Python version for you if it is missing.
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/). It installs the
+right Python for you, and the database is a local SQLite file by default.
 
 ```bash
 git clone https://github.com/ColmAli-7/Runnify.git
 cd Runnify
-
-# create .venv and install the exact locked dependency versions
-uv sync
-
-# create your local config, then fill in the values (see below)
-cp .env.example .env
-
-# create the database tables
-uv run flask --app runnify db upgrade
-
-# run the development server
-uv run flask --app runnify run --debug
+uv sync                                      # install the locked dependencies into .venv
+cp .env.example .env                         # then set FERNET_KEY (see below)
+uv run flask --app runnify db upgrade        # create the database
+uv run flask --app runnify run --debug       # http://127.0.0.1:5000
 ```
 
-Open <http://127.0.0.1:5000>.
+To explore with realistic data, seed the demo account (four months of simulated
+runs with songs, friends and a playlist; development only):
 
-> **Behind a corporate proxy?** If `uv sync` fails with `invalid peer certificate: UnknownIssuer`,
-> run it with `--system-certs` (or set `UV_SYSTEM_CERTS=true`) so uv trusts your OS certificate store.
+```bash
+uv run flask --app runnify demo seed
+```
+
+Then sign in as `demo@runnify.test` with the password you chose.
+
+> **Behind a TLS-inspecting proxy?** If `uv sync` fails with `invalid peer certificate`,
+> run it with `--system-certs` (or set `UV_SYSTEM_CERTS=true`) so uv trusts the OS certificate store.
 
 ## Configuration
 
-All settings are read from environment variables, loaded from a `.env` file in
-the project root. [`.env.example`](.env.example) lists every variable with comments.
+Settings come from environment variables, loaded from `.env` in the project root.
+[`.env.example`](.env.example) lists every variable with comments. The ones you are
+most likely to need:
 
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `APP_ENV` | No | `development` | `production` enables secure cookies and refuses to start with unsafe settings |
-| `SECRET_KEY` | **Yes** in production | random per process (dev only) | Signs session cookies and security tokens (32+ characters) |
-| `DATABASE_URL` | No | SQLite file `runnify/instance/runnify.db` | Database URL. SQLite is the default for now; PostgreSQL works too (`postgres://` URLs are accepted) |
-| `PUBLIC_BASE_URL` | **Yes** in production | none | Public `https://` origin used for links in emails |
-| `ALLOWED_HOSTS` | **Yes** in production | none | Comma-separated host names; any other `Host` header is rejected |
-| `PROXY_COUNT` | No | `0` dev / `1` prod | Reverse proxies whose `X-Forwarded-*` headers are trusted |
-| `MAX_UPLOAD_MB` | No | `100` | Maximum upload size |
-| `RATELIMIT_STORAGE_URI` | Recommended in production | `memory://` | Rate-limit counter store; use Redis (e.g. Render Key Value) to share limits across workers |
-| `FERNET_KEY` | **Yes** | none | Encrypts stored third-party credentials at rest (required to link Garmin or Spotify) |
-| `FERNET_KEYS` | No | none | Comma-separated keys, newest first, for rotating `FERNET_KEY` without downtime |
-| `SPOTIFY_CLIENT_ID` | For Spotify login | none | Spotify app client ID |
-| `SPOTIFY_CLIENT_SECRET` | For Spotify login | none | Spotify app client secret |
-| `SPOTIFY_REDIRECT_URI` | For Spotify login | none | Must exactly match the redirect URI registered in the Spotify dashboard, e.g. `http://127.0.0.1:5000/spotify/callback` |
-| `SPOTIFY_SCOPE` | For Spotify login | none | Space-separated OAuth scopes |
-| `MAIL_SERVER` | For real email | none (emails are logged) | SMTP host |
-| `MAIL_PORT` | For password reset | `587` | SMTP port |
-| `MAIL_USE_TLS` | For password reset | `True` | Use STARTTLS |
-| `MAIL_USE_SSL` | For password reset | `False` | Use implicit SSL |
-| `MAIL_USERNAME` | For password reset | none | SMTP username |
-| `MAIL_PASSWORD` | For password reset | none | SMTP password / app password |
-| `MAIL_DEFAULT_SENDER` | For password reset | `runnify.dev@gmail.com` | From address on reset emails |
+| Variable | Required | Purpose |
+|---|---|---|
+| `APP_ENV` | No (`development`) | `production` turns on secure cookies, HSTS and a start-up check of every setting below |
+| `SECRET_KEY` | In production | Signs sessions and tokens; 32+ random characters |
+| `FERNET_KEY` | To link Garmin or Spotify | Encrypts stored third-party tokens; `FERNET_KEYS` rotates keys without downtime |
+| `DATABASE_URL` | No | SQLite at `runnify/instance/runnify.db` by default; `postgres://` URLs work too |
+| `PUBLIC_BASE_URL` | In production | The public `https://` origin used in emailed links |
+| `ALLOWED_HOSTS` | In production | Host names the site answers on; anything else gets a 400 |
+| `RATELIMIT_STORAGE_URI` | Recommended in production | Shared store (such as Redis) so rate limits hold across workers |
+| `OPERATOR_NAME`, `CONTACT_EMAIL` | Recommended | Who runs the site and how to reach them, shown in the privacy policy and footer |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`, `SPOTIFY_SCOPE` | To save playlists to Spotify | Spotify app credentials |
+| `MAIL_SERVER` and the other `MAIL_*` | For real email | Without `MAIL_SERVER`, emails are written to the log |
 
 Generate the secrets with:
 
 ```bash
-uv run python -c "import secrets; print(secrets.token_hex(32))"                                # SECRET_KEY
-uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" # FERNET_KEY
+uv run python -c "import secrets; print(secrets.token_hex(32))"                                 # SECRET_KEY
+uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  # FERNET_KEY
 ```
 
-Other tunables, such as maximum upload size (600 MB) and the minimum song/run
-overlap, live in [`runnify/config.py`](runnify/config.py).
+## Everyday commands
 
-## Running the app
-
-Always run commands from the **repository root**:
-
-```bash
-# development server with auto-reload and debugger
-uv run flask --app runnify run --debug
-
-# list every URL the app serves
-uv run flask --app runnify routes
-```
-
-Downloaded Garmin `.fit` files are written to `fit_files/` in the current
-working directory. That folder holds personal GPS and heart-rate data and is git-ignored.
-
-## Using Runnify
-
-1. **Register** and log in.
-2. **Connect Garmin** (`/garmin`). Your credentials are verified, the password
-   is stored encrypted, and your running activities are imported in a background
-   thread. Garmin may rate-limit large first syncs.
-3. **Request your Spotify data.** In Spotify's privacy settings, request
-   **Extended streaming history**. It can take up to 30 days to arrive.
-   The in-app guide at `/help/spotify-upload-guide` walks you through it.
-4. **Upload the zip** (`/spotify/history/upload`). Plays that overlap a run are
-   saved and each one is scored.
-5. **Explore** the dashboard, each run's analysis page (`/activities`), Music
-   Insights and the friends leaderboard.
+| Task | Command |
+|---|---|
+| Run the tests | `uv run pytest` |
+| Lint and format | `uv run ruff check .` and `uv run ruff format .` |
+| Check colour contrast | `uv run python scripts/check_contrast.py` |
+| List every URL | `uv run flask --app runnify routes` |
+| Re-score every run after the method changes | `uv run flask --app runnify scores rebuild` |
+| Move old FIT files into the database | `uv run flask --app runnify streams backfill` |
 
 ## Project structure
 
 ```text
 Runnify/
-├── pyproject.toml          # project metadata and dependencies (managed by uv)
-├── uv.lock                 # exact, cross-platform locked versions; commit this
-├── .python-version         # Python version uv uses for .venv
-├── .env.example            # template for your local .env
-├── docs/                   # in-depth documentation (see below)
-└── runnify/                # application package
-    ├── __init__.py         # create_app(): the application factory
-    ├── extensions.py       # db, mail and login manager instances
-    ├── config.py           # Config class populated from environment variables
-    ├── models.py           # SQLAlchemy models
-    ├── services/           # domain logic, no HTTP
-    │   ├── fit.py              # parse .fit files into time/HR/pace series
-    │   ├── garmin.py           # sync running activities from Garmin Connect
-    │   ├── history_import.py   # import Spotify history zip and match plays to runs
-    │   ├── segments.py         # songs that were playing during a given run
-    │   └── scoring.py          # per-song performance score
-    ├── routes/             # one Flask blueprint per feature area
-    │   ├── auth.py  dashboard.py  friends.py  garmin.py  help.py  insights.py
-    │   ├── main.py  playlists.py  runs.py  settings.py  spotify.py
-    ├── templates/          # Jinja2 pages
-    └── static/             # css/ and js/
+├── pyproject.toml, uv.lock     project metadata and the exact locked dependencies
+├── .env.example                every setting, documented
+├── PRODUCT.md, DESIGN.md       who the product is for, and the design system
+├── SECURITY.md                 how accounts and data are protected, and how to report a problem
+├── docs/                       architecture, scoring, routes, development, deployment
+├── migrations/                 Alembic revisions
+├── scripts/                    icon builder and contrast checker
+├── tests/                      pytest suite
+└── runnify/
+    ├── __init__.py             create_app(), the application factory
+    ├── config.py               settings profiles read from the environment
+    ├── extensions.py           shared extension instances
+    ├── models.py               SQLAlchemy models
+    ├── filters.py              how numbers are shown (pace, lift, time, distance)
+    ├── cli.py                  flask commands (demo, scores, streams)
+    ├── content/                the landing page's sample results, computed by the real engine
+    ├── security/               passwords, lockout, tokens, encryption, two-step, headers, audit log
+    ├── services/               domain logic: Garmin, FIT, streams, scoring, analysis, insights,
+    │                           results, dashboard, playlists, charts, imports, account
+    ├── routes/                 one blueprint per area
+    ├── templates/              layouts/, macros/ and one folder per area
+    └── static/                 css/ui (design system), css/pages, js, fonts, img, vendor
 ```
 
 ## Documentation
 
 | Document | What it covers |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | Components, data model (ER diagram), Garmin sync and Spotify import pipelines |
-| [docs/routes.md](docs/routes.md) | Every URL, its method, auth requirement and purpose |
-| [docs/scoring.md](docs/scoring.md) | How songs are matched to runs and how the performance score is calculated |
-| [docs/development.md](docs/development.md) | uv workflow, managing dependencies, conventions and troubleshooting |
+| [docs/architecture.md](docs/architecture.md) | Components, data model, the Garmin and Spotify pipelines, the frontend |
+| [docs/scoring.md](docs/scoring.md) | How plays are matched to runs, how a song's effect is measured, and how insights and playlists use it |
+| [docs/routes.md](docs/routes.md) | Every URL, its method, who can use it and what it does |
+| [docs/development.md](docs/development.md) | Local workflow, conventions, tests, migrations and the demo data |
+| [docs/deployment.md](docs/deployment.md) | Running Runnify on Render |
+| [DESIGN.md](DESIGN.md) | The visual system: tokens, components and rules |
+| [SECURITY.md](SECURITY.md) | Security measures and how to report a vulnerability |
 
-All Python modules, classes and functions also have docstrings.
+Every module, class and function also has a docstring.
 
-## Limitations
+## Known limitations
 
-- **Playlist generator is a work in progress.** The form is captured but no playlist is built yet.
-- **Garmin rate limits.** Requests may be throttled if made too frequently.
-- **Spotify history is manual.** Extended streaming history has to be requested
-  from Spotify's account privacy settings and uploaded as a zip.
+- **Spotify history is manual.** Spotify only provides the extended streaming
+  history on request, by email, which can take up to 30 days.
+- **Spotify's Web API is needed only to save playlists**, and that path is
+  covered by tests with a stubbed client rather than live calls.
+- **Times are shown in UTC.** Runnify doesn't yet know each runner's time zone,
+  so a run's start time can differ from the watch by the UTC offset.
+- **Garmin rate limits.** Large first syncs may be throttled by Garmin.
 
 ## Author
 
