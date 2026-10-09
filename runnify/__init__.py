@@ -46,6 +46,9 @@ def create_app(config_object=None):
         if problems:
             raise RuntimeError("Refusing to start in production:\n- " + "\n- ".join(problems))
 
+    if not app.config.get("FIT_STORAGE_DIR"):
+        app.config["FIT_STORAGE_DIR"] = str(Path(app.instance_path) / "fit_files")
+
     if proxies := app.config["PROXY_COUNT"]:
         # trust X-Forwarded-For / -Proto from exactly the proxies we run behind
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxies, x_proto=proxies)

@@ -108,6 +108,7 @@ class Config:
     RATE_LIMIT_PASSWORD_RESET = "5 per hour"  # noqa: S105  (a limit, not a password)
     RATE_LIMIT_ACCOUNT_CHANGE = "10 per hour"
     RATE_LIMIT_GARMIN_CONNECT = "5 per hour"
+    RATE_LIMIT_GARMIN_SYNC = "6 per hour"
     RATE_LIMIT_UPLOAD = "10 per hour"
     RATE_LIMIT_SEARCH = "30 per minute"
 
@@ -122,7 +123,8 @@ class Config:
     # CSRF tokens are tied to the session, so they need no separate expiry
     WTF_CSRF_TIME_LIMIT = None
 
-    # uploads and imports
+    # uploads and imports; FIT files default to <instance folder>/fit_files
+    FIT_STORAGE_DIR = os.getenv("FIT_STORAGE_DIR")
     MAX_CONTENT_LENGTH = env_int("MAX_UPLOAD_MB", 100) * 1024 * 1024
     HISTORY_BATCH_SIZE = 1000  # rows per commit for bulk inserts
     HISTORY_MIN_OVERLAP_SECONDS = 1  # min overlap for track matching

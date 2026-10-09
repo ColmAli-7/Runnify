@@ -71,7 +71,7 @@ def test_migration_encrypts_existing_plaintext_tokens(tmp_path):
             )
         )
         db.session.commit()
-        upgrade(revision="0004")
+        upgrade()  # through 0004 (the data migration) to the latest revision
         stored = db.session.execute(text("SELECT spotify_token FROM users")).scalar()
         assert stored.startswith("gAAAAA")
         assert db.session.execute(text("SELECT id FROM users")).scalar() == 1

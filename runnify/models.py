@@ -50,7 +50,11 @@ class User(db.Model, UserMixin):
     spotify_refresh_token = db.Column(EncryptedString)
     spotify_expires_at = db.Column(db.Integer)
     garmin_username = db.Column(db.String)
-    garmin_password = db.Column(EncryptedString)
+    garmin_tokens = db.Column(EncryptedString)  # Garmin session tokens (never a password)
+    garmin_password = db.Column(EncryptedString)  # legacy: erased by the next sync
+    garmin_sync_state = db.Column(db.String(16))  # "syncing", "ok" or "failed"
+    garmin_sync_message = db.Column(db.String(200))
+    garmin_last_synced_at = db.Column(db.DateTime)
 
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime)

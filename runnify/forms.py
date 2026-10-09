@@ -9,7 +9,7 @@ import re
 
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, EmailField, PasswordField, StringField
-from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
+from wtforms.validators import DataRequired, EqualTo, Length, Regexp, ValidationError
 
 from runnify.security.passwords import MAX_LENGTH, password_problems
 
@@ -100,6 +100,26 @@ class ChangeNameForm(FlaskForm):
     password = _password_field("Current password", "Enter your current password.")
     new_name = StringField(
         "Name", filters=[strip], validators=[DataRequired("Enter your name."), Length(max=80)]
+    )
+
+
+class GarminConnectForm(FlaskForm):
+    """Garmin Connect sign-in, used once to link the account."""
+
+    email = _email_field("Garmin email")
+    password = _password_field("Garmin password", "Enter your Garmin password.")
+
+
+class GarminCodeForm(FlaskForm):
+    """Garmin's two-step verification code."""
+
+    code = StringField(
+        "Verification code",
+        filters=[strip],
+        validators=[
+            DataRequired("Enter the code Garmin sent you."),
+            Regexp(r"^\d{6,8}$", message="Enter the 6-digit code."),
+        ],
     )
 
 
