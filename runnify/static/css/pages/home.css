@@ -269,7 +269,7 @@
   }
 
   .ticker__toggle:hover {
-    background: #222;
+    background: var(--ink-raised);
   }
 
   .ticker__toggle:has(input:focus-visible) {

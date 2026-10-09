@@ -354,7 +354,7 @@
   }
 
   .results tbody tr:nth-child(5n) {
-    border-bottom-color: #b9bcc0; /* a firmer rule every five rows, as on printed results */
+    border-bottom-color: var(--rule-strong); /* a firmer rule every five rows, as on printed results */
   }
 
   .results .is-numeric {

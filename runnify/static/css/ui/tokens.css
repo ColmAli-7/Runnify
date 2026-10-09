@@ -30,20 +30,22 @@
   --ink-2: #474747; /* secondary text, 9.3:1 */
   --ink-3: #626262; /* meta text, 6.1:1 on paper, 5.3:1 on board */
   --rule: #d9dbde; /* hairline row rules (decorative) */
+  --rule-strong: #b9bcc0; /* a firmer rule, every fifth row */
   --field: #767676; /* form control borders, 4.5:1 */
 
   /* the runner's marks */
   --highlight: #e8ff3a; /* highlighter: the best row, lifts, emphasis */
   --highlight-soft: #f5ffbf;
-  --pen: #c4211a; /* red pen: drags and errors, 6.0:1 on paper */
+  --pen: #c4211a; /* red pen: drags and errors, 5.9:1 on paper */
   --pen-soft: #fdecea;
-  --go: #0c7238; /* connected, done, 6.2:1 on paper */
+  --go: #0c7238; /* connected, done, 6.0:1 on paper */
   --go-soft: #e7f3ec;
 
   /* print on the ink bands (the ticker, the privacy band) */
   --on-ink: #ffffff;
   --on-ink-2: #b4b4b4; /* secondary text on ink */
   --on-ink-rule: #3a3a3a;
+  --ink-raised: #262626; /* a control on an ink band, hovered */
   --pen-on-ink: #ff8a80; /* drags on ink */
 
   /* type */

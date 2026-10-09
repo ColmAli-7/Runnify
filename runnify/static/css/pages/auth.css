@@ -107,7 +107,7 @@
   }
 
   .auth__aside .step {
-    border-bottom-color: #d0d3d7;
+    border-bottom-color: var(--rule-strong);
   }
 
   /* the agreement checkboxes */
