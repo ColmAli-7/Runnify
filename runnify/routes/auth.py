@@ -11,10 +11,10 @@ from flask import (
 )
 from flask_login import login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from runnify.extensions import db, limiter
 from runnify.models import User
+from runnify.security.passwords import hash_password, verify_password
 from runnify.security.rate_limits import limit_from_config
 from runnify.services.mail import send_email
 from runnify.services.passwords import passw_strength
@@ -30,9 +30,13 @@ def login():
         email = request.form.get("email").strip().lower()  # normalise email
         password = request.form.get("password")
         user = User.query.filter_by(email=email).first()  # find user
-        if not user or not check_password_hash(user.password_hash, password):  # invalid login
+        matches, needs_rehash = verify_password(user.password_hash if user else None, password)
+        if not matches:  # invalid login
             flash("Invalid email or password", "error")
             return render_template("login.html", form_type="login")
+        if needs_rehash:  # upgrade legacy or outdated hashes now that we know the password
+            user.password_hash = hash_password(password)
+            db.session.commit()
         login_user(user)  # start user session
         flash("Logged in successfully!", "success")
         return redirect(url_for("dash.dashboard"))  # go to dashboard
@@ -58,7 +62,7 @@ def register():
         user = User(
             name=name,
             email=email,
-            password_hash=generate_password_hash(password),  # hash password
+            password_hash=hash_password(password),
         )
         db.session.add(user)
         db.session.commit()
@@ -141,7 +145,7 @@ def reset_password(token):
         if not strong[0]:
             flash(strong[1][0], strong[1][1])
             return render_template("reset.html", token=token)
-        user.password_hash = generate_password_hash(new_password)  # update password
+        user.password_hash = hash_password(new_password)  # update password
         db.session.commit()
         flash("Password reset successful. Please log in.", "success")
         return redirect(url_for("auth.login"))

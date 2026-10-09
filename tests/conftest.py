@@ -1,12 +1,14 @@
 """Shared pytest fixtures: an isolated app, a client and a signed-in user."""
 
 import pytest
-from werkzeug.security import generate_password_hash
 
 from runnify import create_app
 from runnify.config import TestConfig
 from runnify.extensions import db as _db
 from runnify.models import User
+from runnify.security.passwords import hash_password
+
+PASSWORD = "correct horse battery staple"
 
 
 @pytest.fixture
@@ -35,7 +37,7 @@ def user(app):
         user = User(
             name="Test Runner",
             email="runner@example.com",
-            password_hash=generate_password_hash("correct horse 1!"),
+            password_hash=hash_password(PASSWORD),
         )
         _db.session.add(user)
         _db.session.commit()

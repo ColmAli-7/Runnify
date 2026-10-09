@@ -2,9 +2,9 @@
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from runnify.extensions import db, limiter
+from runnify.security.passwords import hash_password, verify_password
 from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services.passwords import passw_strength
 
@@ -20,9 +20,9 @@ def managing():
         action = request.form.get("action")  # determine what user is changing
         password = request.form.get("password")
 
-        if not check_password_hash(
-            current_user.password_hash, password
-        ):  # verify password before any change
+        if not verify_password(current_user.password_hash, password)[
+            0
+        ]:  # re-check before any change
             flash("Incorrect password", "error")
             return redirect(url_for("manage.managing"))
 
@@ -42,7 +42,7 @@ def managing():
                 flash("Passwords do not match", "error")
                 return redirect(url_for("manage.managing"))
             else:
-                current_user.password_hash = generate_password_hash(new_pw)  # update password
+                current_user.password_hash = hash_password(new_pw)  # update password
                 db.session.commit()
                 flash("Password updated", "success")
                 return redirect(url_for("manage.managing"))

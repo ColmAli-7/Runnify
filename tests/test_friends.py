@@ -1,14 +1,13 @@
 """Friend requests: state changes need POST and the right user."""
 
-from werkzeug.security import generate_password_hash
-
 from runnify.extensions import db
 from runnify.models import FriendRequest, User
+from runnify.security.passwords import hash_password
 
 
 def _make_user(app, email, name):
     with app.app_context():
-        user = User(name=name, email=email, password_hash=generate_password_hash("pw"))
+        user = User(name=name, email=email, password_hash=hash_password("pw"))
         db.session.add(user)
         db.session.commit()
         return user.id
