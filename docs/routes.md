@@ -2,9 +2,7 @@
 
 Generated from `uv run flask --app runnify/app.py routes`, with each route's
 purpose taken from the source. Routes under "Logged-in users" are decorated
-with `@login_required` and are meant to redirect anonymous users to the login
-page. See [Known issues](development.md#known-issues) for why they currently
-return a 500 error instead.
+with `@login_required`; anonymous users are redirected to the login page.
 
 ## Public
 

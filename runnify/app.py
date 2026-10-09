@@ -26,7 +26,8 @@ app.config.from_object(Config)  # load everything from config.py
 db.init_app(app)
 mail = Mail(app)
 login_manager = LoginManager(app)
-login_manager.login_view = "login"
+login_manager.login_view = "auth.login"
+login_manager.login_message_category = "info"
 
 
 # loading current user
