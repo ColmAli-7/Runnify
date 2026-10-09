@@ -186,7 +186,7 @@
 
   .input[aria-invalid="true"] {
     border-color: var(--pen);
-    box-shadow: inset 4px 0 0 var(--pen);
+    box-shadow: 0 0 0 1px var(--pen);
   }
 
   .select {
@@ -482,7 +482,7 @@
   .stat__value {
     font-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.5rem);
     font-weight: 750;
-    letter-spacing: -0.045em;
+    letter-spacing: -0.04em;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
@@ -553,9 +553,10 @@
     background: var(--highlight);
   }
 
+  /* a drag is red-pen ink, not a tinted chip */
   .lift--down {
     color: var(--pen);
-    background: var(--pen-soft);
+    background: transparent;
   }
 
   .lift--flat {
@@ -697,6 +698,32 @@
 
   .segmented a[aria-current="true"]:hover {
     background: var(--ink);
+  }
+
+  /* phones: a two-by-two grid with inner rules instead of a broken row */
+  @media (max-width: 479px) {
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .segmented a,
+    .segmented label {
+      justify-content: center;
+    }
+
+    .segmented a + a,
+    .segmented label + label {
+      border-left: 0;
+    }
+
+    .segmented > :nth-child(even) {
+      border-left: 2px solid var(--ink);
+    }
+
+    .segmented > :nth-child(n + 3) {
+      border-top: 2px solid var(--ink);
+    }
   }
 
   /* ---- account menu (details/summary) ----------------------------------- */
