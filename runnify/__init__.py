@@ -16,6 +16,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from runnify.config import get_config, validate_production_config
 from runnify.extensions import csrf, db, login_manager, mail, migrate
+from runnify.security.headers import init_security_headers
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 
@@ -54,6 +55,7 @@ def create_app(config_object=None):
     csrf.init_app(app)
     mail.init_app(app)
     login_manager.init_app(app)
+    init_security_headers(app)
 
     # imported here so models and routes bind to the extensions above
     from runnify import models  # noqa: F401  (registers the models and the user loader)

@@ -94,6 +94,10 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_SECURE = False
 
+    # Content-Security-Policy is report-only until every legacy template is rebuilt
+    # without CDN scripts and inline JavaScript; then it is enforced
+    CSP_REPORT_ONLY = True
+
     # CSRF tokens are tied to the session, so they need no separate expiry
     WTF_CSRF_TIME_LIMIT = None
 
