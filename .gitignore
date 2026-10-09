@@ -1,12 +1,24 @@
-fit_files/*.fit
+# secrets / local config
 .env
-testing/
-__pycache__/
-migrate.py
-instance/
-testorpresenting/
+
+# personal activity data (Garmin FIT downloads) - never commit
+fit_files/
+
+# python / uv
+.venv/
 venv/
-*.db
+__pycache__/
 *.pyc
 *.pyo
+
+# local databases
+instance/
+*.db
+
+# scratch / local-only folders
+testing/
+testorpresenting/
+migrate.py
+
+# agent tooling
 .agents/skills/
