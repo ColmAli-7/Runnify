@@ -47,6 +47,10 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime)
 
+    # brute-force protection: consecutive failed sign-ins and the lock they caused
+    failed_login_count = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    locked_until = db.Column(db.DateTime)
+
     runs = db.relationship("Run", back_populates="user")  # link to user runs
     song_history = db.relationship(
         "UserSongHistory", back_populates="user"

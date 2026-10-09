@@ -111,6 +111,11 @@ class Config:
     RATE_LIMIT_UPLOAD = "10 per hour"
     RATE_LIMIT_SEARCH = "30 per minute"
 
+    # account lockout: after this many consecutive failed sign-ins the account is locked,
+    # first for LOGIN_LOCKOUT_MINUTES, doubling with each further failure (max 24 hours)
+    LOGIN_LOCKOUT_THRESHOLD = 5
+    LOGIN_LOCKOUT_MINUTES = 15
+
     # CSRF tokens are tied to the session, so they need no separate expiry
     WTF_CSRF_TIME_LIMIT = None
 

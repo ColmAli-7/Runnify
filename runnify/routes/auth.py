@@ -20,7 +20,8 @@ from runnify.forms import (
     ResetPasswordForm,
     first_error,
 )
-from runnify.models import User
+from runnify.models import User, utcnow
+from runnify.security.lockout import clear_failures, is_locked, record_failure
 from runnify.security.passwords import hash_password, password_problems, verify_password
 from runnify.security.rate_limits import limit_from_config
 from runnify.security.redirects import safe_next_url
@@ -48,15 +49,24 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
+        if user and is_locked(user):
+            verify_password(None, form.password.data)  # same timing; the password is not checked
+            flash(LOGIN_FAILED, "error")
+            return render_template("login.html", form_type="login", form=form)
         matches, needs_rehash = verify_password(
             user.password_hash if user else None, form.password.data
         )
         if matches:
             if needs_rehash:  # upgrade legacy or outdated hashes now that we know the password
                 user.password_hash = hash_password(form.password.data)
-                db.session.commit()
+            clear_failures(user)
+            user.last_login_at = utcnow()
+            db.session.commit()
             login_user(user, remember=form.remember.data)
             return redirect(safe_next_url(request.args.get("next")) or _home())
+        if user and record_failure(user):
+            send_lockout_email(user)
+        db.session.commit()
         flash(LOGIN_FAILED, "error")
     elif form.errors:
         flash(first_error(form), "error")
@@ -95,6 +105,33 @@ def logout():
     logout_user()  # end session
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))
+
+
+def send_lockout_email(user):
+    """Tell the account owner that sign-in was paused after repeated failures."""
+    until = user.locked_until.strftime("%H:%M UTC on %d %b %Y")
+    send_email(
+        user.email,
+        "Runnify: sign-in paused after failed attempts",
+        f"""Hello {user.name},
+
+Several attempts to sign in to your Runnify account used the wrong password, so
+sign-in is paused until {until}.
+
+If that was you, wait until then or reset your password to get back in straight
+away: {_external_url("auth.forgot_password")}
+
+If it wasn't you, someone may be trying to guess your password. Your account is
+safe while sign-in is paused; consider choosing a new, unique password.""",
+    )
+
+
+def _external_url(endpoint, **values):
+    """Absolute URL for emails, built from PUBLIC_BASE_URL rather than the request's Host header."""
+    base = current_app.config.get("PUBLIC_BASE_URL")
+    if base:
+        return base + url_for(endpoint, **values)
+    return url_for(endpoint, _external=True, **values)
 
 
 def generate_reset_token(email):
