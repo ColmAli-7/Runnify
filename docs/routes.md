@@ -22,7 +22,7 @@ with `@login_required`; anonymous users are redirected to the login page.
 | GET | `/logout` | `auth.logout` | End the session |
 | GET | `/dashboard` | `dash.dashboard` | Headline stats and monthly mileage chart |
 | GET | `/activities` | `activities.activities` | List runs, newest first. Query: `music_only=true` to show only runs with matched songs |
-| GET | `/activity/<int:run_id>` | `activities.activity_detail` | Pace/HR timeline with song segments and per-song scores for one of your runs\* |
+| GET | `/activity/<int:run_id>` | `activities.activity_detail` | Pace/HR timeline with song segments and per-song scores for one of your runs |
 | GET, POST | `/garmin` | `garmin.garmin` | Link Garmin Connect and start the background sync. Form: `email`, `password` |
 | GET | `/spotify/login` | `spotify.login_spotify` | Start Spotify OAuth |
 | GET | `/spotify/callback` | `spotify.callback` | Spotify OAuth redirect target; stores tokens |
@@ -36,10 +36,6 @@ with `@login_required`; anonymous users are redirected to the login page.
 | GET | `/friends/decline/<int:request_id>` | `friends.decline_request` | Decline a request addressed to you |
 | GET, POST | `/manage` | `manage.managing` | Change name (`action=change_name`, `new_name`) or password (`new_password`, `confirm_password`). Always requires current `password` |
 | GET, POST | `/playlist` | `playlist.playlists` | Playlist generator form (`type`, `pace`, `length`, `mood`). Work in progress |
-
-\* `@login_required` is not actually applied to this view, because of the
-decorator order. The query is still scoped to `current_user`, so other users'
-runs are not exposed. See [Known issues](development.md#known-issues).
 
 ## Error handling
 

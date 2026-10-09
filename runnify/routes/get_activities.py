@@ -68,8 +68,8 @@ def _score_segment(seg, timestamps, pace_s_per_km, hr=None):
     return round(max(0, min(100, score)), 1)
 
 
-@login_required
 @get_activities.route("/activity/<int:run_id>")
+@login_required
 def activity_detail(run_id):
     """Render the analysis page for one run.
 
