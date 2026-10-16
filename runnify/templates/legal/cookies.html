@@ -3,7 +3,7 @@
 {% block legal_body %}
 <section>
   <h2>The short version</h2>
-  <p>Runnify only uses the cookies it needs to keep you signed in and to protect your account. There are no analytics, advertising or third-party cookies.</p>
+  <p>Runnify only uses the cookies it needs to keep you signed in and to protect your account, and remembers the appearance you choose if you pick one. There are no analytics, advertising or third-party cookies.</p>
 </section>
 
 <section>
@@ -27,6 +27,12 @@
           <td>30 days, or until you sign out</td>
           <td>Essential, set at your request</td>
         </tr>
+        <tr>
+          <th scope="row"><code>runnify-theme</code></th>
+          <td>Remembers whether you chose the light or dark appearance. It is kept in your browser's local storage, only when you pick Light or Dark, and is never sent to Runnify.</td>
+          <td>Until you choose Auto or clear this site's data</td>
+          <td>Set at your request</td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -35,11 +41,11 @@
 
 <section>
   <h2>Why there is no cookie banner</h2>
-  <p>Consent is only needed for cookies that aren't strictly necessary for a service you asked for. Both of Runnify's cookies are strictly necessary, so there is nothing to ask. If that ever changes, Runnify will ask you first.</p>
+  <p>Consent is only needed for storage that isn't strictly necessary for a service you asked for. Runnify's two cookies are strictly necessary, and the appearance setting is only stored when you choose it yourself, so there is nothing to ask. If that ever changes, Runnify will ask you first.</p>
 </section>
 
 <section>
   <h2>Managing cookies</h2>
-  <p>You can delete or block cookies in your browser settings. If you block <code>runnify_session</code>, you won't be able to sign in.</p>
+  <p>You can delete or block cookies and site data in your browser settings. If you block <code>runnify_session</code>, you won't be able to sign in. Choosing Auto under Appearance removes <code>runnify-theme</code>.</p>
 </section>
 {% endblock %}
