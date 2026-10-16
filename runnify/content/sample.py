@@ -15,12 +15,19 @@ from types import SimpleNamespace
 from runnify.filters import NBSP, lift_number, plural
 from runnify.services import charts, insights
 from runnify.services.demo import SONGS, _simulate
-from runnify.services.playlists import PlannedTrack, arrange
+from runnify.services.playlists import SESSIONS, PlannedTrack, arrange, choose, eligible
 from runnify.services.scoring import song_effect
 
 FEATURED_START = datetime(2026, 9, 29, 7, 4)
 OTHER_RUNS = ("easy", "tempo", "long", "easy", "tempo", "easy")
 PLAYLIST_MINUTES = 30
+SESSION_NOTES = {
+    "easy": "Steady throughout, and light on songs that push your heart rate up.",
+    "tempo": "Builds, so your strongest songs arrive as the effort rises.",
+    "long": "Steady, with your strongest songs held back for the final stretch.",
+    "race": "Strong from the gun, with your very best saved for the finish.",
+    "intervals": "Alternates your hardest-working songs for efforts with calmer ones for recoveries.",
+}
 
 
 @dataclass(frozen=True)
@@ -41,6 +48,17 @@ class SampleRow:
 
 
 @dataclass
+class SamplePlaylist:
+    """A 30-minute playlist for one kind of session, built the way the builder builds it."""
+
+    key: str
+    label: str
+    note: str
+    tracks: list  # (PlannedTrack, start second), in playing order
+    ramp: charts.BarChart
+
+
+@dataclass
 class Sample:
     """Everything the landing page shows."""
 
@@ -57,6 +75,8 @@ class Sample:
     heart: list = field(default_factory=list)  # songs that raised heart rate most
     playlist: list = field(default_factory=list)  # (PlannedTrack, start second)
     ramp: charts.BarChart = field(default_factory=charts.BarChart)  # the playlist's lifts in order
+    sessions: list = field(default_factory=list)  # SamplePlaylist for every kind of session
+    replay: dict = field(default_factory=dict)  # the featured run, for the hero's replay
     runs_simulated: int = 0
 
     @property
@@ -195,21 +215,58 @@ def landing_sample():
         plays, key_of=lambda s: s, label_of=lambda s: s.name, detail_of=lambda s: s.artist
     )
 
-    # a playlist chosen and ordered the way the playlist builder does it for a tempo run
-    chosen, used = [], 0
-    for effect in insights.ranked(effects, best=True, limit=len(effects)):
-        if used >= PLAYLIST_MINUTES * 60:
-            break
-        chosen.append(
-            PlannedTrack(
-                effect.key, lengths[effect.key], round(effect.shrunk_lift, 1), effect.plays
+    # playlists chosen and ordered the way the playlist builder does it, one per session
+    def track_for(effect):
+        return PlannedTrack(
+            effect.key, lengths[effect.key], round(effect.shrunk_lift, 1), effect.plays
+        )
+
+    sessions = []
+    for key, label in SESSIONS.items():
+        chosen = choose(eligible(effects, key), PLAYLIST_MINUTES * 60, track_for)
+        tracks, clock = [], 0
+        for track in arrange(key, chosen):
+            tracks.append((track, clock))
+            clock += track.seconds
+        sessions.append(
+            SamplePlaylist(
+                key=key,
+                label=label,
+                note=SESSION_NOTES[key],
+                tracks=tracks,
+                ramp=charts.bar_chart(
+                    [(str(i), track.lift) for i, (track, _) in enumerate(tracks, start=1)],
+                    value_format=lift_number,
+                ),
             )
         )
-        used += lengths[effect.key]
-    playlist, clock = [], 0
-    for track in arrange("tempo", chosen):
-        playlist.append((track, clock))
-        clock += track.seconds
+    playlist = next(session.tracks for session in sessions if session.key == "tempo")
+
+    # the featured run as the hero replays it: pace, and each song with its result
+    chart = charts.run_chart(series.paces, bands)
+    result_of = {id(m): m[4].pace_delta for m in scored}  # skipped or unmeasured songs have none
+    replay_songs = []
+    for m in measured:
+        song, song_start, length, _skipped, _effect = m
+        lift = result_of.get(id(m))
+        kind = "best" if song == best else "worst" if song == worst else "normal"
+        replay_songs.append(
+            [
+                song_start,
+                song_start + length,
+                song.name,
+                song.artist,
+                None if lift is None else round(lift, 1),
+                kind,
+            ]
+        )
+    replay = {
+        "seconds": chart.seconds,
+        "metres": round(metres),
+        "pace": chart.points,
+        "range": [chart.top, chart.bottom],
+        "songs": replay_songs,
+    }
 
     return Sample(
         run_label="Tempo run",
@@ -218,7 +275,7 @@ def landing_sample():
         duration_s=seconds,
         avg_hr=avg_hr,
         rows=rows,
-        chart=charts.run_chart(series.paces, bands),
+        chart=chart,
         stage_charts=stage_charts,
         power=insights.ranked(effects, best=True, limit=3),
         drag=insights.ranked(effects, best=False, limit=2),
@@ -228,5 +285,7 @@ def landing_sample():
             [(str(i), track.lift) for i, (track, _) in enumerate(playlist, start=1)],
             value_format=lift_number,
         ),
+        sessions=sessions,
+        replay=replay,
         runs_simulated=1 + len(OTHER_RUNS),
     )
