@@ -72,6 +72,7 @@
   --band-alt: light-dark(#e8ebee, #202428);
   --band-best: light-dark(rgb(212 255 58 / 0.45), rgb(212 255 58 / 0.2));
   --band-worst: light-dark(rgb(200 51 31 / 0.12), rgb(255 106 92 / 0.18));
+  --band-context: light-dark(rgb(10 99 209 / 0.09), rgb(90 168 255 / 0.13));
 
   /* depth: light surfaces lift on a soft shadow, dark ones on a lighter step and a border */
   --shadow-tint: light-dark(rgb(16 24 40 / 0.07), rgb(0 0 0 / 0.55));
@@ -182,6 +183,7 @@
     --band-alt: #e8ebee;
     --band-best: rgb(212 255 58 / 0.45);
     --band-worst: rgb(200 51 31 / 0.12);
+    --band-context: rgb(10 99 209 / 0.09);
     --shadow-tint: rgb(16 24 40 / 0.07);
     --shadow-edge: rgb(16 24 40 / 0.05);
     --glass: rgb(243 244 246 / 0.78);

@@ -1216,8 +1216,9 @@
     fill: var(--band);
   }
 
+  /* the minutes either side of a song, its yardstick */
   .chart .band--context {
-    fill: var(--band-alt);
+    fill: var(--band-context);
   }
 
   .chart .band--best {
