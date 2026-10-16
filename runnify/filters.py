@@ -167,6 +167,14 @@ def plural(count, singular, plural_form=None):
     return f"{count} {word}"
 
 
+def ordinal(number):
+    """``1`` -> ``"1st"``, ``2`` -> ``"2nd"``, ``12`` -> ``"12th"``, ``23`` -> ``"23rd"``."""
+    if 11 <= number % 100 <= 13:
+        return f"{number}th"
+    suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+    return f"{number}{suffix}"
+
+
 def initials(name):
     """``"Colm Ali"`` -> ``"CA"``."""
     parts = [p for p in (name or "").split() if p]
@@ -188,6 +196,7 @@ FILTERS = {
     "clock": clock,
     "ago": ago,
     "plural": plural,
+    "ordinal": ordinal,
     "run_name": run_name,
     "first_name": first_name,
     "device": device,

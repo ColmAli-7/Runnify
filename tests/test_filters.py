@@ -70,6 +70,12 @@ def test_plural_and_initials():
     assert filters.initials("") == "?"
 
 
+def test_ordinal():
+    numbers = (1, 2, 3, 4, 11, 12, 13, 21, 22, 101, 111)
+    shown = " ".join(filters.ordinal(number) for number in numbers)
+    assert shown == "1st 2nd 3rd 4th 11th 12th 13th 21st 22nd 101st 111th"
+
+
 @pytest.mark.parametrize(
     ("hour", "name"),
     [
