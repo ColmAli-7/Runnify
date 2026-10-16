@@ -64,18 +64,28 @@ class RunChart:
     top: float = 0.0  # the value at the top edge
     bottom: float = 0.0  # the value at the bottom edge
     lines: list[str] = field(default_factory=list)  # polyline points; a stop splits the line
+    areas: list[str] = field(default_factory=list)  # each line closed down to the bottom edge
     bands: list[Band] = field(default_factory=list)
     y_ticks: list[tuple[float, str]] = field(default_factory=list)  # (percent from top, label)
     x_ticks: list[tuple[float, str]] = field(default_factory=list)  # (percent from left, time)
     points: list[float | None] = field(default_factory=list)  # the averaged values drawn
+    average: float | None = None  # the run's average while moving
+    average_y: float | None = None  # where the average line sits, percent from the top
+    average_label: str = ""  # e.g. "Moving avg 5:24"
 
     @property
     def empty(self):
         return not self.lines
 
 
-def _time_chart(values, songs, points, max_x_ticks, *, higher_is_up, steps, label, min_margin):
-    """Lay out ``values`` (one per second, ``None`` for gaps) over time; see :func:`run_chart`."""
+def _time_chart(
+    values, songs, points, max_x_ticks, *, higher_is_up, steps, label, min_margin, average
+):
+    """Lay out ``values`` (one per second, ``None`` for gaps) over time; see :func:`run_chart`.
+
+    ``average`` is ``(kind, prefix)``: "harmonic" averages paces the way a watch
+    does (total time over total distance), "mean" a plain average.
+    """
     total = len(values)
     chart = RunChart(seconds=total)
     present = [v for v in values if v is not None]
@@ -102,17 +112,22 @@ def _time_chart(values, songs, points, max_x_ticks, *, higher_is_up, steps, labe
 
     buckets = min(points, total)
     chart.points = [None if v is None else round(v, 1) for v in _bucket_means(values, buckets)]
+
+    def close(line):
+        if len(line) > 1:
+            chart.lines.append(" ".join(f"{x:.1f},{y:.1f}" for x, y in line))
+            edge = [(line[-1][0], BOX), (line[0][0], BOX)]
+            chart.areas.append(" ".join(f"{x:.1f},{y:.1f}" for x, y in line + edge))
+
     line = []
     for i, value in enumerate(chart.points):
         if value is None:
-            if len(line) > 1:
-                chart.lines.append(" ".join(line))
+            close(line)
             line = []
             continue
         second = (i + 0.5) * total / buckets
-        line.append(f"{x_at(second) * BOX:.1f},{y_at(value) * BOX:.1f}")
-    if len(line) > 1:
-        chart.lines.append(" ".join(line))
+        line.append((x_at(second) * BOX, y_at(value) * BOX))
+    close(line)
 
     for index, (start, end, band_label, kind) in enumerate(songs):
         x0, x1 = x_at(max(start, 0)), x_at(min(end, total - 1))
@@ -120,6 +135,16 @@ def _time_chart(values, songs, points, max_x_ticks, *, higher_is_up, steps, labe
             chart.bands.append(
                 Band(_pct(x0), _pct(x1 - x0), band_label, kind, index, int(start), int(end))
             )
+
+    kind, prefix = average
+    middle = (
+        len(present) / sum(1 / v for v in present)
+        if kind == "harmonic"
+        else sum(present) / len(present)
+    )
+    chart.average = round(middle, 1)
+    chart.average_y = _pct(y_at(middle))
+    chart.average_label = f"{prefix} {label(round(middle))}"
 
     spread = high - low
     step = next((size for limit, size in steps if spread <= limit), steps[-1][1])
@@ -158,6 +183,7 @@ def run_chart(paces, songs=(), points=240, max_x_ticks=6):
         steps=((25, 5), (50, 10), (120, 15), (float("inf"), 30)),
         label=_pace_label,
         min_margin=4.0,
+        average=("harmonic", "Moving avg"),
     )
 
 
@@ -172,6 +198,7 @@ def heart_chart(heart_rates, songs=(), points=240, max_x_ticks=6):
         steps=((25, 5), (60, 10), (float("inf"), 20)),
         label=str,
         min_margin=3.0,
+        average=("mean", "Avg"),
     )
 
 
@@ -186,6 +213,7 @@ class Bar:
     label: str
     value_label: str
     kind: str = "up"  # "up", "down" or "muted" (no value)
+    current: bool = False  # drawn stronger, e.g. this week
 
     @property
     def center(self):
@@ -206,7 +234,7 @@ class BarChart:
         return all(bar.kind == "muted" for bar in self.bars)
 
 
-def bar_chart(values, value_format=str, diverging=False, headroom=14.0):
+def bar_chart(values, value_format=str, diverging=False, headroom=14.0, current=None):
     """Lay out vertical bars.
 
     Args:
@@ -215,6 +243,7 @@ def bar_chart(values, value_format=str, diverging=False, headroom=14.0):
         diverging: Bars grow up from a middle zero line for positive values and
             down for negative ones (used for effects in s/km).
         headroom: Percent of the height kept clear for value labels.
+        current: Index of a bar to draw stronger (``-1`` for the last), or ``None``.
 
     Returns:
         A :class:`BarChart`.
@@ -230,6 +259,7 @@ def bar_chart(values, value_format=str, diverging=False, headroom=14.0):
 
     slot = 100 / len(values)
     width = slot * (0.62 if len(values) > 6 else 0.44)
+    current_index = None if current is None else current % len(values)
     for i, (label, value) in enumerate(values):
         v = value or 0.0
         h = abs(v) * scale
@@ -242,6 +272,7 @@ def bar_chart(values, value_format=str, diverging=False, headroom=14.0):
                 label=label,
                 value_label="" if value is None else value_format(value),
                 kind="muted" if value is None else ("up" if v >= 0 else "down"),
+                current=i == current_index,
             )
         )
     return chart

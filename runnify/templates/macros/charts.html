@@ -1,39 +1,72 @@
 {#- Charts drawn from the geometry in runnify/services/charts.py.
     Everything is placed in percentages, so a chart takes its size from CSS
-    and its text and lines stay crisp at any width. -#}
+    and its text and lines stay crisp at any width. `uid` keeps each chart's
+    gradient id unique when a page shows more than one. -#}
 
-{#- Pace over time, faster drawn higher, with a band for each song. -#}
-{% macro run_chart(chart, summary, class="") %}
-<div class="chart chart--run {{ class }}">
+{#- A value over time with a soft fill under the line and a band for each song.
+    `kind` is "pace" (faster drawn higher, in blue) or "heart" (in rose). -#}
+{% macro run_chart(chart, summary, class="", uid="run", kind="pace") %}
+<div class="chart chart--run chart--{{ kind }} {{ class }}">
   {%- if chart.empty %}
   <p class="chart__empty">Not enough moving time to draw this run.</p>
   {%- else %}
   <svg class="chart__y" aria-hidden="true" focusable="false">
     {%- for y, label in chart.y_ticks %}
-    <text x="100%" y="{{ y }}%" dx="-8" dy="0.35em" text-anchor="end">{{ label }}</text>
+    <text x="100%" y="{{ y }}%" dx="-10" dy="0.35em" text-anchor="end">{{ label }}</text>
     {%- endfor %}
   </svg>
   <svg class="chart__plot" role="img" aria-label="{{ summary }}">
+    <defs>
+      <linearGradient id="fill-{{ uid }}" x1="0" y1="0" x2="0" y2="1">
+        <stop class="stop-top" offset="0"></stop>
+        <stop class="stop-bottom" offset="1"></stop>
+      </linearGradient>
+    </defs>
     {%- for band in chart.bands %}
-    <rect class="band band--{{ band.kind }}{{ ' band--alt' if band.index is odd }}" x="{{ band.x }}%" y="0" width="{{ band.width }}%" height="100%" data-band="{{ band.index }}"></rect>
+    <rect class="band band--{{ band.kind }}{{ ' band--alt' if band.index is odd and band.kind == 'normal' }}" x="{{ band.x }}%" y="0" width="{{ band.width }}%" height="100%" data-band="{{ band.index }}"></rect>
     {%- endfor %}
     {%- for y, _ in chart.y_ticks %}
     <line class="grid" x1="0" x2="100%" y1="{{ y }}%" y2="{{ y }}%"></line>
     {%- endfor %}
-    <svg viewBox="0 0 {{ chart.box }} {{ chart.box }}" preserveAspectRatio="none" width="100%" height="100%">
+    {%- if chart.average_y is not none %}
+    <line class="average" x1="0" x2="100%" y1="{{ chart.average_y }}%" y2="{{ chart.average_y }}%"></line>
+    {%- endif %}
+    <svg class="chart__lines" viewBox="0 0 {{ chart.box }} {{ chart.box }}" preserveAspectRatio="none" width="100%" height="100%">
+      {%- for points in chart.areas %}
+      <polygon class="area" points="{{ points }}" fill="url(#fill-{{ uid }})"></polygon>
+      {%- endfor %}
       {%- for points in chart.lines %}
       <polyline class="trace" points="{{ points }}"></polyline>
       {%- endfor %}
     </svg>
     <line class="baseline" x1="0" x2="100%" y1="100%" y2="100%"></line>
+    {%- if chart.average_y is not none %}
+    <text class="average__label" x="100%" y="{{ chart.average_y }}%" dx="-6" dy="-0.6em" text-anchor="end">{{ chart.average_label }}</text>
+    {%- endif %}
   </svg>
   <svg class="chart__x" aria-hidden="true" focusable="false">
     {%- for x, label in chart.x_ticks %}
-    <text x="{{ x }}%" y="0" dy="1.1em" text-anchor="middle">{{ label }}</text>
+    <text x="{{ x }}%" y="0" dy="1.2em" text-anchor="middle">{{ label }}</text>
     {%- endfor %}
   </svg>
   {%- endif %}
 </div>
+{% endmacro %}
+
+{#- One block per song along the run, under a run chart: the best in volt, the slowest in coral.
+    A block wider than `labels` percent of the run carries the song's name, clipped to the block.
+    Decorative: the chart's summary and the table carry the facts. -#}
+{% macro song_lane(chart, class="", labels=9) %}
+{%- if not chart.empty and chart.bands %}
+<svg class="lane {{ class }}" aria-hidden="true" focusable="false">
+  {%- for band in chart.bands if band.kind != "context" %}
+  <svg class="lane__block lane__block--{{ band.kind }}" x="{{ band.x }}%" y="0" width="{{ band.width }}%" height="100%" data-lane="{{ band.index }}">
+    <rect x="0" y="0" width="100%" height="100%" rx="7"></rect>
+    {%- if band.width >= labels %}<text x="9" y="50%" dy="0.36em">{{ band.label }}</text>{% endif %}
+  </svg>
+  {%- endfor %}
+</svg>
+{%- endif %}
 {% endmacro %}
 
 {#- Vertical bars; values sit above (or, for negative bars, below) each bar. -#}
@@ -41,16 +74,16 @@
 <div class="chart chart--bars {{ class }}">
   <svg class="chart__plot" role="img" aria-label="{{ summary }}">
     {%- for bar in chart.bars %}
-    <rect class="bar bar--{{ bar.kind }}" x="{{ bar.x }}%" y="{{ bar.y }}%" width="{{ bar.width }}%" height="{{ bar.height }}%"></rect>
+    <rect class="bar bar--{{ bar.kind }}{{ ' is-current' if bar.current }}" x="{{ bar.x }}%" y="{{ bar.y }}%" width="{{ bar.width }}%" height="{{ bar.height }}%" rx="4"></rect>
     {%- if bar.value_label %}
-    <text class="chart__value" x="{{ bar.center }}%" y="{{ bar.bottom if bar.kind == 'down' else bar.y }}%" dy="{{ '1.25em' if bar.kind == 'down' else '-0.55em' }}" text-anchor="middle">{{ bar.value_label }}</text>
+    <text class="chart__value" x="{{ bar.center }}%" y="{{ bar.bottom if bar.kind == 'down' else bar.y }}%" dy="{{ '1.3em' if bar.kind == 'down' else '-0.6em' }}" text-anchor="middle">{{ bar.value_label }}</text>
     {%- endif %}
     {%- endfor %}
     <line class="baseline" x1="0" x2="100%" y1="{{ chart.baseline }}%" y2="{{ chart.baseline }}%"></line>
   </svg>
   <svg class="chart__x" aria-hidden="true" focusable="false">
     {%- for bar in chart.bars %}
-    <text x="{{ bar.center }}%" y="0" dy="1.1em" text-anchor="middle">{{ bar.label }}</text>
+    <text x="{{ bar.center }}%" y="0" dy="1.2em" text-anchor="middle">{{ bar.label }}</text>
     {%- endfor %}
   </svg>
 </div>
@@ -58,5 +91,5 @@
 
 {#- A single horizontal bar, `share` in percent (0 to 100). -#}
 {% macro meter(share, kind="up") -%}
-<svg class="meter meter--{{ kind }}" aria-hidden="true" focusable="false"><rect x="0" y="0" width="{{ [[share, 0]|max, 100]|min }}%" height="100%"></rect></svg>
+<svg class="meter meter--{{ kind }}" aria-hidden="true" focusable="false"><rect x="0" y="0" width="{{ [[share, 0]|max, 100]|min }}%" height="100%" rx="4"></rect></svg>
 {%- endmacro %}
