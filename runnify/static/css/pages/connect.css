@@ -18,24 +18,28 @@
     }
   }
 
-  .service .sheet__title {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-3);
+  /* each service carries its icon in a soft square, like an app's settings row */
+  .service .card__title .icon {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    border-radius: var(--r-sm);
+    background: var(--surface-3);
+    color: var(--text);
   }
 
   .service__body {
     display: grid;
     gap: var(--s-5);
-    color: var(--ink-2);
+    color: var(--text-2);
   }
 
   .service__body .facts dd {
-    color: var(--ink);
+    color: var(--text);
   }
 
   .service__failed {
-    color: var(--pen);
+    color: var(--drag);
   }
 
   .service__note {
@@ -43,16 +47,18 @@
     grid-template-columns: 1.25rem minmax(0, 1fr);
     gap: var(--s-3);
     padding: var(--s-3) var(--s-4);
-    background: var(--board);
-    font-size: var(--text-sm);
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    font-size: var(--fs-sm);
   }
 
   .service__note .icon {
     margin-top: 2px;
-    color: var(--ink);
+    color: var(--ok);
   }
 
-  /* import */
+  /* ---- import ------------------------------------------------------------- */
+
   .import {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -67,25 +73,24 @@
   }
 
   .import__steps {
-    padding-inline: var(--s-5);
+    padding: 0 var(--card-pad) var(--s-3);
   }
 
-  .upload .sheet__body {
+  .upload .card__body {
     display: grid;
     gap: var(--s-5);
   }
 
   .upload__status {
     padding: var(--s-3) var(--s-4);
-    border-top: 3px solid var(--ink);
-    background: var(--board);
-    font-size: var(--text-sm);
-    font-weight: 550;
+    border-radius: var(--r-md);
+    background: var(--pace-soft);
+    font-size: var(--fs-md);
+    font-weight: 500;
   }
 
   .upload__status--failed {
-    border-top-color: var(--pen);
-    background: var(--pen-soft);
+    background: var(--drag-soft);
   }
 
   .upload__blocked {
@@ -99,26 +104,28 @@
     gap: var(--s-2);
     padding: var(--s-7) var(--s-5);
     border: 2px dashed var(--field);
-    border-radius: var(--radius);
+    border-radius: var(--r-lg);
+    background: var(--surface-2);
     text-align: center;
     cursor: pointer;
-    transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+    transition: border-color var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out);
   }
 
   .dropzone:hover,
   .dropzone.is-over {
-    border-color: var(--ink);
-    background: var(--highlight-soft);
+    border-color: var(--focus);
+    background: var(--pace-soft);
   }
 
   .dropzone:has(.dropzone__input:focus-visible) {
-    outline: 3px solid var(--ink);
-    outline-offset: 3px;
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
   }
 
   .dropzone.has-file {
     border-style: solid;
-    border-color: var(--ink);
+    border-color: var(--text);
+    background: var(--surface);
   }
 
   .dropzone__input {
@@ -131,18 +138,23 @@
   }
 
   .dropzone__icon {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-card);
   }
 
   .dropzone__title {
-    font-weight: 700;
+    font-weight: 650;
     overflow-wrap: anywhere;
   }
 
   .dropzone__hint {
-    font-size: var(--text-sm);
-    color: var(--ink-3);
+    font-size: var(--fs-sm);
+    color: var(--text-3);
   }
 
   .upload__promises {
@@ -151,8 +163,8 @@
     padding: var(--s-4) 0 0;
     border-top: var(--hair);
     list-style: none;
-    font-size: var(--text-sm);
-    color: var(--ink-2);
+    font-size: var(--fs-md);
+    color: var(--text-2);
   }
 
   .upload__promises li {
@@ -163,6 +175,6 @@
 
   .upload__promises .icon {
     margin-top: 2px;
-    color: var(--go);
+    color: var(--ok);
   }
 }

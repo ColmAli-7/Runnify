@@ -21,27 +21,27 @@
     align-items: center;
     min-height: 40px;
     padding: 0 var(--s-3);
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    font-size: var(--text-sm);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-sm);
     font-weight: 600;
     text-decoration: none;
   }
 
   .document__nav li a:hover {
-    border-color: var(--ink);
+    border-color: var(--text);
   }
 
   .document__nav li a[aria-current="page"] {
-    background: var(--ink);
-    border-color: var(--ink);
-    color: var(--paper);
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--text-inverse);
   }
 
   .document__contact {
     margin-top: var(--s-4);
-    font-size: var(--text-sm);
-    color: var(--ink-3);
+    font-size: var(--fs-sm);
+    color: var(--text-3);
   }
 
   .document__body {
@@ -52,20 +52,20 @@
   .document__head {
     padding-bottom: var(--s-5);
     margin-bottom: var(--s-6);
-    border-bottom: var(--heavy);
+    border-bottom: var(--hair);
   }
 
   .document__title {
-    font-size: var(--text-3xl);
-    font-weight: 750;
+    font-size: var(--fs-3xl);
+    font-weight: 700;
     letter-spacing: -0.04em;
     line-height: 1.05;
   }
 
   .document__updated {
     margin-top: var(--s-3);
-    font-size: var(--text-sm);
-    color: var(--ink-3);
+    font-size: var(--fs-sm);
+    color: var(--text-3);
   }
 
   @media (min-width: 1024px) {
@@ -84,21 +84,24 @@
 
     .document__nav ul {
       flex-direction: column;
-      gap: 0;
-      border-top: var(--heavy);
+      gap: 2px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
     }
 
     .document__nav li a {
       display: flex;
-      min-height: 44px;
+      min-height: 40px;
       padding: 0 var(--s-3);
       border: 0;
-      border-bottom: var(--hair);
-      border-radius: 0;
+      border-radius: var(--r-sm);
     }
 
     .document__nav li a:hover {
-      background: var(--highlight-soft);
+      background: var(--surface-3);
     }
   }
 
@@ -107,7 +110,7 @@
   .prose {
     font-size: 1.0625rem;
     line-height: 1.65;
-    color: var(--ink);
+    color: var(--text);
   }
 
   .prose section + section {
@@ -116,8 +119,8 @@
 
   .prose h2 {
     margin-bottom: var(--s-3);
-    font-size: var(--text-xl);
-    font-weight: 750;
+    font-size: var(--fs-xl);
+    font-weight: 650;
     letter-spacing: -0.025em;
   }
 
@@ -143,45 +146,45 @@
   }
 
   .prose li::marker {
-    color: var(--ink-3);
+    color: var(--text-3);
   }
 
   .table-scroll {
     margin-top: var(--s-4);
     overflow-x: auto;
-    border-top: var(--heavy);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
   }
 
   .legal-table {
     width: 100%;
     min-width: 34rem;
-    font-size: var(--text-sm);
+    font-size: var(--fs-sm);
     line-height: 1.5;
   }
 
   .legal-table caption {
-    padding: var(--s-2) 0;
-    font-size: var(--text-xs);
-    color: var(--ink-3);
+    padding: var(--s-2) var(--s-4);
+    font-size: var(--fs-xs);
+    color: var(--text-3);
     text-align: left;
     caption-side: bottom;
   }
 
   .legal-table th,
   .legal-table td {
-    padding: var(--s-3) var(--s-3) var(--s-3) 0;
+    padding: var(--s-3) var(--s-4);
     text-align: left;
     vertical-align: top;
     border-bottom: var(--hair);
   }
 
   .legal-table thead th {
-    font-size: var(--text-xs);
-    font-weight: 650;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--ink-2);
-    border-bottom: 2px solid var(--ink);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-3);
+    background: var(--surface-2);
   }
 
   .legal-table tbody th {
