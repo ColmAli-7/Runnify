@@ -5,8 +5,24 @@
 // appearance: follow the system, or keep light or dark (js/theme.js applies it before paint)
 const THEME_KEY = "runnify-theme";
 const themeSwitches = document.querySelectorAll("[data-theme-switch]");
+const root = document.documentElement;
+
+// colours that are mid-transition when the theme flips can stick on the old theme's
+// values, so transitions are switched off for the moment the theme changes
+function withoutTransitions(change) {
+  root.classList.add("theme-switching");
+  change();
+  void root.offsetWidth; // apply the new colours before transitions come back
+  window.requestAnimationFrame(() =>
+    window.requestAnimationFrame(() => root.classList.remove("theme-switching")),
+  );
+}
+
+window
+  .matchMedia("(prefers-color-scheme: dark)")
+  .addEventListener("change", () => withoutTransitions(() => {}));
+
 if (themeSwitches.length) {
-  const root = document.documentElement;
   const current = () => root.getAttribute("data-theme") || "system";
   const show = () => {
     for (const button of document.querySelectorAll("[data-theme-choice]")) {
@@ -19,8 +35,10 @@ if (themeSwitches.length) {
     group.addEventListener("click", (event) => {
       const choice = event.target.closest("[data-theme-choice]")?.dataset.themeChoice;
       if (!choice) return;
-      if (choice === "system") root.removeAttribute("data-theme");
-      else root.setAttribute("data-theme", choice);
+      withoutTransitions(() => {
+        if (choice === "system") root.removeAttribute("data-theme");
+        else root.setAttribute("data-theme", choice);
+      });
       try {
         if (choice === "system") window.localStorage.removeItem(THEME_KEY);
         else window.localStorage.setItem(THEME_KEY, choice);

@@ -151,6 +151,13 @@
     padding-left: 1.25em;
   }
 
+  /* the instant the theme changes (js/app.js), nothing animates between the two */
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition: none !important;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
