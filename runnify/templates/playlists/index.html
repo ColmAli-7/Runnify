@@ -17,6 +17,12 @@
   "intervals": ("Alternates your hardest-working songs for efforts with calmer ones for recoveries.", [5, 1, 5, 1, 5, 1, 5, 1]),
 } %}
 
+{% macro shape(levels, class) -%}
+<svg class="{{ class }}" aria-hidden="true" focusable="false">
+  {%- for level in levels %}<rect x="{{ loop.index0 * 12.5 + 1.5 }}%" y="{{ 100 - level * 20 }}%" width="9.5%" height="{{ level * 20 }}%" rx="2"></rect>{% endfor -%}
+</svg>
+{%- endmacro %}
+
 {% block content %}
 <header class="page-head">
   <div>
@@ -26,24 +32,25 @@
 </header>
 
 <div class="playlists">
-  <section class="sheet builder" aria-labelledby="builder-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="builder-title">Build a playlist</h2>
+  <section class="card builder" aria-labelledby="builder-title">
+    <header class="card__head">
+      <h2 class="card__title" id="builder-title">{{ icon("playlist") }}Build a playlist</h2>
     </header>
-    <form class="sheet__body form" method="post" novalidate>
+    <form class="card__body form" method="post" novalidate>
       {{ form.csrf_token }}
       <fieldset class="choices">
         <legend class="field__label">What are you running?</legend>
         <div class="choices__grid">
           {% for value, label in form.session.choices %}
-            {% set text, shape = sessions[value] %}
+            {% set text, levels = sessions[value] %}
             <label class="choice">
               <input type="radio" name="{{ form.session.name }}" value="{{ value }}"{% if form.session.data == value %} checked{% endif %}>
               <span class="choice__body">
-                <span class="choice__title">{{ label }}</span>
-                <svg class="choice__shape" aria-hidden="true" focusable="false">
-                  {% for level in shape %}<rect x="{{ loop.index0 * 12.5 + 1.5 }}%" y="{{ 100 - level * 20 }}%" width="9.5%" height="{{ level * 20 }}%"></rect>{% endfor %}
-                </svg>
+                <span class="choice__top">
+                  <span class="choice__title">{{ label }}</span>
+                  <span class="choice__tick" aria-hidden="true">{{ icon("check") }}</span>
+                </span>
+                {{ shape(levels, "choice__shape") }}
                 <span class="choice__text">{{ text }}</span>
               </span>
             </label>
@@ -53,7 +60,7 @@
       <div class="builder__row">
         <div class="field builder__length">
           <label class="field__label" for="{{ form.minutes.id }}">{{ form.minutes.label.text }}</label>
-          {{ form.minutes(class_="select") }}
+          <div class="select-wrap">{{ form.minutes(class_="select") }}</div>
         </div>
         {{ check(form.include_untested) }}
       </div>
@@ -61,20 +68,22 @@
     </form>
   </section>
 
-  <section class="sheet" aria-labelledby="saved-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="saved-title">Your playlists</h2>
-      {% if saved %}<p class="sheet__meta">{{ saved|length|plural("playlist") }}</p>{% endif %}
+  <section class="card" aria-labelledby="saved-title">
+    <header class="card__head">
+      <h2 class="card__title" id="saved-title">{{ icon("disc") }}Your playlists</h2>
+      {% if saved %}<p class="card__meta">{{ saved|length|plural("playlist") }}</p>{% endif %}
     </header>
     {% if saved %}
       <ul class="saved">
         {% for playlist in saved %}
           <li class="saved__item">
+            {{ shape(sessions.get(playlist.session, ("", [3, 3, 3, 3, 3, 3, 3, 3]))[1], "saved__cover") }}
             <a class="saved__link" href="{{ url_for('playlists.detail', playlist_id=playlist.id) }}">
               <span class="saved__name">{{ playlist.name }}</span>
               <span class="saved__meta">{{ playlist.tracks|length|plural("track") }}, {{ playlist.total_seconds|duration }}, built {{ playlist.created_at|short_day }}</span>
             </a>
             {% if playlist.spotify_url %}<span class="tag tag--go">In Spotify</span>{% endif %}
+            {{ icon("chevron-right", class="saved__chevron") }}
           </li>
         {% endfor %}
       </ul>

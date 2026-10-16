@@ -34,28 +34,28 @@
 </header>
 
 <div class="playlist">
-  <section class="sheet" aria-labelledby="shape-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="shape-title">The shape of the run</h2>
-      <p class="sheet__meta">Each track's lift, in playing order</p>
+  <section class="card" aria-labelledby="shape-title">
+    <header class="card__head">
+      <h2 class="card__title" id="shape-title">{{ icon("bars") }}The shape of the run</h2>
+      <p class="card__meta">Each track's lift, in playing order</p>
     </header>
-    <div class="sheet__body">
-      {{ bar_chart(ramp, "Each track's lift in playing order: " ~ (playlist.tracks|map(attribute="lift")|map("lift")|join(", ")) ~ ".", class="chart--ramp") }}
+    <div class="card__body">
+      {{ bar_chart(ramp, "Each track's lift in playing order: " ~ (playlist.tracks|map(attribute="lift")|map("lift")|join(", ")) ~ ".", class="chart--ramp chart--lifts") }}
     </div>
   </section>
 
-  <section class="sheet" aria-labelledby="tracks-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="tracks-title">Tracks</h2>
-      <p class="sheet__meta">Lift is the song's effect on your pace across your runs</p>
+  <section class="card" aria-labelledby="tracks-title">
+    <header class="card__head">
+      <h2 class="card__title" id="tracks-title">{{ icon("music") }}Tracks</h2>
+      <p class="card__meta">Lift is the song's effect on your pace across your runs</p>
     </header>
     <div class="table-wrap">
       <table class="results">
         <caption class="visually-hidden">Tracks in playing order</caption>
         <thead>
           <tr>
-            <th scope="col">#</th>
-            <th scope="col">Track</th>
+            <th scope="col"><span class="visually-hidden">Order</span></th>
+            <th scope="col">Song</th>
             <th scope="col" class="is-numeric">Starts</th>
             <th scope="col" class="is-numeric results__optional">Evidence</th>
             <th scope="col" class="is-numeric">Lift <span class="results__unit">s/km</span></th>
@@ -64,7 +64,7 @@
         <tbody>
           {% for track in playlist.tracks %}
             <tr{% if loop.last and playlist.session in ("tempo", "long", "race") %} class="is-best"{% endif %}>
-              <td class="results__pos">{{ loop.index }}</td>
+              <td class="results__pos"><span class="rank">{{ loop.index }}</span></td>
               <td class="results__track">{{ track.song.name or "Unknown track" }}<span class="results__sub">{{ track.song.artist }}</span></td>
               <td class="is-numeric">{{ starts[loop.index0]|duration }}</td>
               <td class="is-numeric results__optional">{{ track.plays|plural("play") if track.plays else "-" }}</td>
