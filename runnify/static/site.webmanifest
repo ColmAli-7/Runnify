@@ -4,8 +4,8 @@
   "description": "Find the songs that make you run faster.",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#FFFFFF",
-  "theme_color": "#111111",
+  "background_color": "#0E1013",
+  "theme_color": "#0E1013",
   "icons": [
     {
       "src": "/static/img/icon-192.png",
