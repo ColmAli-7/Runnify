@@ -89,6 +89,40 @@
 </div>
 {% endmacro %}
 
+{#- One song's plays across runs, drawn the way Strava draws matched runs: a dot per play by
+    run date and lift (faster above the zero line in volt, slower below it in coral) and the
+    trend line through them. Each dot names its run when the pointer rests on it. -#}
+{% macro matched_chart(chart, summary, class="") %}
+<div class="chart chart--matched {{ class }}">
+  {%- if chart.empty %}
+  <p class="chart__empty">No measured plays to draw yet.</p>
+  {%- else %}
+  <svg class="chart__y" aria-hidden="true" focusable="false">
+    {%- for y, label in chart.y_ticks %}
+    <text x="100%" y="{{ y }}%" dx="-10" dy="0.35em" text-anchor="end">{{ label }}</text>
+    {%- endfor %}
+  </svg>
+  <svg class="chart__plot" role="img" aria-label="{{ summary }}">
+    {%- for y, _ in chart.y_ticks if y != chart.zero %}
+    <line class="grid" x1="0" x2="100%" y1="{{ y }}%" y2="{{ y }}%"></line>
+    {%- endfor %}
+    <line class="zero" x1="0" x2="100%" y1="{{ chart.zero }}%" y2="{{ chart.zero }}%"></line>
+    {%- if chart.trend %}
+    <line class="trend" x1="{{ chart.trend.x1 }}%" y1="{{ chart.trend.y1 }}%" x2="{{ chart.trend.x2 }}%" y2="{{ chart.trend.y2 }}%"></line>
+    {%- endif %}
+    {%- for dot in chart.dots %}
+    <circle class="dot dot--{{ dot.kind }}" cx="{{ dot.x }}%" cy="{{ dot.y }}%" r="5"><title>{{ dot.label }}</title></circle>
+    {%- endfor %}
+  </svg>
+  <svg class="chart__x" aria-hidden="true" focusable="false">
+    {%- for x, label in chart.x_ticks %}
+    <text x="{{ x }}%" y="0" dy="1.2em" text-anchor="middle">{{ label }}</text>
+    {%- endfor %}
+  </svg>
+  {%- endif %}
+</div>
+{% endmacro %}
+
 {#- A single horizontal bar, `share` in percent (0 to 100). -#}
 {% macro meter(share, kind="up") -%}
 <svg class="meter meter--{{ kind }}" aria-hidden="true" focusable="false"><rect x="0" y="0" width="{{ [[share, 0]|max, 100]|min }}%" height="100%" rx="4"></rect></svg>

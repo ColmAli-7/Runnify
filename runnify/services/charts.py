@@ -8,11 +8,17 @@ needs an inline style, which keeps the strict Content-Security-Policy intact.
 Scripts only add interactivity.
 """
 
+import math
 from dataclasses import dataclass, field
+from datetime import datetime, time, timedelta
+from itertools import count, islice
 from statistics import quantiles
 from typing import ClassVar
 
+from runnify.filters import lift_kind, lift_number, short_day
+
 BOX = 1000  # polyline coordinates run from 0 to BOX on both axes
+DAY = timedelta(days=1)
 
 
 def _pct(fraction):
@@ -275,4 +281,153 @@ def bar_chart(values, value_format=str, diverging=False, headroom=14.0, current=
                 current=i == current_index,
             )
         )
+    return chart
+
+
+@dataclass
+class Dot:
+    """One play on a matched-runs chart, in percentages of the plot."""
+
+    x: float  # percent from the left
+    y: float  # percent from the top
+    kind: str  # "up" (faster), "down" (slower) or "flat", as filters.lift_kind
+    label: str  # what the dot stands for, shown when the pointer rests on it
+
+
+@dataclass
+class Segment:
+    """A straight line across a plot, its ends in percentages."""
+
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+@dataclass
+class MatchedChart:
+    """One song's plays across runs: a dot per play, a zero line and a trend line."""
+
+    dots: list[Dot] = field(default_factory=list)
+    zero: float = 50.0  # the zero line (no effect), percent from the top
+    trend: Segment | None = None
+    y_ticks: list[tuple[float, str]] = field(default_factory=list)  # (percent from top, label)
+    x_ticks: list[tuple[float, str]] = field(default_factory=list)  # (percent from left, date)
+
+    @property
+    def empty(self):
+        return not self.dots
+
+
+def _noon(moment):
+    """The middle of ``moment``'s day: runs are placed by their date, not their hour."""
+    return datetime.combine(moment.date(), time(12))
+
+
+def _month_index(moment):
+    return moment.year * 12 + moment.month - 1
+
+
+def _marks(start, end, unit, step):
+    """Every ``step`` days, weeks (Mondays), months or years from ``start`` to ``end``."""
+    if unit in ("day", "week"):
+        mark = _noon(start) if _noon(start) >= start else _noon(start) + DAY
+        if unit == "week":
+            mark += DAY * (-mark.weekday() % 7)
+            step *= 7
+        while mark <= end:
+            yield mark, short_day(mark)
+            mark += DAY * step
+        return
+    months = 12 * step if unit == "year" else step
+    index = _month_index(start) + (start != datetime(start.year, start.month, 1))
+    index += -index % months
+    while (mark := datetime(index // 12, index % 12 + 1, 1)) <= end:
+        if unit == "year":
+            yield mark, f"{mark:%Y}"
+        else:
+            yield mark, f"{mark:%b %Y}" if mark.month == 1 else f"{mark:%b}"
+        index += months
+
+
+def _calendar_ticks(start, end, max_ticks):
+    """Dates to label between ``start`` and ``end``, at the closest spacing that fits.
+
+    Days and weeks are marked at noon, where runs are placed, and read "5 Oct";
+    months are marked on the 1st and read "Oct" ("Jan 2027" in January); years
+    on 1 January.
+    """
+    spacings = [("day", 1), ("day", 2), ("week", 1), ("week", 2)]
+    spacings += [("month", n) for n in (1, 2, 3, 6)] + [("year", n) for n in (1, 2, 5, 10)]
+    for unit, step in spacings:
+        ticks = list(islice(_marks(start, end, unit, step), max_ticks + 1))
+        if len(ticks) <= max_ticks:
+            return ticks
+    return []
+
+
+def _lift_axis(biggest):
+    """Half the height of a lift axis and its step, for lifts up to ``biggest`` s/km either way.
+
+    Two or three steps either side of zero, with a little room beyond the
+    biggest lift so no dot sits on the edge.
+    """
+    room = biggest + 2
+    for scale in count():
+        for base in (5, 10, 20, 25):
+            step = base * 10**scale
+            steps = max(math.ceil(room / step), 2)
+            if steps <= 3:
+                return steps * step, step
+
+
+def matched_chart(points, trend=None, max_x_ticks=6):
+    """Lay out one song's plays across runs, the way Strava draws matched runs.
+
+    Faster plays sit above a zero line through the middle and slower ones below
+    it, on an axis that gives both directions the same room.
+
+    Args:
+        points: ``(when, lift, label)`` for each play: when the run started on the
+            runner's clock, the play's lift in s/km (faster +) and what its dot
+            stands for.
+        trend: The trend line's lift on the first and last dates, or ``None``.
+        max_x_ticks: The most date labels along the bottom.
+
+    Returns:
+        A :class:`MatchedChart`; ``chart.empty`` when there are no plays.
+    """
+    chart = MatchedChart()
+    points = list(points)
+    if not points:
+        return chart
+
+    days = [_noon(when) for when, _, _ in points]
+    first, last = min(days), max(days)
+    pad = max((last - first) * 0.05, DAY / 2)  # keeps dots off the edges; one day sits centred
+    start, end = first - pad, last + pad
+
+    def x_at(moment):
+        return _pct((moment - start) / (end - start))
+
+    chart.x_ticks = [
+        (x_at(mark), label) for mark, label in _calendar_ticks(start, end, max_x_ticks)
+    ]
+
+    lifts = [lift for _, lift, _ in points] + list(trend or ())
+    extent, step = _lift_axis(max(abs(lift) for lift in lifts))
+
+    def y_at(lift):
+        return _pct(0.5 - lift / extent / 2)
+
+    chart.y_ticks = [
+        (y_at(value), lift_number(value) if value else "0")
+        for value in range(extent, -extent - 1, -step)
+    ]
+    chart.dots = [
+        Dot(x_at(day), y_at(lift), lift_kind(lift), label)
+        for day, (_, lift, label) in zip(days, points, strict=True)
+    ]
+    if trend is not None and last > first:
+        chart.trend = Segment(x_at(first), y_at(trend[0]), x_at(last), y_at(trend[1]))
     return chart
