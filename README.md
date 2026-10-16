@@ -27,8 +27,9 @@ cancel out.
 - **Spotify history matching.** Upload the extended streaming history zip
   Spotify emails you. Only plays that overlap a run are kept; the file is
   deleted as soon as it has been read.
-- **A results sheet for every run.** Pace and heart rate through the run with a
-  band for each song, and every song ranked by its lift in s/km.
+- **Every run, song by song.** Pace and heart rate through the run with a band
+  and a lane block for each song, a scrubbing readout, a sentence naming the
+  fastest and slowest songs, and every song ranked by its lift in s/km.
 - **Insights.** Power songs and drag songs (ranked on shrunk effects, so one
   lucky play can't top the chart), where in a run songs work hardest, top
   artists, heart raisers and the most skipped songs, over a chosen range.
@@ -48,7 +49,7 @@ cancel out.
 | Data | SQLAlchemy 2 with Flask-SQLAlchemy, Alembic through Flask-Migrate. SQLite by default, PostgreSQL supported |
 | Integrations | `garminconnect`, `fitparse`, `spotipy`, `ijson` |
 | Security | Argon2id (`argon2-cffi`), Fernet encryption at rest (`cryptography`), TOTP (`pyotp`), QR codes (`segno`), a strict Content-Security-Policy |
-| Frontend | Server-rendered Jinja templates, plain CSS with cascade layers, plain JavaScript modules, inline SVG charts drawn on the server, GSAP for the landing page motion, the Geist typeface. Everything is self-hosted |
+| Frontend | Server-rendered Jinja templates, plain CSS with cascade layers and light and dark themes, plain JavaScript modules, inline SVG charts drawn on the server, GSAP for the landing page motion, the Geist typeface. Everything is self-hosted |
 | Tooling | [uv](https://docs.astral.sh/uv/), pytest, ruff |
 
 ## Quick start

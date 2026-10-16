@@ -118,21 +118,31 @@ filled 100 tracks per request.
   spacing, motion), the reset and base styles, the layout primitives and the
   components, in cascade layers (`reset, base, layout, components, pages,
   utilities`). Each page adds its own stylesheet from `static/css/pages/`. See
-  [DESIGN.md](../DESIGN.md).
+  [DESIGN.md](../DESIGN.md), and [docs/redesign/](redesign/plan.md) for how the
+  current design came about.
+- **Themes.** Every colour token holds a light and a dark value with
+  `light-dark()`. The theme follows the system unless the runner picks Light or
+  Dark (kept in `localStorage` as `runnify-theme`); `js/theme.js` runs in
+  `<head>` to apply that choice before the page paints.
 - **Charts** are inline SVG drawn from geometry computed on the server
-  (`services/charts.py`). Positions are percentages and lines are drawn in a
-  stretched box, so a chart takes its size from CSS and keeps crisp text and
-  strokes at any width, with no inline styles.
+  (`services/charts.py`): the line and its filled area, a moving-average line,
+  a band per song and a lane of song blocks. Positions are percentages and
+  lines are drawn in a stretched box, so a chart takes its size from CSS and
+  keeps crisp text and strokes at any width, with no inline styles.
+  `js/pages/run.js` adds scrubbing with the pointer, a finger or the arrow keys.
 - **Scripts** are ES modules attached through `data-*` attributes; data for a
   script travels in a `<script type="application/json">` block. `js/app.js`
   runs on every page (menus, dismissible notices, password reveal,
   confirmations, copy and print buttons, linked table rows); page modules live
   in `js/pages/`. Without JavaScript every page still works.
-- **Motion.** Only the landing page animates, with the vendored GSAP and its
-  ScrollTrigger plugin: the highlighter sweep across each winning row as it
-  comes into view, and the measuring sheets receding as the next one stacks on
-  top. The results ticker holds still until the first sweep lands. Nothing
-  moves when the visitor prefers reduced motion.
+- **Motion.** Only the landing page tells a moving story, with the vendored
+  GSAP and its ScrollTrigger plugin: the headline's words rise, a sample run
+  replays with its songs, the four "how a song gets its score" steps draw
+  themselves as they are reached, and the closing panel draws the run's pace
+  line. Nothing fades in on scroll. The app moves only in response to the
+  runner (presses, menus, the run chart's scrubbing). Nothing moves when the
+  visitor prefers reduced motion, and without scripts every chart is drawn
+  complete.
 
 ## Security
 

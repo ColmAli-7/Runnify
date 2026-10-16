@@ -102,8 +102,12 @@ To reset the local SQLite database, stop the server and delete `runnify/instance
   page-only styles in `static/css/pages/<page>.css`, loaded from the page's
   `styles` block. Use the tokens in `tokens.css`; never hard-code a colour.
 - Every page works without JavaScript, and nothing moves when the visitor
-  prefers reduced motion.
-- After changing colours, run `uv run python scripts/check_contrast.py`.
+  prefers reduced motion. Nothing fades in on scroll.
+- Colours are written once with `light-dark(light, dark)` in `tokens.css`.
+  Check a new page in both themes (the switch is in the account menu and the
+  public footer).
+- After changing colours, run `uv run python scripts/check_contrast.py`; it
+  checks every pair in both themes.
 
 ### Adding a page
 
