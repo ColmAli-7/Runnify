@@ -1,8 +1,10 @@
 """Check the colour pairs the design uses against WCAG 2.2 contrast minimums.
 
-Reads the colour tokens from ``runnify/static/css/ui/tokens.css`` and checks
-every text-on-background pair the stylesheets use. Text needs 4.5:1 (AA);
-form-control borders and other meaningful graphics need 3:1.
+Reads the colour tokens from ``runnify/static/css/ui/tokens.css``, where each
+token holds its light and dark value as ``light-dark(#light, #dark)``, and checks
+every text-on-background and graphic-on-background pair the stylesheets use, in
+both themes. Text needs 4.5:1 (AA); form-control borders, focus rings, chart
+lines and other meaningful graphics need 3:1.
 
 Usage::
 
@@ -19,41 +21,76 @@ TOKENS = Path(__file__).resolve().parent.parent / "runnify" / "static" / "css" /
 
 TEXT = 4.5
 GRAPHIC = 3.0
+THEMES = ("light", "dark")
 
 # (foreground, background, minimum, where it is used)
 PAIRS = [
-    ("ink", "paper", TEXT, "body text"),
-    ("ink-2", "paper", TEXT, "secondary text"),
-    ("ink-3", "paper", TEXT, "meta text, chart labels"),
-    ("ink", "board", TEXT, "text on the noticeboard"),
-    ("ink-2", "board", TEXT, "secondary text on the board, flat lifts"),
-    ("ink-3", "board", TEXT, "meta text on the board"),
-    ("ink", "highlight", TEXT, "the best row, lifts"),
-    ("ink-2", "highlight", TEXT, "artist names in the best ranked song"),
-    ("ink-3", "highlight", TEXT, "artist names in a results table's best row"),
-    ("ink", "highlight-soft", TEXT, "hovered rows and links"),
-    ("pen", "paper", TEXT, "drags, errors"),
-    ("pen", "pen-soft", TEXT, "icons and figures on error grounds"),
-    ("go", "paper", TEXT, "connected, done"),
-    ("go", "go-soft", TEXT, "success notices"),
-    ("paper", "ink", TEXT, "primary buttons, the selected tab"),
-    ("on-ink", "ink", TEXT, "text on the ink bands"),
-    ("on-ink-2", "ink", TEXT, "secondary text on the ink bands"),
-    ("highlight", "ink", TEXT, "lifts on the ink bands"),
-    ("pen-on-ink", "ink", TEXT, "drags on the ink bands"),
-    ("field", "paper", GRAPHIC, "form control borders"),
-    ("pen", "paper", GRAPHIC, "invalid field borders"),
+    # text on the page and on cards
+    ("text", "bg", TEXT, "body text on the page"),
+    ("text", "surface", TEXT, "body text on cards"),
+    ("text", "surface-2", TEXT, "hovered rows"),
+    ("text", "surface-3", TEXT, "text on grey controls"),
+    ("text-2", "bg", TEXT, "secondary text on the page"),
+    ("text-2", "surface", TEXT, "secondary text on cards"),
+    ("text-2", "surface-2", TEXT, "secondary text on hovered rows"),
+    ("text-2", "surface-3", TEXT, "tags, segmented labels, rank badges"),
+    ("text-3", "bg", TEXT, "meta text on the page"),
+    ("text-3", "surface", TEXT, "meta text, chart labels, column heads"),
+    ("text-3", "surface-2", TEXT, "meta text on hovered rows and gap rows"),
+    ("text", "thumb", TEXT, "the selected option of a segmented control"),
+    ("text-inverse", "surface-inverse", TEXT, "primary buttons, the current page"),
+    # volt: faster
+    ("on-accent", "accent", TEXT, "lift badges and the best rank"),
+    ("text", "accent-soft", TEXT, "the best row"),
+    ("text-2", "accent-soft", TEXT, "artist names in the best row"),
+    ("accent-ink", "surface", TEXT, "lift findings on cards"),
+    ("accent-ink", "bg", TEXT, "lift findings on the page"),
+    # coral: slower, and errors
+    ("drag", "surface", TEXT, "drag figures and errors on cards"),
+    ("drag", "bg", TEXT, "field errors on the page"),
+    ("drag", "drag-soft", TEXT, "drag badges, failed tags"),
+    ("text", "drag-soft", TEXT, "error notices"),
+    # status and metrics
+    ("ok", "surface", TEXT, "connected and done text"),
+    ("ok", "ok-soft", TEXT, "connected tags"),
+    ("text", "ok-soft", TEXT, "success notices"),
+    ("pace", "surface", TEXT, "pace figures and links"),
+    ("heart", "surface", TEXT, "heart-rate findings"),
+    # graphics
+    ("field", "surface", GRAPHIC, "form control borders on cards"),
+    ("field", "bg", GRAPHIC, "form control borders on the page"),
+    ("focus", "surface", GRAPHIC, "focus rings on cards"),
+    ("focus", "bg", GRAPHIC, "focus rings on the page"),
+    ("pace", "surface", GRAPHIC, "the pace line"),
+    ("heart", "surface", GRAPHIC, "the heart-rate line"),
+    ("accent-strong", "surface", GRAPHIC, "lift bars and meters"),
+    ("drag", "surface", GRAPHIC, "drag bars and meters"),
+    ("ok", "surface", GRAPHIC, "finished steps"),
+    ("text-3", "surface", GRAPHIC, "muted bars"),
 ]
+
+HEX = r"#[0-9a-fA-F]{6}"
 
 
 def tokens(css):
-    """``--name: #rrggbb`` declarations from the first ``:root`` block."""
+    """``{theme: {name: '#rrggbb'}}`` from the first ``:root`` block.
+
+    A token written ``light-dark(#light, #dark)`` takes each value in its theme;
+    a plain ``#rrggbb`` is the same in both. Other values (shadows, rgb() washes)
+    are not text or graphic colours and are skipped.
+    """
     root = css[css.index(":root") :]
     root = root[: root.index("}")]
-    return {
-        name: value.lower()
-        for name, value in re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})", root)
-    }
+    themes = {theme: {} for theme in THEMES}
+    for name, light, dark in re.findall(
+        rf"--([a-z0-9-]+):\s*light-dark\(\s*({HEX})\s*,\s*({HEX})\s*\)", root
+    ):
+        themes["light"][name] = light.lower()
+        themes["dark"][name] = dark.lower()
+    for name, value in re.findall(rf"--([a-z0-9-]+):\s*({HEX})\s*;", root):
+        for theme in THEMES:
+            themes[theme][name] = value.lower()
+    return themes
 
 
 def luminance(hex_colour):
@@ -69,15 +106,21 @@ def contrast(first, second):
 
 
 def main():
-    colours = tokens(TOKENS.read_text(encoding="utf-8"))
+    themes = tokens(TOKENS.read_text(encoding="utf-8"))
     failures = 0
-    for foreground, background, minimum, use in PAIRS:
-        ratio = contrast(colours[foreground], colours[background])
-        ok = ratio >= minimum
-        failures += not ok
-        mark = "ok  " if ok else "FAIL"
-        print(f"{mark} {ratio:5.2f}:1 (needs {minimum}:1)  {foreground} on {background}: {use}")
-    print(f"\n{len(PAIRS) - failures} of {len(PAIRS)} pairs pass.")
+    for theme in THEMES:
+        colours = themes[theme]
+        print(f"{theme} theme")
+        for foreground, background, minimum, use in PAIRS:
+            ratio = contrast(colours[foreground], colours[background])
+            ok = ratio >= minimum
+            failures += not ok
+            mark = "ok  " if ok else "FAIL"
+            print(
+                f"  {mark} {ratio:5.2f}:1 (needs {minimum}:1)  {foreground} on {background}: {use}"
+            )
+    total = len(PAIRS) * len(THEMES)
+    print(f"\n{total - failures} of {total} pairs pass.")
     return 1 if failures else 0
 
 

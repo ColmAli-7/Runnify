@@ -60,17 +60,18 @@
 @layer base {
   html {
     scroll-padding-top: calc(var(--header-h) + var(--s-4));
+    background: var(--bg);
   }
 
   body {
     font-family: var(--font);
-    font-size: var(--text-md);
+    font-size: var(--fs-base);
     line-height: var(--leading);
-    font-feature-settings: "ss01" 0;
-    color: var(--ink);
-    background: var(--paper);
+    color: var(--text);
+    background: var(--bg);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
@@ -78,25 +79,25 @@
   h3,
   h4 {
     line-height: var(--leading-snug);
-    font-weight: 700;
+    font-weight: 650;
     letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
   h1 {
-    font-size: var(--text-3xl);
+    font-size: var(--fs-2xl);
+    font-weight: 700;
     letter-spacing: -0.035em;
-    line-height: 1.08;
+    line-height: 1.1;
   }
 
   h2 {
-    font-size: var(--text-2xl);
-    letter-spacing: -0.03em;
+    font-size: var(--fs-xl);
+    letter-spacing: -0.025em;
   }
 
   h3 {
-    font-size: var(--text-lg);
-    font-weight: 650;
+    font-size: var(--fs-lg);
   }
 
   p {
@@ -107,13 +108,13 @@
     color: inherit;
     text-decoration: underline;
     text-decoration-thickness: 1px;
-    text-underline-offset: 0.2em;
-    transition: background-color var(--fast) var(--ease);
+    text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+    text-underline-offset: 0.22em;
+    transition: text-decoration-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
   }
 
   a:hover {
-    background-color: var(--highlight);
-    text-decoration-thickness: 2px;
+    text-decoration-color: currentColor;
   }
 
   strong {
@@ -121,19 +122,19 @@
   }
 
   code {
-    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-family: var(--mono);
     font-size: 0.9em;
   }
 
   ::selection {
-    background: var(--highlight);
-    color: var(--ink);
+    background: var(--accent);
+    color: var(--on-accent);
   }
 
   /* one visible, high-contrast focus style everywhere */
   :focus-visible {
-    outline: 3px solid var(--ink);
-    outline-offset: 3px;
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
   }
 
   [hidden] {
@@ -180,7 +181,7 @@
   }
 
   .muted {
-    color: var(--ink-3);
+    color: var(--text-3);
   }
 
   .nowrap {
@@ -191,10 +192,11 @@
     position: absolute;
     top: var(--s-2);
     left: var(--s-2);
-    z-index: 100;
+    z-index: var(--z-skip);
     padding: var(--s-2) var(--s-4);
-    background: var(--ink);
-    color: var(--paper);
+    border-radius: var(--r-pill);
+    background: var(--surface-inverse);
+    color: var(--text-inverse);
     font-weight: 600;
     text-decoration: none;
     transform: translateY(-200%);

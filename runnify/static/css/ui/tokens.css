@@ -1,21 +1,26 @@
 /*
- * Runnify design tokens: the Official Results Sheet.
+ * Runnify design tokens: "Replay".
  *
- * White results paper, near-black print, hairline row rules under heavy header
- * rules, and two marks a runner makes on posted results: highlighter for the
- * best row, red pen for the worst. No shadows, glass or gradients.
+ * Every run replayed with its soundtrack. Quiet neutral surfaces in a light and
+ * a dark theme, big tabular numbers, and colour that always means something:
  *
- * Contrast (WCAG 2.2): every text colour below passes AA on --paper, and
- * --highlight / --pen only ever sit behind or beside ink text, never as the
- * only signal. Ratios are checked by scripts/check_contrast.py.
+ *   volt   faster: a lift, the best song, the stretch that worked
+ *   coral  slower: a drag
+ *   blue   pace (the line on every run chart), and focus
+ *   rose   heart rate
+ *   green  connected, done
+ *
+ * Colours are written once with light-dark(), so a token holds its light and
+ * dark value side by side. The theme follows the system unless the runner picks
+ * one (js/theme.js sets data-theme on <html>). Every text and graphic pair is
+ * checked in both themes by scripts/check_contrast.py (WCAG 2.2 AA).
  */
 
 @layer reset, base, layout, components, pages, utilities;
 
-/* Geist (SIL Open Font License, vendored): picked for its tabular figures and its open
-   licence, which ruled out the first choice. The detector's overused-font rule is waived. */
+/* Geist (SIL Open Font License, vendored): tabular figures and a wide weight range. */
 @font-face {
-  font-family: "Geist"; /* impeccable-disable-line overused-font */
+  font-family: "Geist";
   src: url("../../fonts/geist/Geist-Variable.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
@@ -23,49 +28,77 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
 
-  /* paper and print */
-  --paper: #ffffff;
-  --board: #eef0f2; /* the noticeboard the sheets are pinned to */
-  --ink: #111111; /* 18.9:1 on paper */
-  --ink-2: #474747; /* secondary text, 9.3:1 */
-  --ink-3: #626262; /* meta text, 6.1:1 on paper, 5.3:1 on board */
-  --rule: #d9dbde; /* hairline row rules (decorative) */
-  --rule-strong: #b9bcc0; /* a firmer rule, every fifth row */
-  --field: #767676; /* form control borders, 4.5:1 */
+  /* surfaces, back to front */
+  --bg: light-dark(#f3f4f6, #0a0b0d);
+  --surface: light-dark(#ffffff, #141619);
+  --surface-2: light-dark(#f7f8f9, #1b1e22);
+  --surface-3: light-dark(#eceef1, #24282d);
+  --surface-inverse: light-dark(#0e1013, #f2f4f6);
+  --line: light-dark(#e3e6ea, #262a2f);
+  --line-strong: light-dark(#cfd4da, #353a40);
+  --field: light-dark(#7b828b, #80878f);
 
-  /* the runner's marks */
-  --highlight: #e8ff3a; /* highlighter: the best row, lifts, emphasis */
-  --highlight-soft: #f5ffbf;
-  --pen: #c4211a; /* red pen: drags and errors, 5.9:1 on paper */
-  --pen-soft: #fdecea;
-  --go: #0c7238; /* connected, done, 6.0:1 on paper */
-  --go-soft: #e7f3ec;
+  /* text */
+  --text: light-dark(#0e1013, #f2f4f6);
+  --text-2: light-dark(#474e57, #b3b9c0);
+  --text-3: light-dark(#646c76, #8d949c);
+  --text-inverse: light-dark(#ffffff, #0a0b0d);
 
-  /* print on the ink bands (the ticker, the privacy band) */
-  --on-ink: #ffffff;
-  --on-ink-2: #b4b4b4; /* secondary text on ink */
-  --on-ink-rule: #3a3a3a;
-  --ink-raised: #262626; /* a control on an ink band, hovered */
-  --pen-on-ink: #ff8a80; /* drags on ink */
+  /* meaning */
+  --accent: #d4ff3a;
+  --on-accent: #0b0d02;
+  --accent-ink: light-dark(#4a6a00, #d4ff3a);
+  --accent-soft: light-dark(#f6ffd4, #2f371e);
+  --drag: light-dark(#c8331f, #ff6a5c);
+  --drag-soft: light-dark(#faebe9, #3a2324);
+  --pace: light-dark(#0a63d1, #5aa8ff);
+  --pace-soft: light-dark(#e8f1fc, #172536);
+  --heart: light-dark(#c8204f, #ff5d8b);
+  --heart-soft: light-dark(#fbe9ee, #3a1f29);
+  --ok: light-dark(#16733f, #47d98a);
+  --ok-soft: light-dark(#e6f4ec, #17301f);
+  --focus: light-dark(#0a63d1, #5aa8ff);
+
+  /* volt that holds 3:1 on white, for bars and lines that must stay visible */
+  --accent-strong: light-dark(#6f9a00, #d4ff3a);
+  /* the raised thumb of a segmented control */
+  --thumb: light-dark(#ffffff, #3a3f45);
+
+  /* charts */
+  --grid: light-dark(#e9ecef, #23272c);
+  --band: light-dark(#f1f3f5, #1a1d21);
+  --band-alt: light-dark(#e8ebee, #202428);
+  --band-best: light-dark(rgb(212 255 58 / 0.45), rgb(212 255 58 / 0.2));
+  --band-worst: light-dark(rgb(200 51 31 / 0.12), rgb(255 106 92 / 0.18));
+
+  /* depth: light surfaces lift on a soft shadow, dark ones on a lighter step and a border */
+  --shadow-tint: light-dark(rgb(16 24 40 / 0.07), rgb(0 0 0 / 0.55));
+  --shadow-edge: light-dark(rgb(16 24 40 / 0.05), rgb(0 0 0 / 0.4));
+  --shadow-card: 0 1px 2px var(--shadow-edge), 0 8px 24px -14px var(--shadow-tint);
+  --shadow-pop: 0 2px 6px var(--shadow-edge), 0 18px 40px -12px var(--shadow-tint);
+  --glass: light-dark(rgb(243 244 246 / 0.78), rgb(10 11 13 / 0.72));
 
   /* type */
   --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --text-2xs: 0.6875rem;
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-md: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.375rem;
-  --text-2xl: clamp(1.5rem, 1.25rem + 0.9vw, 1.875rem);
-  --text-3xl: clamp(2rem, 1.45rem + 2vw, 3rem);
-  --text-display: clamp(2.6rem, 1.35rem + 4.6vw, 5.4rem);
-  --leading-tight: 1.02;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.9375rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: clamp(1.75rem, 1.45rem + 1vw, 2.25rem);
+  --fs-3xl: clamp(2.25rem, 1.55rem + 2.4vw, 3.5rem);
+  --fs-display: clamp(2.75rem, 1.6rem + 4.1vw, 5.1rem);
+  --fs-metric: clamp(1.5rem, 1.3rem + 0.6vw, 1.875rem);
+  --fs-metric-xl: clamp(2.25rem, 1.8rem + 1.5vw, 3.25rem);
+  --leading-tight: 1.04;
   --leading-snug: 1.25;
   --leading: 1.55;
 
-  /* space, on a 4 px base */
+  /* space, on a 4px base */
   --s-1: 4px;
   --s-2: 8px;
   --s-3: 12px;
@@ -78,18 +111,79 @@
   --s-10: 128px;
   --gutter: clamp(16px, 4vw, 40px);
   --measure: 66ch;
-  --page-max: 1240px;
+  --page-max: 1200px;
   --header-h: 64px;
   --tabbar-h: 64px;
+  --card-pad: clamp(16px, 2.4vw, 24px);
 
-  /* edges */
-  --radius: 2px;
-  --hair: 1px solid var(--rule);
-  --heavy: 2px solid var(--ink);
+  /* shape: controls are capsules, fields 12px, cards 20px, tiles inside cards 14px */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-field: 12px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+  --hair: 1px solid var(--line);
 
   /* motion */
-  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
-  --fast: 120ms;
-  --base: 220ms;
-  --slow: 560ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 360ms;
+
+  /* layers */
+  --z-sticky: 30;
+  --z-tabbar: 40;
+  --z-menu: 50;
+  --z-skip: 100;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* browsers without light-dark() get the light theme */
+@supports not (color: light-dark(#000, #fff)) {
+  :root {
+    color-scheme: light;
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --surface-2: #f7f8f9;
+    --surface-3: #eceef1;
+    --surface-inverse: #0e1013;
+    --line: #e3e6ea;
+    --line-strong: #cfd4da;
+    --field: #7b828b;
+    --text: #0e1013;
+    --text-2: #474e57;
+    --text-3: #646c76;
+    --text-inverse: #ffffff;
+    --accent-ink: #4a6a00;
+    --accent-soft: #f6ffd4;
+    --drag: #c8331f;
+    --drag-soft: #faebe9;
+    --pace: #0a63d1;
+    --pace-soft: #e8f1fc;
+    --heart: #c8204f;
+    --heart-soft: #fbe9ee;
+    --ok: #16733f;
+    --ok-soft: #e6f4ec;
+    --focus: #0a63d1;
+    --accent-strong: #6f9a00;
+    --thumb: #ffffff;
+    --grid: #e9ecef;
+    --band: #f1f3f5;
+    --band-alt: #e8ebee;
+    --band-best: rgb(212 255 58 / 0.45);
+    --band-worst: rgb(200 51 31 / 0.12);
+    --shadow-tint: rgb(16 24 40 / 0.07);
+    --shadow-edge: rgb(16 24 40 / 0.05);
+    --glass: rgb(243 244 246 / 0.78);
+  }
 }
