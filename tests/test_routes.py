@@ -8,6 +8,7 @@ PROTECTED_PAGES = [
     "/runs",
     "/runs/1",
     "/insights",
+    "/songs/any-song",
     "/friends",
     "/friends/search",
     "/settings",

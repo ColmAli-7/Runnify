@@ -9,7 +9,7 @@ from runnify.models import Run, Song, User, UserSongHistory, utcnow
 from runnify.security.passwords import hash_password
 from runnify.services import songs
 from runnify.services.insights import Effect
-from tests.conftest import PASSWORD
+from tests.conftest import PASSWORD, sign_in_as
 from tests.factories import make_scored_run
 
 NBSP = "\u00a0"
@@ -35,6 +35,54 @@ def _other_runner(app):
         db.session.add(other)
         db.session.commit()
         return other.id
+
+
+def test_a_song_page_shows_its_lift_evidence_chart_and_runs(app, auth_client, user):
+    with app.app_context():
+        run_ids = _runs(user, 3)
+    page = auth_client.get("/songs/fast")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "<h1>Fast Song</h1>" in html and "Test Artist" in html
+    assert "<strong>Your strongest song.</strong> It lifts your pace by 12" in html
+    assert "All time: 3 runs, 3 measured plays, medium confidence" in html
+    assert html.count('class="dot dot--up"') == 3  # one dot per measured play
+    assert 'class="trend"' in html and f"The trend line is level at +20{NBSP}s/km." in html
+    assert "Compared with the minutes around them, 3 were faster." in html
+    for run_id in run_ids:
+        assert f'<a href="/runs/{run_id}">' in html
+    assert '<a href="/insights" aria-current="page">' in html  # songs live under Insights
+
+
+def test_another_runners_song_is_not_found(app, auth_client, user):
+    other = _other_runner(app)
+    with app.app_context():
+        make_scored_run(other, activity_id="theirs")
+    assert auth_client.get("/songs/fast").status_code == 404  # the song exists, but not for us
+    assert auth_client.get("/songs/no-such-song").status_code == 404
+    sign_in_as(auth_client, other)
+    assert auth_client.get("/songs/fast").status_code == 200
+
+
+def test_a_song_with_one_measured_play_says_how_much_more_it_needs(app, auth_client, user):
+    with app.app_context():
+        _runs(user, 1)
+    html = auth_client.get("/songs/fast").get_data(as_text=True)
+    assert "<strong>Not ranked yet.</strong>" in html
+    assert f"Its one measured play was 20{NBSP}s/km faster than the minutes around it." in html
+    assert "It needs 1 more measured play before it can rank." in html
+    assert "Compared with the minutes around it, 1 was faster." in html
+    assert "A trend line appears once it has 3 measured plays on different days." in html
+
+
+def test_a_song_never_measured_still_has_a_page(app, auth_client, user):
+    with app.app_context():
+        _runs(user, 1)
+    html = auth_client.get("/songs/skipped").get_data(as_text=True)
+    assert "You skipped it before it could be measured." in html
+    assert "It needs 2 measured plays before it can rank." in html
+    assert "Not measured yet" in html and "Nothing to draw yet" in html
+    assert '<span class="tag">Skipped</span>' in html
 
 
 def test_the_record_counts_every_play_and_ranks_the_measured_ones(app, user):

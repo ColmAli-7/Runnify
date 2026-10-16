@@ -1,0 +1,134 @@
+/* A song's page: what it does for the runner, every measured play over time, and its runs. */
+
+@layer pages {
+  .song {
+    display: grid;
+    gap: var(--s-5);
+  }
+
+  /* ---- the summary: a sentence, the lift and its evidence, the figures ---- */
+
+  .song__lede {
+    display: grid;
+    gap: var(--s-4);
+    padding: var(--card-pad);
+  }
+
+  .song__verdict {
+    max-width: 62ch;
+    font-size: var(--fs-lg);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.45;
+    color: var(--text-2);
+    text-wrap: pretty;
+  }
+
+  .song__verdict strong {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .song__figure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2) var(--s-4);
+  }
+
+  /* the lift it ranks on: the biggest figure on the page */
+  .song__figure .lift {
+    gap: 4px;
+    padding: 5px 14px 5px 10px;
+    font-size: var(--fs-metric);
+    letter-spacing: -0.03em;
+  }
+
+  .song__figure .lift--flat {
+    padding-left: 14px;
+  }
+
+  .song__evidence {
+    font-size: var(--fs-md);
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .song__stats {
+    padding-top: var(--s-4);
+    border-top: var(--hair);
+  }
+
+  /* ---- every measured play: dots by run date and lift, a zero line, a trend ---- */
+
+  .song__none {
+    padding: var(--s-2) var(--card-pad) var(--card-pad);
+    font-size: var(--fs-md);
+    color: var(--text-2);
+  }
+
+  .chart--matched {
+    --chart-h: 220px;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+  }
+
+  @media (min-width: 760px) {
+    .chart--matched {
+      --chart-h: 260px;
+    }
+  }
+
+  .chart--matched .zero {
+    stroke: var(--text-3);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .chart--matched .trend {
+    stroke: var(--text);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  /* volt only for plays that were faster, coral for slower, grey for under 1 s/km */
+  .chart--matched .dot {
+    fill: var(--text-3);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+
+  .chart--matched .dot--up {
+    fill: var(--accent-strong);
+  }
+
+  .chart--matched .dot--down {
+    fill: var(--drag);
+  }
+
+  .legend__swatch--faster,
+  .legend__swatch--slower {
+    border-radius: 50%;
+  }
+
+  .legend__swatch--faster {
+    --swatch: var(--accent-strong);
+  }
+
+  .legend__swatch--slower {
+    --swatch: var(--drag);
+  }
+
+  .legend__swatch--trend {
+    --swatch: var(--text);
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  /* ---- the runs it played in ------------------------------------------------ */
+
+  .song-runs .tag {
+    margin-left: var(--s-2);
+    vertical-align: 1px;
+  }
+}

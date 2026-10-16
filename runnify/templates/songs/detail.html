@@ -1,0 +1,120 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import icon, lift %}
+{% from "macros/charts.html" import matched_chart %}
+
+{% set song = record.song %}
+{% set effect = record.effect %}
+
+{% block title %}{{ record.name }} | Runnify{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/songs.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="page-head__crumb"><a href="{{ url_for('insights.index') }}">{{ icon("arrow-left") }}Insights</a></p>
+    <h1>{{ record.name }}</h1>
+    <p class="page-head__meta">{{ song.artist or "Unknown artist" }}</p>
+  </div>
+  {% if song.spotify_url %}
+    <div class="page-head__actions">
+      <a class="btn" href="{{ song.spotify_url }}" rel="noopener noreferrer" target="_blank">Open in Spotify{{ icon("external") }}<span class="visually-hidden"> (opens in a new tab)</span></a>
+    </div>
+  {% endif %}
+</header>
+
+<div class="song">
+  <section class="card song__summary" aria-label="Summary">
+    <div class="song__lede">
+      <p class="song__verdict"><strong>{{ verdict.lead }}</strong> {{ verdict.text }}</p>
+      <div class="song__figure">
+        {% if effect.plays %}
+          {{ lift(effect.shrunk_lift) }}
+          <p class="song__evidence">All time: {{ effect.runs|length|plural("run") }}, {{ effect.plays|plural("measured play") }}, {{ effect.confidence }} confidence</p>
+        {% else %}
+          <span class="tag">Not measured yet</span>
+          <p class="song__evidence">Heard on {{ record.runs|plural("run") }}, none measured</p>
+        {% endif %}
+      </div>
+    </div>
+    <dl class="stats stats--3 stats--flush song__stats">
+      <div class="stat">
+        <dt>Average play</dt>
+        <dd>{% if effect.plays %}<span class="stat__value">{{ effect.lift|lift_number }}</span><span class="stat__unit">s/km</span>{% else %}<span class="stat__value">-</span>{% endif %}</dd>
+      </div>
+      <div class="stat">
+        <dt>Heart rate</dt>
+        <dd>{% if effect.hr_delta is not none %}<span class="stat__value">{{ effect.hr_delta|lift_number }}</span><span class="stat__unit">bpm</span>{% else %}<span class="stat__value">-</span>{% endif %}</dd>
+      </div>
+      <div class="stat">
+        <dt>Skipped</dt>
+        <dd><span class="stat__value">{{ record.skips }}</span><span class="stat__unit">of {{ record.plays|length|plural("play") }}</span></dd>
+      </div>
+    </dl>
+    <p class="card__foot">Its lift is the average play held back towards zero while the evidence is thin, so one lucky run can't top your rankings. Heart rate and lift compare each play with the five minutes either side of it.</p>
+  </section>
+
+  <section class="card" aria-labelledby="chart-title">
+    <header class="card__head">
+      <div>
+        <h2 class="card__title" id="chart-title">{{ icon("calendar") }}Every measured play</h2>
+        <p class="card__meta">Lift in s/km by run date, faster above the line</p>
+      </div>
+      {% if not chart.empty %}
+        <ul class="legend">
+          <li><span class="legend__swatch legend__swatch--faster" aria-hidden="true"></span>Faster</li>
+          <li><span class="legend__swatch legend__swatch--slower" aria-hidden="true"></span>Slower</li>
+          {% if chart.trend %}<li><span class="legend__swatch legend__swatch--trend" aria-hidden="true"></span>Trend</li>{% endif %}
+        </ul>
+      {% endif %}
+    </header>
+    {% if chart.empty %}
+      <p class="song__none">Nothing to draw yet: each measured play appears here as a dot at its run's date.</p>
+    {% else %}
+      <div class="card__body">
+        {{ matched_chart(chart, chart_summary) }}
+      </div>
+      <p class="card__foot">{{ trend_note }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="runs-title">
+    <header class="card__head">
+      <h2 class="card__title" id="runs-title">{{ icon("route") }}Runs it played in</h2>
+      <p class="card__meta">{{ record.plays|length|plural("play") }} on {{ record.runs|plural("run") }}, newest first</p>
+    </header>
+    <div class="table-wrap">
+      <table class="results song-runs">
+        <caption class="visually-hidden">Every run {{ record.name }} played in, newest first, with how it changed your pace</caption>
+        <thead>
+          <tr>
+            <th scope="col">Run</th>
+            <th scope="col" class="is-numeric">On at</th>
+            <th scope="col" class="is-numeric results__optional">Heart rate <span class="results__unit">bpm</span></th>
+            <th scope="col" class="is-numeric">Lift <span class="results__unit">s/km</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for play in record.plays %}
+            <tr class="is-linked">
+              <td class="results__track">
+                <a href="{{ url_for('runs.detail', run_id=play.run.id) }}">{{ play.run.local_start|run_name }}</a>
+                {%- if play.play.skipped %} <span class="tag">Skipped</span>{% endif %}
+                <span class="results__sub">{{ play.run.local_start|day }}, {{ play.run.local_start|clock }}</span>
+              </td>
+              <td class="is-numeric">{{ play.on_at|duration }}</td>
+              <td class="is-numeric results__optional">{{ play.hr_delta|lift_number if play.hr_delta is not none else "-" }}</td>
+              <td class="is-numeric">{% if play.scored %}{{ lift(play.lift, unit=False) }}{% else %}<span class="muted">Not measured</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if record.measured|length < record.plays|length %}
+      <p class="results-note">Not measured: it played for less than about 20 seconds of running, usually because it was skipped or the run ended.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

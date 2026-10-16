@@ -16,6 +16,7 @@ from . import (
     playlists,
     runs,
     settings,
+    songs,
     spotify,
 )
 
@@ -38,4 +39,5 @@ def register_blueprints(app):
     app.register_blueprint(main.bp)  # homepage
     app.register_blueprint(playlists.bp)  # playlist creator
     app.register_blueprint(insights.bp)  # music insights
+    app.register_blueprint(songs.bp)  # each song across runs
     app.register_blueprint(legal.bp)  # privacy, terms, cookies and consent
