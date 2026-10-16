@@ -5,12 +5,12 @@
 {% block head_meta %}<p class="page-head__meta">Signed in as {{ current_user.email }}</p>{% endblock %}
 
 {% block settings %}
-<section class="sheet" id="profile" aria-labelledby="profile-title">
-  <header class="sheet__head">
-    <h2 class="sheet__title" id="profile-title">Profile</h2>
-    <p class="sheet__meta">Friends see your name on the leaderboard</p>
+<section class="card" id="profile" aria-labelledby="profile-title">
+  <header class="card__head">
+    <h2 class="card__title" id="profile-title">Profile</h2>
+    <p class="card__meta">Friends see your name on the leaderboard</p>
   </header>
-  <div class="sheet__body">
+  <div class="card__body">
     <dl class="facts settings__facts">
       <dt>Name</dt><dd>{{ current_user.name }}</dd>
       <dt>Email</dt><dd>{{ current_user.email }}</dd>
@@ -27,12 +27,12 @@
   </div>
 </section>
 
-<section class="sheet" id="password" aria-labelledby="password-title">
-  <header class="sheet__head">
-    <h2 class="sheet__title" id="password-title">Password</h2>
-    <p class="sheet__meta">Changing it signs you out everywhere else</p>
+<section class="card" id="password" aria-labelledby="password-title">
+  <header class="card__head">
+    <h2 class="card__title" id="password-title">Password</h2>
+    <p class="card__meta">Changing it signs you out everywhere else</p>
   </header>
-  <form class="sheet__body form settings__form" method="post" novalidate>
+  <form class="card__body form settings__form" method="post" novalidate>
     {{ csrf() }}
       {{ username_hint(current_user.email) }}
     <input type="hidden" name="action" value="change_password">
@@ -43,9 +43,9 @@
   </form>
 </section>
 
-<section class="sheet" id="security" aria-labelledby="security-title">
-  <header class="sheet__head">
-    <h2 class="sheet__title" id="security-title">Sign-in security</h2>
+<section class="card" id="security" aria-labelledby="security-title">
+  <header class="card__head">
+    <h2 class="card__title" id="security-title">Sign-in security</h2>
   </header>
   <div class="settings__rows">
     <div class="settings__row">
@@ -93,17 +93,17 @@
           </tbody>
         </table>
       </div>
-      <p class="sheet__foot">Kept for 90 days. Something you don't recognise? Change your password and sign out everywhere else.</p>
+      <p class="card__foot">Kept for 90 days. Something you don't recognise? Change your password and sign out everywhere else.</p>
     {% else %}
       <p class="empty">Nothing recorded yet.</p>
     {% endif %}
   </div>
 </section>
 
-<section class="sheet" id="data" aria-labelledby="data-title">
-  <header class="sheet__head">
-    <h2 class="sheet__title" id="data-title">Your data</h2>
-    <p class="sheet__meta"><a href="{{ url_for('legal.privacy') }}">How your data is used</a></p>
+<section class="card" id="data" aria-labelledby="data-title">
+  <header class="card__head">
+    <h2 class="card__title" id="data-title">Your data</h2>
+    <p class="card__meta"><a href="{{ url_for('legal.privacy') }}">How your data is used</a></p>
   </header>
   <div class="settings__rows">
     <form class="settings__row settings__row--form" method="post" action="{{ url_for('settings.export_data') }}" novalidate>

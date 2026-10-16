@@ -22,10 +22,10 @@
 </header>
 
 <div class="import">
-  <section class="sheet" aria-labelledby="guide-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="guide-title">Get the file from Spotify</h2>
-      <p class="sheet__meta">Spotify can take up to 30 days to send it</p>
+  <section class="card" aria-labelledby="guide-title">
+    <header class="card__head">
+      <h2 class="card__title" id="guide-title">Get the file from Spotify</h2>
+      <p class="card__meta">Spotify can take up to 30 days to send it</p>
     </header>
     <ol class="steps import__steps">
       <li class="step">
@@ -59,12 +59,12 @@
     </ol>
   </section>
 
-  <section class="sheet upload" aria-labelledby="upload-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="upload-title">Upload the zip</h2>
+  <section class="card upload" aria-labelledby="upload-title">
+    <header class="card__head">
+      <h2 class="card__title" id="upload-title">Upload the zip</h2>
       {% if state == "ok" %}<span class="tag tag--go">Imported</span>{% elif state == "importing" %}<span class="tag">Importing</span>{% elif state == "failed" %}<span class="tag tag--pen">Failed</span>{% endif %}
     </header>
-    <div class="sheet__body">
+    <div class="card__body">
       {% if state == "importing" %}
         <p class="upload__status" role="status">Importing your history now. Matched songs appear on your runs as soon as it finishes. You can leave this page.</p>
       {% elif current_user.history_import_message %}

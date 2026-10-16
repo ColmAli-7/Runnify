@@ -2,6 +2,54 @@
 // this only makes it nicer. No inline handlers: behaviour is attached here via
 // data attributes, which keeps the Content-Security-Policy strict.
 
+// appearance: follow the system, or keep light or dark (js/theme.js applies it before paint)
+const THEME_KEY = "runnify-theme";
+const themeSwitches = document.querySelectorAll("[data-theme-switch]");
+if (themeSwitches.length) {
+  const root = document.documentElement;
+  const current = () => root.getAttribute("data-theme") || "system";
+  const show = () => {
+    for (const button of document.querySelectorAll("[data-theme-choice]")) {
+      button.setAttribute("aria-pressed", String(button.dataset.themeChoice === current()));
+    }
+  };
+  for (const group of themeSwitches) {
+    group.hidden = false;
+    group.closest("[data-theme-section]")?.removeAttribute("hidden");
+    group.addEventListener("click", (event) => {
+      const choice = event.target.closest("[data-theme-choice]")?.dataset.themeChoice;
+      if (!choice) return;
+      if (choice === "system") root.removeAttribute("data-theme");
+      else root.setAttribute("data-theme", choice);
+      try {
+        if (choice === "system") window.localStorage.removeItem(THEME_KEY);
+        else window.localStorage.setItem(THEME_KEY, choice);
+      } catch {
+        // storage is blocked: the choice lasts for this page only
+      }
+      show();
+    });
+  }
+  show();
+}
+
+// the bar at the top turns to glass once the page has moved under it
+const header = document.querySelector("[data-header]");
+if (header && "IntersectionObserver" in window) {
+  const marker = document.createElement("div");
+  marker.setAttribute("aria-hidden", "true");
+  Object.assign(marker.style, {
+    position: "absolute",
+    top: "0",
+    left: "0",
+    width: "1px",
+    height: "8px",
+    pointerEvents: "none",
+  });
+  document.body.prepend(marker);
+  new IntersectionObserver(([entry]) => header.classList.toggle("is-scrolled", !entry.isIntersecting)).observe(marker);
+}
+
 // account menu: close on Escape, on outside click, and when focus leaves it
 for (const menu of document.querySelectorAll("[data-menu]")) {
   const close = () => menu.removeAttribute("open");

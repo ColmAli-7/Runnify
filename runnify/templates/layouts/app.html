@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% from "macros/ui.html" import icon, wordmark, notices, csrf %}
+{% from "macros/ui.html" import icon, wordmark, notices, csrf, theme_switch %}
 
 {% set nav_items = [
   ("dashboard.index", "/dashboard", "Dashboard", "grid"),
@@ -8,6 +8,8 @@
   ("playlists.index", "/playlists", "Playlists", "playlist"),
   ("friends.index", "/friends", "Friends", "users"),
 ] %}
+
+{% block body_class %}page-app{% endblock %}
 
 {% block header %}
 <header class="app-header">
@@ -33,6 +35,10 @@
             {{ csrf() }}
             <button class="menu__item" type="submit">{{ icon("logout") }}Sign out</button>
           </form>
+          <div class="menu__section" data-theme-section hidden>
+            <p class="menu__label">Appearance</p>
+            {{ theme_switch() }}
+          </div>
         </div>
       </details>
     </div>

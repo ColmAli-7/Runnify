@@ -11,8 +11,8 @@
       <caption class="visually-hidden">{{ caption }}</caption>
       <thead>
         <tr>
-          <th scope="col">Pos</th>
-          <th scope="col">Track</th>
+          <th scope="col"><span class="visually-hidden">Position</span></th>
+          <th scope="col">Song</th>
           <th scope="col" class="is-numeric">On at</th>
           {% if show_heart %}<th scope="col" class="is-numeric results__optional">Heart rate <span class="results__unit">bpm</span></th>{% endif %}
           <th scope="col" class="is-numeric">Lift <span class="results__unit">s/km</span></th>
@@ -31,7 +31,7 @@
 
 {% macro _row(row, show_heart) %}
   <tr{% if row.kind == "best" %} class="is-best"{% endif %}>
-    <td class="results__pos">{{ row.position }}</td>
+    <td class="results__pos"><span class="rank">{{ row.position }}</span></td>
     <td class="results__track">{{ row.song.name or "Unknown track" }}<span class="results__sub">{{ row.song.artist }}</span></td>
     <td class="is-numeric">{{ row.start|duration }}</td>
     {% if show_heart %}<td class="is-numeric results__optional">{{ row.hr_delta|lift_number if row.hr_delta is not none else "-" }}</td>{% endif %}
@@ -40,15 +40,26 @@
 {% endmacro %}
 
 {#- Songs or artists ranked by their effect (insights.Effect). `measure` picks the
-    figure shown: "lift" (s/km), "heart" (bpm) or "skips". -#}
+    figure shown: "lift" (s/km), "heart" (bpm) or "skips". A thin bar under each
+    name shows its size next to the strongest in the list. -#}
 {% macro effect_list(effects, struck=False, highlight=False, measure="lift") %}
+  {%- if measure == "heart" -%}
+    {%- set sizes = effects|map(attribute="hr_delta")|map("abs")|list -%}
+  {%- elif measure == "skips" -%}
+    {%- set sizes = effects|map(attribute="skips")|list -%}
+  {%- else -%}
+    {%- set sizes = effects|map(attribute="shrunk_lift")|map("abs")|list -%}
+  {%- endif -%}
+  {%- set biggest = (sizes|max if sizes else 0) or 1 -%}
   <ol class="ranks">
     {% for effect in effects %}
+      {%- set bar_kind = "heart" if measure == "heart" else ("skips" if measure == "skips" else ("down" if effect.shrunk_lift < 0 else "up")) -%}
       <li class="ranks__row{% if highlight and loop.first %} is-best{% endif %}">
-        <span class="ranks__pos">{{ loop.index }}</span>
+        <span class="rank">{{ loop.index }}</span>
         <span class="ranks__name">
-          {%- if struck %}<span class="ranks__struck">{{ effect.label }}</span>{% else %}{{ effect.label }}{% endif -%}
+          {{- effect.label -}}
           {%- if effect.detail %}<span class="ranks__sub">{{ effect.detail }}</span>{% endif -%}
+          <svg class="ranks__bar ranks__bar--{{ bar_kind }}" aria-hidden="true" focusable="false"><rect x="0" y="0" width="{{ (sizes[loop.index0] / biggest * 100)|round(1) }}%" height="100%" rx="2"></rect></svg>
         </span>
         <span class="ranks__value">
           {%- if measure == "heart" %}<span class="ranks__figure">{{ effect.hr_delta|lift_number }} bpm</span>

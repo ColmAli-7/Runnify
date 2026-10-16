@@ -9,6 +9,15 @@
 <a class="wordmark" href="{{ href }}"><span class="wordmark__mark">Run</span>nify<span class="visually-hidden"> home</span></a>
 {%- endmacro %}
 
+{#- Light, dark or follow the system. Hidden until js/app.js wires it up, since it needs a script. -#}
+{% macro theme_switch(class="") -%}
+<div class="theme-switch {{ class }}" role="group" aria-label="Appearance" data-theme-switch hidden>
+  <button type="button" data-theme-choice="system" aria-pressed="true">{{ icon("monitor") }}<span>Auto</span></button>
+  <button type="button" data-theme-choice="light" aria-pressed="false">{{ icon("sun") }}<span>Light</span></button>
+  <button type="button" data-theme-choice="dark" aria-pressed="false">{{ icon("moon") }}<span>Dark</span></button>
+</div>
+{%- endmacro %}
+
 {#- Flash messages. Errors are announced immediately (role=alert), the rest politely. -#}
 {% macro notices() %}
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -78,6 +87,26 @@
     {%- if kind == "up" %}{{ icon("arrow-up") }}{% elif kind == "down" %}{{ icon("arrow-down") }}{% endif -%}
     {{ value|lift if unit else value|lift_number }}<span class="visually-hidden">{{ {"up": " faster", "down": " slower"}.get(kind, " no change") }}</span>
   </span>
+{%- endmacro %}
+
+{#- A finding written as a sentence (services.insights.Highlight), in its kind's colour. -#}
+{% macro highlight_card(h) -%}
+<li class="highlight highlight--{{ h.kind }}">
+  <p class="highlight__kicker">{{ icon(h.icon) }}{{ h.kicker }}</p>
+  <p class="highlight__text">{% if h.lead %}<strong>{{ h.lead }}</strong> {% endif %}{{ h.text }}</p>
+  <p class="highlight__figure">{{ h.figure }}<span class="highlight__unit">{{ h.unit }}</span></p>
+  <p class="highlight__foot">{{ h.foot }}</p>
+</li>
+{%- endmacro %}
+
+{#- A ring that fills as set-up steps are done. -#}
+{% macro progress_ring(done, total, label) -%}
+{%- set length = 125.66 -%}
+<svg class="ring" viewBox="0 0 48 48" role="img" aria-label="{{ label }}">
+  <circle class="ring__track" cx="24" cy="24" r="20"></circle>
+  <circle class="ring__fill" cx="24" cy="24" r="20" stroke-dasharray="{{ (length * done / total)|round(2) }} {{ length }}"></circle>
+  <text class="ring__text" x="24" y="24" dy="0.35em" text-anchor="middle">{{ done }}/{{ total }}</text>
+</svg>
 {%- endmacro %}
 
 {#- Tells password managers whose password a form asks for (forms without an email field). -#}

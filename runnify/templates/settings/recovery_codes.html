@@ -5,12 +5,12 @@
 {% block heading %}Save your recovery codes{% endblock %}
 
 {% block settings %}
-<section class="sheet" aria-labelledby="codes-title">
-  <header class="sheet__head">
-    <h2 class="sheet__title" id="codes-title">{{ codes|length }} recovery codes</h2>
-    <p class="sheet__meta">Shown once</p>
+<section class="card" aria-labelledby="codes-title">
+  <header class="card__head">
+    <h2 class="card__title" id="codes-title">{{ codes|length }} recovery codes</h2>
+    <p class="card__meta">Shown once</p>
   </header>
-  <div class="sheet__body recovery">
+  <div class="card__body recovery">
     <p>If you lose your phone, each of these signs you in once. Keep them somewhere safe, such as a password manager. They won't be shown again.</p>
     <ul class="code-list" id="recovery-codes">
       {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}

@@ -25,9 +25,9 @@
   </form>
 
   {% if query %}
-    <section class="sheet" aria-labelledby="results-title">
-      <header class="sheet__head">
-        <h2 class="sheet__title" id="results-title">
+    <section class="card" aria-labelledby="results-title">
+      <header class="card__head">
+        <h2 class="card__title" id="results-title">
           {% if query|length < min_length %}Type at least {{ min_length }} letters{% else %}{{ results|length|plural("person", "people") }} matching &ldquo;{{ query }}&rdquo;{% endif %}
         </h2>
       </header>

@@ -19,12 +19,12 @@
 </header>
 
 <div class="connections">
-  <section class="sheet service" aria-labelledby="garmin-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="garmin-title">{{ icon("watch") }}Garmin Connect</h2>
+  <section class="card service" aria-labelledby="garmin-title">
+    <header class="card__head">
+      <h2 class="card__title" id="garmin-title">{{ icon("watch") }}Garmin Connect</h2>
       {% if garmin_linked %}<span class="tag tag--go">Connected</span>{% elif awaiting_code %}<span class="tag">Waiting for code</span>{% else %}<span class="tag">Not connected</span>{% endif %}
     </header>
-    <div class="sheet__body service__body">
+    <div class="card__body service__body">
       {% if awaiting_code %}
         <p>Garmin sent you a verification code by email or text. Enter it to finish connecting.</p>
         <form class="form" method="post" action="{{ url_for('connections.verify_garmin') }}" novalidate>
@@ -65,12 +65,12 @@
     </div>
   </section>
 
-  <section class="sheet service" aria-labelledby="spotify-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="spotify-title">{{ icon("disc") }}Spotify</h2>
+  <section class="card service" aria-labelledby="spotify-title">
+    <header class="card__head">
+      <h2 class="card__title" id="spotify-title">{{ icon("disc") }}Spotify</h2>
       {% if spotify_linked %}<span class="tag tag--go">Connected</span>{% else %}<span class="tag">Not connected</span>{% endif %}
     </header>
-    <div class="sheet__body service__body">
+    <div class="card__body service__body">
       <p>Only needed to save the playlists you build to your Spotify library. Your listening history comes from the file Spotify emails you, not from this connection.</p>
       {% if spotify_linked %}
         <form method="post" action="{{ url_for('connections.disconnect_spotify') }}" class="inline-form" data-confirm="Disconnect Spotify? Your imported history and playlists are kept.">
@@ -83,15 +83,15 @@
     </div>
   </section>
 
-  <section class="sheet service" aria-labelledby="history-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="history-title">{{ icon("music") }}Listening history</h2>
+  <section class="card service" aria-labelledby="history-title">
+    <header class="card__head">
+      <h2 class="card__title" id="history-title">{{ icon("music") }}Listening history</h2>
       {% if current_user.history_import_state == "ok" %}<span class="tag tag--go">Imported</span>
       {% elif current_user.history_import_state == "importing" %}<span class="tag">Importing</span>
       {% elif current_user.history_import_state == "failed" %}<span class="tag tag--pen">Failed</span>
       {% else %}<span class="tag">Not uploaded</span>{% endif %}
     </header>
-    <div class="sheet__body service__body">
+    <div class="card__body service__body">
       {% if current_user.history_import_state %}
         <dl class="facts">
           {% if current_user.history_imported_at %}<dt>Last upload</dt><dd>{{ current_user.history_imported_at|ago }}</dd>{% endif %}
