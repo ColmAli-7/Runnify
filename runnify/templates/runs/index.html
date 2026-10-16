@@ -22,7 +22,7 @@
 </header>
 
 {% if runs %}
-  <div class="sheet">
+  <div class="card">
     <div class="table-wrap">
       <table class="results runs-table">
         <caption class="visually-hidden">Your runs{% if music_only %} with music{% endif %}, page {{ pagination.page }} of {{ pagination.pages }}</caption>
@@ -37,14 +37,20 @@
           </tr>
         </thead>
         <tbody>
+          {% set month = namespace(label="") %}
           {% for run in runs %}
             {% set summary = summaries[run.id] %}
+            {% set label = run.local_start.strftime("%B %Y") %}
+            {% if label != month.label %}
+              {% set month.label = label %}
+              <tr class="runs-table__month"><th scope="rowgroup" colspan="6">{{ label }}</th></tr>
+            {% endif %}
             <tr class="is-linked">
               <td class="results__track">
                 <a class="runs-table__link" href="{{ url_for('runs.detail', run_id=run.id) }}">{{ run.local_start|run_name }}</a>
                 <span class="results__sub">{{ run.local_start|day }}, {{ run.local_start|clock }}</span>
               </td>
-              <td class="is-numeric">{{ run.distance|km }} <span class="results__unit">km</span></td>
+              <td class="is-numeric runs-table__figure">{{ run.distance|km }} <span class="results__unit">km</span></td>
               <td class="is-numeric">{{ run.duration|duration }}</td>
               <td class="is-numeric">{{ run.distance|run_pace(run.duration) }} <span class="results__unit">/km</span></td>
               <td class="is-numeric runs-table__optional">{{ run.avg_hr or "-" }}{% if run.avg_hr %} <span class="results__unit">bpm</span>{% endif %}</td>
@@ -76,7 +82,7 @@
     {% endif %}
   </div>
 {% else %}
-  <div class="sheet">
+  <div class="card">
     <div class="empty">
       {% if music_only %}
         <p class="empty__title">No runs with music yet</p>

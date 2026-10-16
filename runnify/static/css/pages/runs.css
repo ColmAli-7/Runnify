@@ -1,108 +1,221 @@
-/* The runs list and a run's results page. */
+/* Runs: the list of runs and each run's results. */
 
 @layer pages {
-  /* ---- runs list ------------------------------------------------------------ */
+  /* ---- the runs list ----------------------------------------------------- */
+
+  .runs-table th:first-child,
+  .runs-table td:first-child {
+    min-width: 11rem;
+  }
 
   .runs-table__link {
-    font-weight: 700;
+    font-weight: 600;
+  }
+
+  .runs-table tr.is-linked:hover .runs-table__link {
+    text-decoration: underline;
+  }
+
+  .runs-table__figure {
+    font-weight: 600;
+  }
+
+  /* a month heading between rows, like a training log */
+  .runs-table tbody .runs-table__month th {
+    padding-top: var(--s-5);
+    padding-bottom: var(--s-2);
+    border-top: 0;
+    font-size: var(--fs-sm);
+    font-weight: 650;
+    color: var(--text);
+    text-align: left;
+    background: var(--surface);
+  }
+
+  .runs-table tbody tr.runs-table__month + tr > * {
+    border-top-color: var(--line);
   }
 
   .runs-table__song {
-    min-width: 12rem;
+    min-width: 13rem;
   }
 
   .runs-table__best {
     display: block;
-    margin-bottom: 2px;
-    font-weight: 600;
+    max-width: 18rem;
+    margin-bottom: 4px;
+    overflow: hidden;
+    font-weight: 550;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  @media (max-width: 759px) {
+  @media (max-width: 899px) {
     .runs-table__optional {
       display: none;
     }
   }
 
-  /* ---- a run ------------------------------------------------------------------ */
+  /* ---- one run ----------------------------------------------------------- */
 
   .run {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
   }
 
+  .run__summary .stats--flush {
+    padding-top: var(--card-pad);
+  }
+
+  .run__verdict {
+    padding: 0 var(--card-pad) var(--card-pad);
+    margin-top: calc(-1 * var(--s-2));
+    font-size: var(--fs-base);
+    color: var(--text-2);
+    line-height: 1.7;
+    text-wrap: pretty;
+  }
+
+  .run__verdict strong {
+    color: var(--text);
+  }
+
+  .run__verdict-note {
+    display: block;
+    font-size: var(--fs-sm);
+    color: var(--text-3);
+  }
+
+  .run__trace .legend {
+    font-size: var(--fs-sm);
+  }
+
   .run__charts {
+    position: relative;
     display: grid;
-    gap: var(--s-6);
+    gap: var(--s-5);
+    touch-action: pan-y;
+  }
+
+  .run__charts:focus-visible {
+    outline-offset: -2px;
+    border-radius: var(--r-lg);
   }
 
   .run__chart {
+    position: relative;
     display: grid;
-    gap: var(--s-3);
-  }
-
-  .run__chart-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s-2) var(--s-5);
+    gap: var(--s-2);
   }
 
   .run__chart-title {
-    font-size: var(--text-sm);
-    font-weight: 700;
-  }
-
-  /* what the pointer is over: time, pace, heart rate and song */
-  .run__readout {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-1) var(--s-4);
-    min-height: 1.6em;
-    font-size: var(--text-sm);
+    font-size: var(--fs-md);
     font-weight: 600;
-    font-variant-numeric: tabular-nums;
   }
 
-  .run__readout-song {
-    padding: 0 var(--s-2);
-    background: var(--highlight);
-  }
-
-  .chart {
-    position: relative;
-  }
-
-  .chart__plot {
-    touch-action: pan-y;
-    cursor: crosshair;
-  }
-
+  /* the scrubbing guide, the dot on the line and the floating readout (js/pages/run.js) */
   .chart__guide {
     position: absolute;
-    top: 0;
-    width: 0;
-    border-left: 1px solid var(--ink);
+    z-index: 2;
+    width: 1px;
+    margin-left: -0.5px;
+    background: var(--text);
     pointer-events: none;
   }
 
+  .chart__guide--lane {
+    opacity: 0.6;
+  }
+
+  .chart__dot {
+    position: absolute;
+    z-index: 3;
+    width: 11px;
+    height: 11px;
+    margin: -5.5px 0 0 -5.5px;
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    background: var(--pace);
+    box-shadow: 0 1px 4px var(--shadow-tint);
+    pointer-events: none;
+  }
+
+  .run__chart:has(.chart--heart) .chart__dot {
+    background: var(--heart);
+  }
+
+  .run__readout {
+    position: absolute;
+    z-index: 4;
+    display: grid;
+    justify-items: start;
+    gap: 4px;
+    width: max-content;
+    max-width: 15rem;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-pop);
+    font-size: var(--fs-sm);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+
+  .run__readout-time {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--text-3);
+  }
+
+  .run__readout-figures {
+    display: flex;
+    gap: var(--s-3);
+    font-size: var(--fs-md);
+    font-weight: 650;
+  }
+
+  .run__readout-pace {
+    color: var(--pace);
+  }
+
+  .run__readout-heart {
+    color: var(--heart);
+  }
+
+  .run__readout-song {
+    display: grid;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .run__readout-artist {
+    font-weight: 400;
+    color: var(--text-3);
+  }
+
+  .run__readout-none {
+    color: var(--text-3);
+  }
+
+  /* songs that played but couldn't be measured */
   .run__unscored {
-    padding: var(--s-4) var(--s-5) var(--s-5);
-    border-top: var(--heavy);
+    padding: var(--s-4) var(--card-pad) var(--card-pad);
+    border-top: var(--hair);
   }
 
   .run__subhead {
-    margin-bottom: var(--s-3);
-    font-size: var(--text-md);
-    font-weight: 750;
+    margin-bottom: var(--s-2);
+    font-size: var(--fs-md);
+    font-weight: 650;
   }
 
   .run__unscored-list {
     display: grid;
+    gap: var(--s-2);
     padding: 0;
     list-style: none;
-    font-size: var(--text-sm);
+    font-size: var(--fs-md);
   }
 
   .run__unscored-list li {
@@ -110,11 +223,20 @@
     flex-wrap: wrap;
     justify-content: space-between;
     gap: var(--s-1) var(--s-4);
-    padding: var(--s-3) 0;
-    border-bottom: var(--hair);
   }
 
   .run__unscored-song {
-    font-weight: 600;
+    font-weight: 550;
+  }
+
+  .run__unscored-note {
+    font-size: var(--fs-sm);
+    color: var(--text-3);
+  }
+
+  @media (min-width: 1100px) {
+    .run {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 }

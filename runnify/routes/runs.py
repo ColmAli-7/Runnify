@@ -1,4 +1,4 @@
-"""The runs list and each run's results sheet."""
+"""The runs list and each run's results."""
 
 from flask import Blueprint, render_template, request
 from flask_login import current_user, login_required
@@ -58,6 +58,17 @@ def detail(run_id):
             "seconds": pace_chart.seconds,
             "pace": pace_chart.points,
             "heart": heart_chart.points,
-            "songs": [[start, end, label] for start, end, label, _kind in bands],
+            "pace_range": [pace_chart.top, pace_chart.bottom],
+            "heart_range": [heart_chart.top, heart_chart.bottom],
+            "songs": [
+                [
+                    row.start,
+                    row.start + row.seconds,
+                    row.song.name or "Unknown track",
+                    row.song.artist or "",
+                    None if row.lift is None else round(row.lift, 1),
+                ]
+                for row in results.rows
+            ],
         },
     )

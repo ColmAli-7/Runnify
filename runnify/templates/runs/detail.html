@@ -1,6 +1,6 @@
 {% extends "layouts/app.html" %}
 {% from "macros/ui.html" import icon, lift, data_island %}
-{% from "macros/charts.html" import run_chart %}
+{% from "macros/charts.html" import run_chart, song_lane %}
 {% from "macros/results.html" import results_table %}
 
 {% set title = run.local_start|run_name %}
@@ -13,6 +13,10 @@
 {% block scripts %}
   <script type="module" src="{{ url_for('static', filename='js/pages/run.js') }}"></script>
 {% endblock %}
+
+{% set best = results.best %}
+{% set worst = results.worst %}
+{% set measured = results.ranked|length %}
 
 {% block content %}
 <header class="page-head">
@@ -28,43 +32,51 @@
 </header>
 
 <div class="run">
-  <section class="sheet run__summary" aria-label="Summary">
+  <section class="card run__summary" aria-label="Summary">
     <dl class="stats stats--4 stats--flush">
       <div class="stat"><dt>Distance</dt><dd><span class="stat__value">{{ run.distance|km }}</span><span class="stat__unit">km</span></dd></div>
       <div class="stat"><dt>Time</dt><dd><span class="stat__value">{{ run.duration|duration }}</span></dd></div>
       <div class="stat"><dt>Pace</dt><dd><span class="stat__value">{{ run.distance|run_pace(run.duration) }}</span><span class="stat__unit">/km</span></dd></div>
       <div class="stat"><dt>Heart rate</dt><dd><span class="stat__value">{{ run.avg_hr or "-" }}</span>{% if run.avg_hr %}<span class="stat__unit">bpm</span>{% endif %}</dd></div>
     </dl>
+    {% if best or worst %}
+      <p class="run__verdict">
+        {%- if best %}Your fastest stretch came during <strong>{{ best.song.name }}</strong>, {{ lift(best.lift) }}.{% endif %}
+        {% if worst %}<strong>{{ worst.song.name }}</strong> was the biggest drag, {{ lift(worst.lift) }}.{% endif %}
+        <span class="run__verdict-note">{{ measured }} of {{ results.rows|length|plural("song") }} measured against the minutes around them.</span>
+      </p>
+    {% endif %}
   </section>
 
   {% if pace_chart.empty %}
-    <section class="sheet">
+    <section class="card">
       <div class="empty">
         <p class="empty__title">No second-by-second data for this run</p>
         <p>Garmin didn't provide a detailed recording for this run, so its songs can't be measured. Runs recorded on the watch with GPS have one.</p>
       </div>
     </section>
   {% else %}
-    <section class="sheet run__trace" aria-labelledby="trace-title">
-      <header class="sheet__head">
-        <h2 class="sheet__title" id="trace-title">Through the run</h2>
+    <section class="card run__trace" aria-labelledby="trace-title">
+      <header class="card__head">
+        <h2 class="card__title" id="trace-title">{{ icon("pulse") }}Through the run</h2>
         <ul class="legend">
-          {% if results.best %}<li><span class="legend__swatch legend__swatch--best" aria-hidden="true"></span>Fastest song</li>{% endif %}
-          {% if results.worst %}<li><span class="legend__swatch legend__swatch--worst" aria-hidden="true"></span>Slowest song</li>{% endif %}
+          <li><span class="legend__swatch legend__swatch--pace" aria-hidden="true"></span>Pace</li>
+          {% if not heart_chart.empty %}<li><span class="legend__swatch legend__swatch--heart" aria-hidden="true"></span>Heart rate</li>{% endif %}
+          {% if best %}<li><span class="legend__swatch legend__swatch--best" aria-hidden="true"></span>Fastest song</li>{% endif %}
+          {% if worst %}<li><span class="legend__swatch legend__swatch--worst" aria-hidden="true"></span>Slowest song</li>{% endif %}
         </ul>
       </header>
-      <div class="sheet__body run__charts" data-timeline>
+      <div class="card__body run__charts" data-timeline tabindex="0" aria-label="Run timeline. Move the pointer along the charts, or use the left and right arrow keys, to read the pace, heart rate and song at any moment.">
+        <div class="run__readout" data-readout aria-hidden="true" hidden></div>
         <div class="run__chart">
-          <div class="run__chart-head">
-            <h3 class="run__chart-title">Pace <span class="results__unit">min/km, faster higher</span></h3>
-            <p class="run__readout" data-readout aria-hidden="true"></p>
-          </div>
-          {{ run_chart(pace_chart, "Pace through the run, faster higher, with a band for each song." ~ (" The fastest stretch was during " ~ results.best.song.name ~ "." if results.best else ""), class="chart--tall") }}
+          <h3 class="run__chart-title">Pace <span class="results__unit">min/km, faster higher</span></h3>
+          {{ run_chart(pace_chart, "Pace through the run, faster higher, with a band for each song." ~ (" The fastest stretch was during " ~ best.song.name ~ "." if best else ""), class="chart--tall", uid="pace") }}
+          {{ song_lane(pace_chart, class="lane--run") }}
         </div>
         {% if not heart_chart.empty %}
           <div class="run__chart">
             <h3 class="run__chart-title">Heart rate <span class="results__unit">bpm</span></h3>
-            {{ run_chart(heart_chart, "Heart rate through the run, with a band for each song.", class="chart--compact") }}
+            {{ run_chart(heart_chart, "Heart rate through the run, with a band for each song.", class="chart--compact", uid="heart", kind="heart") }}
           </div>
         {% endif %}
         {{ data_island("timeline-data", timeline) }}
@@ -72,10 +84,10 @@
     </section>
   {% endif %}
 
-  <section class="sheet run__results" aria-labelledby="results-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="results-title">Song results</h2>
-      <p class="sheet__meta">Lift: how much faster you ran during the song than in the five minutes either side.</p>
+  <section class="card run__results" aria-labelledby="results-title">
+    <header class="card__head">
+      <h2 class="card__title" id="results-title">{{ icon("music") }}Song results</h2>
+      <p class="card__meta">Lift: how much faster you ran during a song than in the five minutes either side.</p>
     </header>
     {% if results.ranked %}
       {{ results_table(results.ranked, "Songs from this run, ranked by how they changed your pace", show_heart=True) }}
@@ -91,7 +103,7 @@
         <h3 class="run__subhead">Not measured</h3>
         <ul class="run__unscored-list">
           {% for row in results.unscored %}
-            <li><span class="run__unscored-song">{{ row.song.name or "Unknown track" }}<span class="results__sub">{{ row.song.artist }}</span></span><span class="muted">{{ row.note }}, on at {{ row.start|duration }}</span></li>
+            <li><span class="run__unscored-song">{{ row.song.name or "Unknown track" }}<span class="results__sub">{{ row.song.artist }}</span></span><span class="run__unscored-note">{{ row.note }}, on at {{ row.start|duration }}</span></li>
           {% endfor %}
         </ul>
       </div>
