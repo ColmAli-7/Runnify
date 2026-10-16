@@ -4,8 +4,8 @@ import pytest
 
 from runnify import create_app
 from runnify.extensions import db
-from runnify.models import Playlist, Run, RunSongAnalysis, User
-from runnify.services import insights
+from runnify.models import Playlist, Run, RunSongAnalysis, User, UserSongHistory
+from runnify.services import insights, songs
 from runnify.services.demo import DEMO_EMAIL, DemoError, seed
 from tests.test_config import SafeProductionConfig
 
@@ -37,6 +37,17 @@ def test_the_pipeline_recovers_the_hidden_song_effects(demo):
     draggers = {s.label for s in result.drag_songs}
     assert boosters & {"Can't Hold Us", "Mr. Brightside", "Till I Collapse", "Lose Yourself"}
     assert draggers & {"Hallelujah", "Holocene", "The Night We Met", "Skinny Love"}
+
+
+def test_insights_counts_skips_as_each_song_page_does(demo):
+    user = User.query.filter_by(email=DEMO_EMAIL).one()
+    counts = {count.key: count for count in insights.skip_counts(user.id)}  # all time
+    heard = {play.song_id for play in UserSongHistory.query.filter_by(user_id=user.id)}
+    assert set(counts) == heard  # every song the demo runner heard
+    for song_id, count in counts.items():
+        record = songs.song_record(user.id, song_id)
+        page = (record.skips, len(record.plays), record.runs)
+        assert (count.skips, count.heard, len(count.runs)) == page, record.name
 
 
 def test_seeding_twice_replaces_the_demo(demo):
