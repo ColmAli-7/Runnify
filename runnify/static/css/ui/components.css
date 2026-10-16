@@ -1431,6 +1431,15 @@
     line-height: var(--leading-snug);
   }
 
+  /* a song's name leads to its page */
+  .ranks__name a {
+    text-decoration: none;
+  }
+
+  .ranks__name a:hover {
+    text-decoration: underline;
+  }
+
   .ranks__sub {
     display: block;
     overflow: hidden;

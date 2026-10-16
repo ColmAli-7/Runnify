@@ -85,6 +85,20 @@ def test_a_song_never_measured_still_has_a_page(app, auth_client, user):
     assert '<span class="tag">Skipped</span>' in html
 
 
+def test_song_names_link_to_their_pages(app, auth_client, user):
+    with app.app_context():
+        run_ids = _runs(user, 2)
+    run_page = auth_client.get(f"/runs/{run_ids[-1]}").get_data(as_text=True)
+    assert '<td class="results__track"><a href="/songs/fast">Fast Song</a>' in run_page
+    assert '<a href="/songs/skipped">Skipped Song</a>' in run_page  # not measured, still linked
+    for path in ("/dashboard", "/insights"):
+        page = auth_client.get(path).get_data(as_text=True)
+        assert '<span class="ranks__name"><a href="/songs/fast">Fast Song</a>' in page, path
+        assert '<a href="/songs/fast"><strong>Fast Song</strong></a>' in page, path  # highlight
+    insights = auth_client.get("/insights").get_data(as_text=True)
+    assert "/songs/Test%20Artist" not in insights  # artists have no page
+
+
 def test_the_record_counts_every_play_and_ranks_the_measured_ones(app, user):
     with app.app_context():
         _runs(user, 3)

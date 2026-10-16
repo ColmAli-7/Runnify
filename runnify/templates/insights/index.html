@@ -110,7 +110,7 @@
       <p class="card__meta">All their songs together</p>
     </header>
     {% if overview.top_artists %}
-      {{ effect_list(overview.top_artists, highlight=True) }}
+      {{ effect_list(overview.top_artists, highlight=True, link=False) }}
     {% else %}
       <p class="insights__none">No artist has lifted your pace across two or more plays yet.</p>
     {% endif %}

@@ -89,11 +89,14 @@
   </span>
 {%- endmacro %}
 
-{#- A finding written as a sentence (services.insights.Highlight), in its kind's colour. -#}
+{#- A finding written as a sentence (services.insights.Highlight), in its kind's colour.
+    A finding about one song links its name to the song's page. -#}
 {% macro highlight_card(h) -%}
 <li class="highlight highlight--{{ h.kind }}">
   <p class="highlight__kicker">{{ icon(h.icon) }}{{ h.kicker }}</p>
-  <p class="highlight__text">{% if h.lead %}<strong>{{ h.lead }}</strong> {% endif %}{{ h.text }}</p>
+  <p class="highlight__text">
+    {%- if h.lead and h.song_id %}<a href="{{ url_for('songs.detail', song_id=h.song_id) }}"><strong>{{ h.lead }}</strong></a> {% elif h.lead %}<strong>{{ h.lead }}</strong> {% endif -%}
+    {{ h.text }}</p>
   <p class="highlight__figure">{{ h.figure }}<span class="highlight__unit">{{ h.unit }}</span></p>
   <p class="highlight__foot">{{ h.foot }}</p>
 </li>

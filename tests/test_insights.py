@@ -133,6 +133,14 @@ def test_heart_rate_and_skips(app, seeded):
         assert result.most_skipped[0].key == "drag" and result.most_skipped[0].skips == 4
 
 
+def test_highlights_about_a_song_carry_its_id(app, seeded):
+    with app.app_context():
+        found = {h.kicker: h.song_id for h in insights.highlights(insights.overview(seeded, "90d"))}
+        assert (found["Power song"], found["Drag song"]) == ("boost", "drag")
+        assert (found["Heart raiser"], found["Most skipped"]) == ("boost", "drag")
+        assert found["With music"] is None  # not about one song
+
+
 def test_runs_with_and_without_music_are_compared(app, seeded):
     with app.app_context():
         result = insights.overview(seeded, "90d")

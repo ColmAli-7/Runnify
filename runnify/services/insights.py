@@ -314,6 +314,7 @@ class Highlight:
     Reads as ``lead`` (in bold, often a song) then ``text``. ``figure`` and
     ``unit`` are the number it rests on and ``foot`` the evidence behind it.
     ``kind`` picks its colour: "lift", "drag", "heart", "pace" or "music".
+    ``song_id`` is set when the lead is a song, so it can link to the song's page.
     """
 
     kind: str
@@ -324,6 +325,7 @@ class Highlight:
     figure: str
     unit: str
     foot: str
+    song_id: str | None = None
 
 
 def _evidence(effect):
@@ -350,6 +352,7 @@ def highlights(overview):
                 lift_number(top.shrunk_lift),
                 "s/km faster",
                 _evidence(top),
+                song_id=top.key,
             )
         )
     if overview.drag_songs:
@@ -364,6 +367,7 @@ def highlights(overview):
                 lift_number(worst.shrunk_lift),
                 "s/km slower",
                 _evidence(worst),
+                song_id=worst.key,
             )
         )
     measured = [phase for phase in overview.phases if phase.strength is not None]
@@ -393,6 +397,7 @@ def highlights(overview):
                 lift_number(raiser.hr_delta),
                 "bpm",
                 _evidence(raiser),
+                song_id=raiser.key,
             )
         )
     if overview.with_music_pace and overview.without_music_pace:
@@ -426,6 +431,7 @@ def highlights(overview):
                 str(skipped.skips),
                 f"of {skipped.plays} plays",
                 f"{len(skipped.runs)} run{'' if len(skipped.runs) == 1 else 's'}",
+                song_id=skipped.key,
             )
         )
     return found

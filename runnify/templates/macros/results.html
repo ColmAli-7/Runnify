@@ -32,7 +32,7 @@
 {% macro _row(row, show_heart) %}
   <tr{% if row.kind == "best" %} class="is-best"{% endif %}>
     <td class="results__pos"><span class="rank">{{ row.position }}</span></td>
-    <td class="results__track">{{ row.song.name or "Unknown track" }}<span class="results__sub">{{ row.song.artist }}</span></td>
+    <td class="results__track"><a href="{{ url_for('songs.detail', song_id=row.song.id) }}">{{ row.song.name or "Unknown track" }}</a><span class="results__sub">{{ row.song.artist }}</span></td>
     <td class="is-numeric">{{ row.start|duration }}</td>
     {% if show_heart %}<td class="is-numeric results__optional">{{ row.hr_delta|lift_number if row.hr_delta is not none else "-" }}</td>{% endif %}
     <td class="is-numeric">{{ lift(row.lift, unit=False) }}</td>
@@ -41,8 +41,9 @@
 
 {#- Songs or artists ranked by their effect (insights.Effect). `measure` picks the
     figure shown: "lift" (s/km), "heart" (bpm) or "skips". A thin bar under each
-    name shows its size next to the strongest in the list. -#}
-{% macro effect_list(effects, struck=False, highlight=False, measure="lift") %}
+    name shows its size next to the strongest in the list. Each song's name links
+    to its page; pass `link=False` for artists, which have none. -#}
+{% macro effect_list(effects, struck=False, highlight=False, measure="lift", link=True) %}
   {%- if measure == "heart" -%}
     {%- set sizes = effects|map(attribute="hr_delta")|map("abs")|list -%}
   {%- elif measure == "skips" -%}
@@ -57,7 +58,7 @@
       <li class="ranks__row{% if highlight and loop.first %} is-best{% endif %}">
         <span class="rank">{{ loop.index }}</span>
         <span class="ranks__name">
-          {{- effect.label -}}
+          {%- if link %}<a href="{{ url_for('songs.detail', song_id=effect.key) }}">{{ effect.label }}</a>{% else %}{{ effect.label }}{% endif -%}
           {%- if effect.detail %}<span class="ranks__sub">{{ effect.detail }}</span>{% endif -%}
           <svg class="ranks__bar ranks__bar--{{ bar_kind }}" aria-hidden="true" focusable="false"><rect x="0" y="0" width="{{ (sizes[loop.index0] / biggest * 100)|round(1) }}%" height="100%" rx="2"></rect></svg>
         </span>

@@ -103,7 +103,7 @@
         <h3 class="run__subhead">Not measured</h3>
         <ul class="run__unscored-list">
           {% for row in results.unscored %}
-            <li><span class="run__unscored-song">{{ row.song.name or "Unknown track" }}<span class="results__sub">{{ row.song.artist }}</span></span><span class="run__unscored-note">{{ row.note }}, on at {{ row.start|duration }}</span></li>
+            <li><span class="run__unscored-song"><a href="{{ url_for('songs.detail', song_id=row.song.id) }}">{{ row.song.name or "Unknown track" }}</a><span class="results__sub">{{ row.song.artist }}</span></span><span class="run__unscored-note">{{ row.note }}, on at {{ row.start|duration }}</span></li>
           {% endfor %}
         </ul>
       </div>

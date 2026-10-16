@@ -229,6 +229,14 @@
     font-weight: 550;
   }
 
+  .run__unscored-song a {
+    text-decoration: none;
+  }
+
+  .run__unscored-song a:hover {
+    text-decoration: underline;
+  }
+
   .run__unscored-note {
     font-size: var(--fs-sm);
     color: var(--text-3);
