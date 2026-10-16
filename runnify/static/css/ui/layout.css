@@ -50,25 +50,37 @@
     position: sticky;
     top: 0;
     z-index: var(--z-sticky);
-    background: var(--glass);
+    isolation: isolate;
     border-bottom: 1px solid var(--line);
+    transition: border-color var(--t-base) var(--ease-out);
+  }
+
+  /* the glass sits on a layer behind the bar: a blur on the bar itself would make it the
+     containing block for the phone tab bar inside it, pinning that to the top of the page */
+  .site-header::before,
+  .app-header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--glass);
     -webkit-backdrop-filter: saturate(1.6) blur(18px);
     backdrop-filter: saturate(1.6) blur(18px);
-    transition: border-color var(--t-base) var(--ease-out), background-color var(--t-base) var(--ease-out);
+    transition: opacity var(--t-base) var(--ease-out);
   }
 
   /* on the landing page the bar is clear until the page moves */
   .page-home .site-header:not(.is-scrolled) {
     border-bottom-color: transparent;
-    background: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+  }
+
+  .page-home .site-header:not(.is-scrolled)::before {
+    opacity: 0;
   }
 
   @media (prefers-reduced-transparency: reduce) {
-    .site-header,
-    .app-header,
-    .page-home .site-header:not(.is-scrolled) {
+    .site-header::before,
+    .app-header::before {
       background: var(--bg);
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
@@ -192,21 +204,8 @@
     color: var(--text);
   }
 
-  .app-nav .icon {
-    width: 52px;
-    height: 30px;
-    padding: 3px 14px;
-    border-radius: var(--r-sm);
-    transition: background-color var(--t-base) var(--ease-out);
-  }
-
   .app-nav a[aria-current="page"] {
     color: var(--text);
-  }
-
-  .app-nav a[aria-current="page"] .icon {
-    background: var(--surface-inverse);
-    color: var(--text-inverse);
   }
 
   .app-main {
@@ -245,11 +244,6 @@
     .app-nav a[aria-current="page"] {
       background: var(--surface-inverse);
       color: var(--text-inverse);
-    }
-
-    .app-nav .icon,
-    .app-nav a[aria-current="page"] .icon {
-      display: none;
     }
 
     .app-main {
@@ -428,6 +422,29 @@
       overflow: hidden;
       clip-path: inset(50%);
       white-space: nowrap;
+    }
+  }
+}
+
+/* the tab bar's icons are sized in the components layer, where .icon itself is sized,
+   so the base icon size can't override them */
+@layer components {
+  .app-nav .icon {
+    width: 52px;
+    height: 30px;
+    padding: 3px 14px;
+    border-radius: var(--r-sm);
+    transition: background-color var(--t-base) var(--ease-out);
+  }
+
+  .app-nav a[aria-current="page"] .icon {
+    background: var(--surface-inverse);
+    color: var(--text-inverse);
+  }
+
+  @media (min-width: 900px) {
+    .app-nav .icon {
+      display: none;
     }
   }
 }
