@@ -313,7 +313,7 @@
     min-height: 34px;
     padding: 0 12px;
     border: 1px solid var(--line-strong);
-    border-radius: var(--r-pill);
+    border-radius: var(--r-sm);
     background: rgb(20 22 25 / 0.8);
     color: var(--text);
     font-size: var(--fs-sm);
@@ -675,7 +675,7 @@
     margin: 0;
     padding: 4px;
     border: 0;
-    border-radius: var(--r-pill);
+    border-radius: var(--r-field);
     background: var(--surface-3);
     overflow-x: auto;
     scrollbar-width: none;
@@ -699,7 +699,7 @@
     align-items: center;
     min-height: 40px;
     padding: 0 18px;
-    border-radius: var(--r-pill);
+    border-radius: calc(var(--r-field) - 3px);
     color: var(--text-2);
     font-size: var(--fs-md);
     font-weight: 600;
@@ -899,7 +899,7 @@
     width: fit-content;
     margin-top: var(--s-1);
     padding: 4px 12px;
-    border-radius: var(--r-pill);
+    border-radius: var(--r-xs);
     background: var(--surface-3);
     font-size: var(--fs-sm);
     font-weight: 600;

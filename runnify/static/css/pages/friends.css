@@ -109,8 +109,6 @@
 
   .find .input {
     min-height: 44px;
-    border-radius: var(--r-pill);
-    padding-inline: 18px;
   }
 
   .find .btn .icon {

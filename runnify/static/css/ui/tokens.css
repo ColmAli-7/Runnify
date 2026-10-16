@@ -117,7 +117,8 @@
   --tabbar-h: 64px;
   --card-pad: clamp(16px, 2.4vw, 24px);
 
-  /* shape: controls are capsules, fields 12px, cards 20px, tiles inside cards 14px */
+  /* shape: no capsules. Buttons and controls 10px, fields 12px, badges 6px,
+     cards 20px, tiles inside cards 14px; --r-pill only rounds the ends of thin bars */
   --r-xs: 6px;
   --r-sm: 10px;
   --r-field: 12px;

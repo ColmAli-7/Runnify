@@ -194,7 +194,7 @@
     left: var(--s-2);
     z-index: var(--z-skip);
     padding: var(--s-2) var(--s-4);
-    border-radius: var(--r-pill);
+    border-radius: var(--r-sm);
     background: var(--surface-inverse);
     color: var(--text-inverse);
     font-weight: 600;
