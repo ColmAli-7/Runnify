@@ -657,6 +657,7 @@
 
   .sessions {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
   }
 
@@ -677,6 +678,21 @@
   .sessions__option {
     position: relative;
     flex: none;
+  }
+
+  /* narrow phones: three to a row instead of a strip that runs off the screen */
+  @media (max-width: 479px) {
+    .sessions__picker {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      width: 100%;
+    }
+
+    .sessions__option span {
+      justify-content: center;
+      width: 100%;
+      padding-inline: 8px;
+    }
   }
 
   .sessions__option input {
@@ -717,11 +733,14 @@
 
   .sessions__panels {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-4);
   }
 
+  /* minmax(0, 1fr) keeps long song names from stretching the panel past a phone's edge */
   .sessions__panel {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
     padding: clamp(18px, 2.6vw, 32px);
     border: 1px solid var(--line);
@@ -800,12 +819,8 @@
     white-space: nowrap;
   }
 
-  /* a newly picked session grows its bars and settles its list */
+  /* a newly picked session grows its bars, showing its shape */
   @media (prefers-reduced-motion: no-preference) {
-    .sessions__panel {
-      animation: panel-in 0.45s var(--ease-out);
-    }
-
     .sessions__panel .bar {
       transform-box: fill-box;
       transform-origin: 50% 100%;
@@ -824,13 +839,6 @@
     .sessions__panel .bar:nth-of-type(7) { animation-delay: 180ms; }
     .sessions__panel .bar:nth-of-type(8) { animation-delay: 210ms; }
     .sessions__panel .bar:nth-of-type(n + 9) { animation-delay: 240ms; }
-  }
-
-  @keyframes panel-in {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
   }
 
   @keyframes bar-grow {
