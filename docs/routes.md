@@ -29,6 +29,7 @@ signed-in users who haven't agreed to the current policies are asked to first
 | GET | `/runs` | `runs.index` | Every run, newest first, 25 a page. Query: `music=1` (only runs with matched songs), `page` |
 | GET | `/runs/<id>` | `runs.detail` | One run's results: pace and heart rate with a band per song, every song ranked by its lift, and the plays that couldn't be measured |
 | GET | `/insights` | `insights.index` | Findings across runs. Query: `range` = `30d`, `90d` (default), `year` or `all` |
+| GET | `/songs/<id>` | `songs.detail` | One song across your runs, all time: a sentence on what it does for you, its lift with the runs, plays and confidence behind it (or how many more measured plays it needs to rank), its heart-rate effect and skips, a dot per measured play by run date with a trend line, and every run it played in. `<id>` is the Spotify track id |
 | GET, POST | `/playlists` | `playlists.index` | Saved playlists, and the builder. Form: `session`, `minutes`, `include_untested` |
 | GET | `/playlists/<id>` | `playlists.detail` | A playlist's tracks and the evidence behind each |
 | POST | `/playlists/<id>/spotify` | `playlists.send_to_spotify` | Save the playlist to Spotify as a private playlist |
@@ -66,7 +67,7 @@ signed-in users who haven't agreed to the current policies are asked to first
 | Status | When |
 |---|---|
 | 400 | Malformed requests, such as a Spotify callback without a code |
-| 404 | Unknown pages, and anything belonging to another user |
+| 404 | Unknown pages, anything belonging to another user, and songs you haven't heard during one of your runs |
 | 429 | A rate limit was reached |
 | 500 | Something failed on the server; the details stay in the log |
 | CSRF failure | The form is shown again with a "form expired" message |

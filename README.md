@@ -33,6 +33,9 @@ cancel out.
 - **Insights.** Power songs and drag songs (ranked on shrunk effects, so one
   lucky play can't top the chart), where in a run songs work hardest, top
   artists, heart raisers and the most skipped songs, over a chosen range.
+- **A page for every song.** Its lift with the evidence behind it, its
+  heart-rate effect and skips, a dot for each measured play across your runs
+  with a trend line, and every run it played in.
 - **Playlists for a session.** Easy, tempo, long, race or intervals, built from
   the songs that have actually lifted your pace and ordered to suit the
   session; save them to Spotify as private playlists.
@@ -138,7 +141,7 @@ Runnify/
     ├── content/                the landing page's sample results, computed by the real engine
     ├── security/               passwords, lockout, tokens, encryption, two-step, headers, audit log
     ├── services/               domain logic: Garmin, FIT, streams, scoring, analysis, insights,
-    │                           results, dashboard, playlists, charts, imports, account
+    │                           songs, results, dashboard, playlists, charts, imports, account
     ├── routes/                 one blueprint per area
     ├── templates/              layouts/, macros/ and one folder per area
     └── static/                 css/ui (design system), css/pages, js, fonts, img, vendor

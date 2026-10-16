@@ -27,7 +27,7 @@ flowchart LR
 | Extensions | `runnify/extensions.py` | Shared `db`, `migrate`, `csrf`, `limiter`, `mail` and `login_manager`; SQLite connections are tuned here (WAL, busy timeout, foreign keys) |
 | Models | `runnify/models.py` | Every table, the user loader and the session-token check |
 | Security | `runnify/security/` | Password hashing and policy, lockout, reset tokens, encryption at rest, two-step verification, security headers, rate-limit keys, safe redirects, the audit log |
-| Domain logic | `runnify/services/` | Garmin sync, FIT parsing, run streams, history import, scoring, analysis, insights, results, dashboard, playlists, charts, account export and deletion. No request handling |
+| Domain logic | `runnify/services/` | Garmin sync, FIT parsing, run streams, history import, scoring, analysis, insights, each song's record, results, dashboard, playlists, charts, account export and deletion. No request handling |
 | Routes | `runnify/routes/` | Request handling and rendering, one blueprint per area |
 | Content | `runnify/content/` | The landing page's sample results, computed by the real engine from simulated runs |
 | Templates | `runnify/templates/` | `layouts/` (base, public, app, auth, settings), `macros/` (fields, results tables, charts), then one folder per area |
@@ -126,7 +126,8 @@ filled 100 tracks per request.
   `<head>` to apply that choice before the page paints.
 - **Charts** are inline SVG drawn from geometry computed on the server
   (`services/charts.py`): the line and its filled area, a moving-average line,
-  a band per song and a lane of song blocks. Positions are percentages and
+  a band per song and a lane of song blocks, and on each song's page a dot per
+  play with a trend line. Positions are percentages and
   lines are drawn in a stretched box, so a chart takes its size from CSS and
   keeps crisp text and strokes at any width, with no inline styles.
   `js/pages/run.js` adds scrubbing with the pointer, a finger or the arrow keys.

@@ -126,6 +126,21 @@ longer distorts the answer. Each phase needs 30 plays of repeated songs
 (`MIN_PHASE_PLAYS`) before it is shown. The start is the first fifth of a run
 and the finish the last fifth.
 
+### One song's page
+
+`services/songs.py` gathers every play of one song during your runs, measured
+or not, so skips count even when a skip left too little running to measure.
+Its lift, evidence and rank are the same all-time aggregate the rankings use.
+A song that can't rank yet says how many more measured plays it needs.
+
+Each measured play is a dot at its run's date. Once there are three
+(`MIN_TREND_PLAYS`) on different days, a trend line is fitted through them by
+least squares, weighted by the seconds measured like the lift itself. The page
+only calls the line a trend when it rests on eight or more plays and its slope
+is at least three standard errors from level (`CLEAR_TREND`), which the plays'
+own ups and downs produce by chance less than one time in forty. Otherwise it
+says the plays vary too much to call.
+
 ## 6. Playlists
 
 `services/playlists.plan` chooses songs with at least two plays (or one, when

@@ -303,7 +303,8 @@ modules through `data-*` attributes.
 - **Stats:** a grid of label, big tabular value and unit, split by hairlines.
 - **Results tables:** a round rank badge, the song with its artist under it, when
   it came on, the heart-rate change, and the lift badge. The best row is washed
-  in volt and its rank badge is solid volt.
+  in volt and its rank badge is solid volt. A song's name, here, in ranked lists
+  and in highlights, links to the song's page.
 - **Ranked lists:** rank badge, name and detail, a thin bar of its size against
   the strongest, the figure and its evidence (runs).
 - **Highlights:** a kicker in the finding's colour with an icon, one sentence
@@ -330,6 +331,9 @@ modules through `data-*` attributes.
 - **Scrubbing:** a guide across both charts and the lane, dots on the lines, and a
   floating readout; the pointer, a finger or the arrow keys move it.
 - **Bars:** rounded; this week stronger; lifts in volt and coral.
+- **Matched runs:** on each song's page, a dot per measured play at its run's date
+  and lift (volt above a zero line, coral below, grey under 1 s/km) and a 2px ink
+  trend line, the way Strava draws matched activities.
 - Geometry is computed on the server in percentages, so charts need no scripts
   and no inline styles, and every chart is `role="img"` with a written summary.
 
