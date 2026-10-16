@@ -17,6 +17,7 @@ def index():
     return render_template(
         "insights/index.html",
         overview=overview,
+        highlights=insights.highlights(overview),
         ranges=insights.RANGES,
         strongest=max(strengths, default=None),
         min_phase_plays=insights.MIN_PHASE_PLAYS,

@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from runnify.extensions import db
+from runnify.filters import lift_number, pace
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory, utcnow
 
 PRIOR_PLAYS = 2  # shrinkage strength: imaginary plays with no effect added to every song
@@ -304,3 +305,127 @@ def overview(user_id, range_key=DEFAULT_RANGE):
         with_music_pace=with_music,
         without_music_pace=without_music,
     )
+
+
+@dataclass
+class Highlight:
+    """One finding written as a sentence, for the dashboard and the Insights page.
+
+    Reads as ``lead`` (in bold, often a song) then ``text``. ``figure`` and
+    ``unit`` are the number it rests on and ``foot`` the evidence behind it.
+    ``kind`` picks its colour: "lift", "drag", "heart", "pace" or "music".
+    """
+
+    kind: str
+    kicker: str
+    icon: str
+    lead: str
+    text: str
+    figure: str
+    unit: str
+    foot: str
+
+
+def _evidence(effect):
+    runs = len(effect.runs)
+    return f"{runs} run{'' if runs == 1 else 's'}, {effect.plays} play{'' if effect.plays == 1 else 's'}"
+
+
+def highlights(overview):
+    """Plain-language findings from an :class:`Overview`, the strongest evidence first.
+
+    Every sentence is worked out from the numbers on the page (nothing is
+    generated), and each carries the runs and plays it rests on.
+    """
+    found = []
+    if overview.power_songs:
+        top = overview.power_songs[0]
+        found.append(
+            Highlight(
+                "lift",
+                "Power song",
+                "trend-up",
+                top.label,
+                "lifts your pace more reliably than any other song.",
+                lift_number(top.shrunk_lift),
+                "s/km faster",
+                _evidence(top),
+            )
+        )
+    if overview.drag_songs:
+        worst = overview.drag_songs[0]
+        found.append(
+            Highlight(
+                "drag",
+                "Drag song",
+                "trend-down",
+                worst.label,
+                "slows you down the most. Save it for the cool-down.",
+                lift_number(worst.shrunk_lift),
+                "s/km slower",
+                _evidence(worst),
+            )
+        )
+    measured = [phase for phase in overview.phases if phase.strength is not None]
+    if len(measured) >= 2:
+        strongest = max(measured, key=lambda phase: phase.strength)
+        found.append(
+            Highlight(
+                "pace",
+                "Where music works",
+                "gauge",
+                f"The {strongest.label.lower()}",
+                "of a run is where your songs work hardest.",
+                f"{strongest.strength:.1f}\u00d7",
+                "as strongly as usual",
+                f"{strongest.plays} plays in that part of your runs",
+            )
+        )
+    if overview.heart_raisers:
+        raiser = overview.heart_raisers[0]
+        found.append(
+            Highlight(
+                "heart",
+                "Heart raiser",
+                "heart",
+                raiser.label,
+                "pushes your heart rate up the most. Easy-run playlists rank it lower.",
+                lift_number(raiser.hr_delta),
+                "bpm",
+                _evidence(raiser),
+            )
+        )
+    if overview.with_music_pace and overview.without_music_pace:
+        gap = round(overview.without_music_pace - overview.with_music_pace)
+        if gap:
+            direction = "faster" if gap > 0 else "slower"
+            text = f"averaged {abs(gap)} s/km {direction} than runs without."
+        else:
+            text = "averaged the same pace as runs without."
+        found.append(
+            Highlight(
+                "music",
+                "With music",
+                "headphones",
+                "Runs with music",
+                text,
+                pace(overview.with_music_pace),
+                "/km",
+                "A rough guide: you may run different sessions with and without music.",
+            )
+        )
+    if overview.most_skipped:
+        skipped = overview.most_skipped[0]
+        found.append(
+            Highlight(
+                "music",
+                "Most skipped",
+                "skip",
+                skipped.label,
+                "is the song you skip most often mid-run.",
+                str(skipped.skips),
+                f"of {skipped.plays} plays",
+                f"{len(skipped.runs)} run{'' if len(skipped.runs) == 1 else 's'}",
+            )
+        )
+    return found
