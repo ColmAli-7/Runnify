@@ -21,17 +21,17 @@
 </header>
 
 <div class="friends">
-  <section class="sheet" aria-labelledby="board-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="board-title">{{ month.strftime("%B") }} leaderboard</h2>
-      <p class="sheet__meta">Distance this month</p>
+  <section class="card" aria-labelledby="board-title">
+    <header class="card__head">
+      <h2 class="card__title" id="board-title">{{ icon("flag") }}{{ month.strftime("%B") }} leaderboard</h2>
+      <p class="card__meta">Distance this month</p>
     </header>
     <div class="table-wrap">
       <table class="results">
         <caption class="visually-hidden">Distance run this month by you and your friends</caption>
         <thead>
           <tr>
-            <th scope="col">Pos</th>
+            <th scope="col"><span class="visually-hidden">Position</span></th>
             <th scope="col">Runner</th>
             <th scope="col" class="is-numeric results__optional">Runs</th>
             <th scope="col" class="is-numeric">Distance <span class="results__unit">km</span></th>
@@ -39,15 +39,19 @@
           </tr>
         </thead>
         <tbody>
+          {% set leader = (board[0][2] if board else 0) or 1 %}
           {% for person, runs, metres in board %}
             {% set me = person.id == current_user.id %}
             <tr{% if loop.first and metres > 0 %} class="is-best"{% endif %}>
-              <td class="results__pos">{{ loop.index }}</td>
+              <td class="results__pos"><span class="rank">{{ loop.index }}</span></td>
               <td class="results__track">
                 <span class="runner"><span class="avatar avatar--sm" aria-hidden="true">{{ person.name|initials }}</span>{{ person.name }}{% if me %} <span class="tag">You</span>{% endif %}</span>
               </td>
               <td class="is-numeric results__optional">{{ runs }}</td>
-              <td class="is-numeric">{{ metres|km(1) }}</td>
+              <td class="is-numeric board__distance">
+                <span class="board__figure">{{ metres|km(1) }}</span>
+                <svg class="board__bar" aria-hidden="true" focusable="false"><rect x="0" y="0" width="{{ (metres / leader * 100)|round(1) }}%" height="100%" rx="2"></rect></svg>
+              </td>
               <td class="is-numeric">
                 {% if not me %}
                   <form method="post" action="{{ url_for('friends.remove', user_id=person.id) }}" class="inline-form" data-confirm="Remove {{ person.name }} as a friend?">
@@ -62,14 +66,14 @@
       </table>
     </div>
     {% if board|length == 1 %}
-      <p class="sheet__foot">Add friends to see how your distance compares. Use the search above to find them by name.</p>
+      <p class="card__foot">Add friends to see how your distance compares. Use the search above to find them by name.</p>
     {% endif %}
   </section>
 
   <div class="friends__side">
-    <section class="sheet" aria-labelledby="incoming-title">
-      <header class="sheet__head">
-        <h2 class="sheet__title" id="incoming-title">Requests for you</h2>
+    <section class="card" aria-labelledby="incoming-title">
+      <header class="card__head">
+        <h2 class="card__title" id="incoming-title">{{ icon("user") }}Requests for you</h2>
         {% if incoming %}<span class="tag tag--ink">{{ incoming|length }}</span>{% endif %}
       </header>
       {% if incoming %}
@@ -94,9 +98,9 @@
     </section>
 
     {% if outgoing %}
-      <section class="sheet" aria-labelledby="outgoing-title">
-        <header class="sheet__head">
-          <h2 class="sheet__title" id="outgoing-title">Waiting for a reply</h2>
+      <section class="card" aria-labelledby="outgoing-title">
+        <header class="card__head">
+          <h2 class="card__title" id="outgoing-title">Waiting for a reply</h2>
         </header>
         <ul class="people">
           {% for friend_request in outgoing %}

@@ -24,19 +24,39 @@
     display: inline-flex;
     align-items: center;
     gap: var(--s-3);
+    font-weight: 600;
+  }
+
+  .runner .tag {
+    margin-left: calc(-1 * var(--s-1));
+  }
+
+  /* distance, with a bar against the month's leader */
+  .board__distance {
+    min-width: 8rem;
+  }
+
+  .board__figure {
     font-weight: 650;
   }
 
-  .avatar--sm {
-    width: 32px;
-    height: 32px;
-    border-width: 1px;
-    font-size: var(--text-xs);
-    cursor: default;
+  .board__bar {
+    display: block;
+    width: 100%;
+    max-width: 9rem;
+    height: 4px;
+    margin: 6px 0 0 auto;
+    border-radius: var(--r-pill);
+    background: var(--surface-3);
+    overflow: hidden;
   }
 
-  .avatar--sm:hover {
-    background: var(--paper);
+  .board__bar rect {
+    fill: var(--text-3);
+  }
+
+  .is-best .board__bar rect {
+    fill: var(--accent-strong);
   }
 
   /* on phones the remove button shows its icon only; the words stay for screen readers */
@@ -56,7 +76,7 @@
   }
 
   .people {
-    padding: 0;
+    padding: 0 0 var(--s-2);
     list-style: none;
   }
 
@@ -66,18 +86,17 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--s-3);
-    padding: var(--s-3) var(--s-5);
-    border-bottom: var(--hair);
+    padding: var(--s-3) var(--card-pad);
   }
 
-  .people__item:last-child {
-    border-bottom: 0;
+  .people__item + .people__item {
+    border-top: var(--hair);
   }
 
   .people + .empty,
   .friends .empty {
-    padding: var(--s-5);
-    color: var(--ink-2);
+    padding: var(--s-2) var(--card-pad) var(--card-pad);
+    color: var(--text-2);
   }
 
   /* the search box */
@@ -90,6 +109,8 @@
 
   .find .input {
     min-height: 44px;
+    border-radius: var(--r-pill);
+    padding-inline: 18px;
   }
 
   .find .btn .icon {
