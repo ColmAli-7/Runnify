@@ -755,6 +755,20 @@
     color: var(--text);
   }
 
+  /* narrow phones: a two-by-two grid rather than a row that runs off the screen */
+  @media (max-width: 479px) {
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+    }
+
+    .segmented a,
+    .segmented label {
+      justify-content: center;
+    }
+  }
+
   .segmented a[aria-current="true"],
   .segmented input:checked + span {
     background: var(--thumb);
