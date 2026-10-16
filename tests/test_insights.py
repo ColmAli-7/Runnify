@@ -5,11 +5,13 @@ from datetime import datetime, timedelta
 import pytest
 
 from runnify.extensions import db
-from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory, utcnow
+from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory, utcnow
 from runnify.services import insights
+from tests.factories import make_scored_run
 
 
-def _play(user, run, song, lift, seconds=180, position=0.5, hr=None, skipped=None):
+def _heard(user, run, song, seconds=12, skipped=True):
+    """A play with no measured effect, by default a skip too short to measure."""
     play = UserSongHistory(
         user_id=user,
         song_id=song,
@@ -20,6 +22,11 @@ def _play(user, run, song, lift, seconds=180, position=0.5, hr=None, skipped=Non
     )
     db.session.add(play)
     db.session.flush()
+    return play
+
+
+def _play(user, run, song, lift, seconds=180, position=0.5, hr=None, skipped=None):
+    play = _heard(user, run, song, seconds, skipped)
     db.session.add(
         RunSongAnalysis(
             run_id=run.id,
@@ -37,13 +44,17 @@ def _play(user, run, song, lift, seconds=180, position=0.5, hr=None, skipped=Non
 
 @pytest.fixture
 def seeded(app, user):
-    """Four recent runs and one old one, with songs of known effect."""
+    """Four recent runs and one old one, with songs of known effect.
+
+    Some skips came too soon to measure, so they have no effect stored.
+    """
     with app.app_context():
         db.session.add_all(
             [
                 Song(id="boost", name="Boost", artist="Alpha"),
                 Song(id="drag", name="Drag", artist="Beta"),
                 Song(id="once", name="Once", artist="Alpha"),
+                Song(id="flick", name="Flick", artist="Gamma"),
             ]
         )
         now = utcnow()
@@ -72,6 +83,10 @@ def seeded(app, user):
             _play(user, run, "drag", -8.0, position=0.1, skipped=True)
         _play(user, runs[0], "once", 30.0)  # one lucky play
         _play(user, runs[4], "boost", -50.0)  # a year ago: outside the 90-day range
+        _heard(user, runs[0], "drag")  # back on later in the run and skipped at once
+        _heard(user, runs[2], "boost")  # its only skip, too short to measure
+        _heard(user, runs[1], "flick")  # never measured at all
+        _heard(user, runs[4], "flick")
         db.session.commit()
     return user
 
@@ -126,11 +141,70 @@ def test_strength_needs_repeated_songs():
     assert insights.phase_summary(once_each)[1].strength is None
 
 
-def test_heart_rate_and_skips(app, seeded):
+def test_heart_raisers(app, seeded):
     with app.app_context():
-        result = insights.overview(seeded, "90d")
-        assert [s.key for s in result.heart_raisers] == ["boost"]
-        assert result.most_skipped[0].key == "drag" and result.most_skipped[0].skips == 4
+        assert [s.key for s in insights.overview(seeded, "90d").heart_raisers] == ["boost"]
+
+
+def test_skips_count_every_play_even_one_too_short_to_measure(app, seeded):
+    with app.app_context():
+        recent = insights.overview(seeded, "90d")
+        assert [(s.key, s.skips, s.heard, len(s.runs)) for s in recent.most_skipped] == [
+            ("drag", 5, 5, 4),  # four measured skips and one a few seconds in
+            ("boost", 1, 5, 4),  # its only skip was too short to measure
+            ("flick", 1, 1, 1),  # never measured at all
+        ]
+        assert recent.power_songs[0].plays == 4  # its lift still rests on measured plays only
+        everything = insights.overview(seeded, "all").most_skipped
+        assert [(s.key, s.skips, s.heard) for s in everything] == [
+            ("drag", 5, 5),
+            ("flick", 2, 2),  # its skip a year ago counts on all time only
+            ("boost", 1, 6),
+        ]
+
+
+def test_the_most_skipped_highlight_counts_every_play(app, seeded):
+    with app.app_context():
+        found = {h.kicker: h for h in insights.highlights(insights.overview(seeded, "90d"))}
+        skipped = found["Most skipped"]
+        assert (skipped.lead, skipped.figure, skipped.unit, skipped.foot) == (
+            "Drag",
+            "5",
+            "of 5 plays",
+            "4 runs",
+        )
+
+
+def test_insights_and_the_song_page_agree_on_a_skip_too_short_to_measure(app, auth_client, user):
+    """Through the real pipeline: Skipped Song plays for 10 seconds, too briefly to measure."""
+    with app.app_context():
+        for weeks in (1, 2):
+            make_scored_run(user, utcnow() - timedelta(weeks=weeks), f"run-{weeks}")
+    page = auth_client.get("/insights").get_data(as_text=True)
+    assert '<span class="ranks__name"><a href="/songs/skipped">Skipped Song</a>' in page
+    assert '<span class="ranks__figure">2 of 2 plays</span>' in page
+    assert '<p class="highlight__figure">2<span class="highlight__unit">of 2 plays</span>' in page
+    song_page = auth_client.get("/songs/skipped").get_data(as_text=True)
+    assert (
+        '<span class="stat__value">2</span><span class="stat__unit">of 2 plays</span>' in song_page
+    )
+
+
+def test_skips_on_another_runners_runs_are_left_out(app, seeded):
+    with app.app_context():
+        other = User(name="Other Runner", email="other@example.com", password_hash="unused")
+        db.session.add(other)
+        db.session.flush()
+        theirs = Run(
+            user_id=other.id, activity_id="theirs", date_time=utcnow(), duration=1500, distance=5000
+        )
+        db.session.add(theirs)
+        db.session.flush()
+        _heard(other.id, theirs, "flick")  # their own skip
+        _heard(seeded, theirs, "flick")  # a play stored against someone else's run
+        db.session.commit()
+        flick = next(s for s in insights.overview(seeded, "all").most_skipped if s.key == "flick")
+        assert (flick.skips, flick.heard) == (2, 2)  # only the two on my own runs
 
 
 def test_highlights_about_a_song_carry_its_id(app, seeded):

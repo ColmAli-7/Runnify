@@ -5,7 +5,9 @@ Every aggregate is honest about its evidence:
 * a song's effect is the moving-time-weighted mean of its per-run effects;
 * rankings use a *shrunk* effect, pulled towards zero by ``PRIOR_PLAYS``
   imaginary neutral plays, so a single lucky play can't top the chart;
-* each finding carries its number of plays and a confidence level.
+* each finding carries its number of plays and a confidence level;
+* skips are counted over every play during a run, measured or not, since a
+  skip often leaves too little running to measure.
 
 All grouping happens in Python, so it works the same on SQLite and PostgreSQL.
 """
@@ -65,7 +67,6 @@ class Effect:
     seconds: int = 0
     lift: float = 0.0  # weighted mean s/km faster (+) or slower (-)
     hr_delta: float | None = None
-    skips: int = 0
     runs: set = field(default_factory=set)
 
     @property
@@ -165,13 +166,13 @@ def aggregate(rows, key_of, label_of, detail_of=lambda song: ""):
 
     Args:
         rows: ``(analysis, play, song, run)`` tuples; only ``analysis.pace_delta``,
-            ``.hr_delta`` and ``.seconds``, ``play.skipped`` and ``run.id`` are read.
+            ``.hr_delta`` and ``.seconds`` and ``run.id`` are read.
         key_of: Groups a song (return ``None`` to leave it out).
         label_of, detail_of: Text for the group.
     """
     groups = {}
     hr_weights = defaultdict(lambda: [0.0, 0.0])  # key -> [weighted hr sum, weight]
-    for analysis, play, song, run in rows:
+    for analysis, _play, song, run in rows:
         key = key_of(song)
         if key is None:
             continue
@@ -184,7 +185,6 @@ def aggregate(rows, key_of, label_of, detail_of=lambda song: ""):
         )
         effect.seconds += weight
         effect.plays += 1
-        effect.skips += bool(play.skipped)
         effect.runs.add(run.id)
         if analysis.hr_delta is not None:
             hr_weights[key][0] += analysis.hr_delta * weight
@@ -226,9 +226,53 @@ def heart_raisers(effects, limit=5):
     return sorted(pool, key=lambda e: e.hr_delta, reverse=True)[:limit]
 
 
-def most_skipped(effects, limit=5):
-    """Songs skipped most often during runs."""
-    return sorted((e for e in effects if e.skips), key=lambda e: (e.skips, e.plays), reverse=True)[
+@dataclass
+class SkipCount:
+    """How often the runner skipped one song during their runs.
+
+    Unlike an :class:`Effect`, it counts every play, measured or not, as the
+    song's page does: a skip often leaves too little running to measure, so
+    the measured plays alone would miss it.
+    """
+
+    key: str
+    label: str
+    detail: str = ""
+    heard: int = 0  # plays during runs, measured or not
+    skips: int = 0
+    runs: set = field(default_factory=set)  # runs it played in, measured or not
+
+
+def _all_plays(user_id, since=None):
+    """Every play during ``user_id``'s runs, measured or not, as ``(play, song, run)`` tuples."""
+    query = (
+        db.session.query(UserSongHistory, Song, Run)
+        .join(Song, Song.id == UserSongHistory.song_id)
+        .join(Run, Run.id == UserSongHistory.run_id)
+        .filter(UserSongHistory.user_id == user_id, Run.user_id == user_id)
+    )
+    if since is not None:
+        query = query.filter(Run.date_time >= since)
+    return query.all()
+
+
+def skip_counts(user_id, since=None):
+    """A :class:`SkipCount` for every song ``user_id`` heard during runs since ``since``."""
+    counts = {}
+    for play, song, run in _all_plays(user_id, since):
+        count = counts.setdefault(
+            song.id,
+            SkipCount(key=song.id, label=song.name or "Unknown track", detail=song.artist or ""),
+        )
+        count.heard += 1
+        count.skips += bool(play.skipped)
+        count.runs.add(run.id)
+    return list(counts.values())
+
+
+def most_skipped(counts, limit=5):
+    """Songs skipped most often during runs, the more often heard first on a tie."""
+    return sorted((c for c in counts if c.skips), key=lambda c: (c.skips, c.heard), reverse=True)[
         :limit
     ]
 
@@ -248,7 +292,7 @@ class Overview:
     top_artists: list
     phases: list  # Phase for the start, middle and finish
     heart_raisers: list
-    most_skipped: list
+    most_skipped: list  # SkipCount, over every play in the range
     with_music_pace: float | None
     without_music_pace: float | None
 
@@ -301,7 +345,7 @@ def overview(user_id, range_key=DEFAULT_RANGE):
             (song.id, a.position, a.pace_delta, a.seconds) for a, _, song, _ in rows
         ),
         heart_raisers=heart_raisers(songs),
-        most_skipped=most_skipped(songs),
+        most_skipped=most_skipped(skip_counts(user_id, since)),
         with_music_pace=with_music,
         without_music_pace=without_music,
     )
@@ -429,7 +473,7 @@ def highlights(overview):
                 skipped.label,
                 "is the song you skip most often mid-run.",
                 str(skipped.skips),
-                f"of {skipped.plays} plays",
+                f"of {skipped.heard} play{'' if skipped.heard == 1 else 's'}",
                 f"{len(skipped.runs)} run{'' if len(skipped.runs) == 1 else 's'}",
                 song_id=skipped.key,
             )

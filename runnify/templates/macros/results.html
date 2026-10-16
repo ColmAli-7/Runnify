@@ -40,9 +40,11 @@
 {% endmacro %}
 
 {#- Songs or artists ranked by their effect (insights.Effect). `measure` picks the
-    figure shown: "lift" (s/km), "heart" (bpm) or "skips". A thin bar under each
-    name shows its size next to the strongest in the list. Each song's name links
-    to its page; pass `link=False` for artists, which have none. -#}
+    figure shown: "lift" (s/km), "heart" (bpm) or "skips", which takes songs'
+    insights.SkipCount instead and shows their skips out of every play, measured
+    or not. A thin bar under each name shows its size next to the strongest in
+    the list. Each song's name links to its page; pass `link=False` for artists,
+    which have none. -#}
 {% macro effect_list(effects, struck=False, highlight=False, measure="lift", link=True) %}
   {%- if measure == "heart" -%}
     {%- set sizes = effects|map(attribute="hr_delta")|map("abs")|list -%}
@@ -64,7 +66,7 @@
         </span>
         <span class="ranks__value">
           {%- if measure == "heart" %}<span class="ranks__figure">{{ effect.hr_delta|lift_number }} bpm</span>
-          {%- elif measure == "skips" %}<span class="ranks__figure">{{ effect.skips }} of {{ effect.plays|plural("play") }}</span>
+          {%- elif measure == "skips" %}<span class="ranks__figure">{{ effect.skips }} of {{ effect.heard|plural("play") }}</span>
           {%- else %}{{ lift(effect.shrunk_lift) }}{% endif -%}
           <span class="ranks__runs">{{ effect.runs|length|plural("run") }}</span>
         </span>
