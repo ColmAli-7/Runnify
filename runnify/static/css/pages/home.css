@@ -3,9 +3,10 @@
  * tile and the closing panel) are dark in both themes, like a phone held up to
  * the page; everything around them follows the theme.
  *
- * Entrances are prepared only when scripts and motion are both allowed
- * (html.motion-ok, from js/theme.js); js/pages/home.js plays them. If that
- * script never arrives, a fallback animation shows everything after a moment.
+ * Nothing fades in on scroll. The only entrance is the headline's, prepared
+ * when scripts and motion are both allowed (html.motion-ok, from js/theme.js)
+ * and played by js/pages/home.js; if that script never arrives, a fallback
+ * animation shows the headline after a moment.
  */
 
 @layer pages {
@@ -451,14 +452,6 @@
       padding-top: var(--s-6);
     }
 
-    .is-animating .story__step .story__text {
-      opacity: 0.35;
-      transition: opacity 0.5s var(--ease-out);
-    }
-
-    .is-animating .story__step.is-active .story__text {
-      opacity: 1;
-    }
   }
 
   /* ---- what you get back: the bento ---------------------------------------- */
@@ -1131,22 +1124,17 @@
     color: var(--text-2);
   }
 
-  /* ---- entrances (prepared only when motion is allowed and scripts run) ------ */
+  /* ---- the headline's entrance (prepared only when motion is allowed and scripts run) ---- */
+  /* Nothing else waits to appear: cards and sections are simply there as you scroll. */
 
   @media (prefers-reduced-motion: no-preference) {
-    .motion-ok [data-hero-title],
-    .motion-ok [data-hero-fade],
-    .motion-ok .replay,
-    .motion-ok [data-reveal] {
+    .motion-ok [data-hero-title] {
       opacity: 0;
       animation: reveal-fallback 0.6s var(--ease-out) 2.5s forwards;
     }
 
-    /* the script took over: it reveals each one itself */
-    .is-animating [data-hero-title],
-    .is-animating [data-hero-fade],
-    .is-animating .replay,
-    .is-animating [data-reveal] {
+    /* the script took over and raises the words itself */
+    .is-animating [data-hero-title] {
       animation: none;
     }
   }

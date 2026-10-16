@@ -36,8 +36,8 @@
   <div class="container hero__grid">
     <h1 id="hero-title" class="hero__title" data-hero-title>Find the songs that make you run faster.</h1>
     <div class="hero__copy">
-      <p class="hero__lede" data-hero-fade>Runnify lines up your Spotify history with your Garmin runs, then ranks every song by how it changed your pace.</p>
-      <div class="hero__actions" data-hero-fade>
+      <p class="hero__lede">Runnify lines up your Spotify history with your Garmin runs, then ranks every song by how it changed your pace.</p>
+      <div class="hero__actions">
         <a class="btn btn--primary btn--lg" href="{{ url_for('auth.register') }}">Create free account</a>
         <a class="btn btn--lg" href="#how">See how it works</a>
       </div>
@@ -120,7 +120,7 @@
           <div class="screen">
             <p class="screen__label">{{ best.song.name }}, and five minutes either side</p>
             {{ run_chart(sample.stage_charts["context"], best.song.name ~ " highlighted, with the five minutes either side of it shaded.", class="chart--story", uid="story-context") }}
-            <p class="screen__result" data-story-result>
+            <p class="screen__result" data-story-result data-lift="{{ best.lift|round(1) }}">
               <span class="screen__result-label">Lift during the song</span>
               {{ lift(best.lift) }}
             </p>
@@ -162,7 +162,7 @@
       <p class="section-lede">Sample data from {{ sample.runs_simulated }} simulated runs, worked out by the same code that works out yours.</p>
     </div>
     <div class="bento">
-      <article class="tile tile--run" data-reveal>
+      <article class="tile tile--run">
         <header class="tile__head">
           <h3 class="tile__title">Every run, song by song</h3>
           <p class="tile__meta">{{ sample.run_label }}, {{ sample.distance_m|km }} km</p>
@@ -178,7 +178,7 @@
         </ol>
       </article>
 
-      <article class="tile tile--power" data-reveal>
+      <article class="tile tile--power">
         <header class="tile__head">
           <h3 class="tile__title">{{ icon("trend-up") }}Power songs</h3>
           <p class="tile__meta">Your most reliable lifts</p>
@@ -191,13 +191,13 @@
         <p class="tile__note">Heart raisers, top artists and the songs you skip are worked out the same way.</p>
       </article>
 
-      <article class="tile tile--words" data-reveal>
+      <article class="tile tile--words">
         <p class="tile__kicker">{{ icon("info") }}In plain words</p>
         <p class="tile__sentence"><strong>{{ top.label }}</strong> lifted the pace by {{ top.shrunk_lift|abs|round|int }}&nbsp;s/km across {{ top.runs|length|plural("run") }}.</p>
         <p class="tile__sentence"><strong>{{ drag_top.label }}</strong> slowed it by {{ drag_top.shrunk_lift|abs|round|int }}&nbsp;s/km. Keep it for the cool-down.</p>
       </article>
 
-      <article class="tile tile--drag" data-reveal>
+      <article class="tile tile--drag">
         <header class="tile__head">
           <h3 class="tile__title">{{ icon("trend-down") }}Drag songs</h3>
           <p class="tile__meta">Better saved for the cool-down</p>
@@ -261,18 +261,18 @@
       <p class="section-lede">You'll need a Garmin watch and a Spotify account. The only slow part is waiting for Spotify to send your history.</p>
     </div>
     <ol class="timeline">
-      <li class="timeline__step" data-reveal>
+      <li class="timeline__step">
         <span class="timeline__icon" aria-hidden="true">{{ icon("watch") }}</span>
         <h3 class="timeline__title">Connect Garmin</h3>
         <p>Sign in to Garmin Connect once. Runnify keeps an encrypted session token, never your password, and brings in each run with its second-by-second pace and heart rate.</p>
       </li>
-      <li class="timeline__step" data-reveal>
+      <li class="timeline__step">
         <span class="timeline__icon" aria-hidden="true">{{ icon("disc") }}</span>
         <h3 class="timeline__title">Request your Spotify history</h3>
         <p>Ask for your extended streaming history in Spotify's privacy settings. Spotify emails it to you, which can take up to 30 days.</p>
         <p class="timeline__wait">{{ icon("clock") }}Up to 30 days</p>
       </li>
-      <li class="timeline__step" data-reveal>
+      <li class="timeline__step">
         <span class="timeline__icon" aria-hidden="true">{{ icon("upload") }}</span>
         <h3 class="timeline__title">Upload the zip</h3>
         <p>Only the songs that played during your runs are kept, and the file is deleted as soon as it has been read. Your results follow straight away.</p>
@@ -290,10 +290,10 @@
       <p><a class="privacy__link" href="{{ url_for('legal.privacy') }}">Read the privacy policy{{ icon("arrow-right") }}</a></p>
     </div>
     <ul class="privacy__list">
-      <li data-reveal>{{ icon("lock") }}<p><strong>Your Garmin password is never stored.</strong> Runnify signs in once and keeps an encrypted session token instead.</p></li>
-      <li data-reveal>{{ icon("music") }}<p><strong>Only songs from your runs are kept.</strong> The rest of your listening history is ignored, and the upload is deleted once it's read.</p></li>
-      <li data-reveal>{{ icon("shield") }}<p><strong>No ads, trackers or third-party scripts.</strong> Every page, font and script is served by Runnify itself.</p></li>
-      <li data-reveal>{{ icon("download") }}<p><strong>Your data stays yours.</strong> Download all of it, or delete your account, from Settings at any time.</p></li>
+      <li>{{ icon("lock") }}<p><strong>Your Garmin password is never stored.</strong> Runnify signs in once and keeps an encrypted session token instead.</p></li>
+      <li>{{ icon("music") }}<p><strong>Only songs from your runs are kept.</strong> The rest of your listening history is ignored, and the upload is deleted once it's read.</p></li>
+      <li>{{ icon("shield") }}<p><strong>No ads, trackers or third-party scripts.</strong> Every page, font and script is served by Runnify itself.</p></li>
+      <li>{{ icon("download") }}<p><strong>Your data stays yours.</strong> Download all of it, or delete your account, from Settings at any time.</p></li>
     </ul>
   </div>
 </section>

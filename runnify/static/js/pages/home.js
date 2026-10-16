@@ -1,9 +1,12 @@
 /**
- * Landing page motion. The page reads completely without it; this adds:
- * - the hero: the headline's words rise, then the sample run replays, a
+ * Landing page motion. The page reads completely without it, and nothing fades
+ * in as you scroll: every movement shows something the product does.
+ * - the hero: the headline's words rise once, then the sample run replays, a
  *   playhead walking its pace line while each song lights up and plays;
- * - the story: each step draws or lights its picture as you reach it;
- * - quiet entrances for the results, set-up and privacy cards, and the closing line.
+ * - the story: the pace line draws, the songs land on their seconds, the
+ *   minutes either side of a song open out from it while its lift counts up,
+ *   and the best of the ranked songs is struck with volt;
+ * - the closing panel draws the run's pace line behind its words.
  * Nothing moves when the visitor prefers reduced motion, and if the animation
  * library is missing everything is simply shown.
  */
@@ -13,6 +16,8 @@ const root = document.documentElement;
 const motionAllowed = window.matchMedia("(prefers-reduced-motion: no-preference)").matches;
 const { gsap, ScrollTrigger } = window;
 const SVG = "http://www.w3.org/2000/svg";
+const MINUS = "−";
+const NBSP = " ";
 
 function clock(seconds) {
   const total = Math.max(0, Math.round(seconds));
@@ -22,9 +27,15 @@ function clock(seconds) {
   return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${rest}` : `${minutes}:${rest}`;
 }
 
-/** A lift badge the way the server prints one: "+9 s/km", true minus, arrow, words for screen readers. */
-function liftBadge(value) {
+/** "+9 s/km" the way the server prints it, with a true minus sign. */
+function liftText(value) {
   const whole = Math.round(value);
+  const sign = whole > 0 ? "+" : whole < 0 ? MINUS : "±";
+  return `${sign}${Math.abs(whole)}${NBSP}s/km`;
+}
+
+/** A lift badge like the server's: arrow, signed figure, and words for screen readers. */
+function liftBadge(value) {
   const kind = Math.abs(value) < 1 ? "flat" : value > 0 ? "up" : "down";
   const badge = document.createElement("span");
   badge.className = `lift lift--${kind}`;
@@ -38,33 +49,38 @@ function liftBadge(value) {
     icon.append(use);
     badge.append(icon);
   }
-  const sign = whole > 0 ? "+" : whole < 0 ? "−" : "±";
-  badge.append(`${sign}${Math.abs(whole)} s/km`);
+  badge.append(liftText(value));
   return { badge, kind };
 }
 
-/**
- * Clip a run chart's fill and line to a rectangle we can widen, so the line
- * draws from left to right. Returns the rectangle (in the chart's 0-1000 units).
- */
-function clipLines(plot, id) {
-  const lines = plot.querySelector(".chart__lines");
-  if (!lines) return null;
-  const box = lines.viewBox.baseVal.width || 1000;
+/** A clipping rectangle, in the units of `svg`, for the given children; returns the rectangle. */
+function clipChildren(svg, children, id, { x = "0", width = "0", height = "100%" } = {}) {
   const defs = document.createElementNS(SVG, "defs");
   const clip = document.createElementNS(SVG, "clipPath");
   clip.id = id;
   const rect = document.createElementNS(SVG, "rect");
-  rect.setAttribute("x", "0");
+  rect.setAttribute("x", x);
   rect.setAttribute("y", "0");
-  rect.setAttribute("width", "0");
-  rect.setAttribute("height", String(box));
+  rect.setAttribute("width", width);
+  rect.setAttribute("height", height);
   clip.append(rect);
   defs.append(clip);
   const group = document.createElementNS(SVG, "g");
   group.setAttribute("clip-path", `url(#${id})`);
-  group.append(...lines.querySelectorAll(".area, .trace"));
-  lines.append(defs, group);
+  const first = children[0];
+  first.parentNode.insertBefore(group, first);
+  group.append(...children);
+  svg.append(defs);
+  return rect;
+}
+
+/** Clip a run chart's fill and line so they can draw from left to right (0 to 1000 units). */
+function clipLines(plot, id) {
+  const lines = plot.querySelector(".chart__lines");
+  const drawn = lines ? [...lines.querySelectorAll(".area, .trace")] : [];
+  if (!drawn.length) return null;
+  const box = lines.viewBox.baseVal.width || 1000;
+  const rect = clipChildren(lines, drawn, id, { height: String(box) });
   return { rect, box };
 }
 
@@ -171,9 +187,8 @@ function makeReplay(card) {
       const { badge, kind } = liftBadge(lift);
       liftHost.replaceChildren(badge);
       now.dataset.kind = kind;
-      gsap.fromTo(badge, { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2)" });
+      gsap.fromTo(badge, { scale: 0.85 }, { scale: 1, duration: 0.35, ease: "back.out(2)" });
     }
-    gsap.fromTo([name, artist], { y: 6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power2.out" });
   };
 
   const render = (fraction) => {
@@ -181,8 +196,8 @@ function makeReplay(card) {
     const outer = chartBox.getBoundingClientRect();
     const box = plot.getBoundingClientRect();
     const x = box.left - outer.left + fraction * box.width;
-    const bottomEdge = (lane ? lane.getBoundingClientRect().bottom : box.bottom) - outer.top;
     const plotTop = box.top - outer.top;
+    const bottomEdge = (lane ? lane.getBoundingClientRect().bottom : box.bottom) - outer.top;
     Object.assign(head.style, { left: `${x}px`, top: `${plotTop}px`, height: `${bottomEdge - plotTop}px` });
     if (clip) clip.rect.setAttribute("width", String(fraction * clip.box));
 
@@ -223,12 +238,11 @@ function makeReplay(card) {
     distance.textContent = final.distance;
     time.textContent = final.time;
     gsap.fromTo(now, { scale: 0.98 }, { scale: 1, duration: 0.5, ease: "back.out(3)" });
-    const best = card.querySelectorAll(".band--best, .lane__block--best");
-    gsap.fromTo(best, { opacity: 0.4 }, { opacity: 1, duration: 0.8, repeat: 1, yoyo: true, ease: "sine.inOut" });
     if (again) again.hidden = false;
   };
 
-  const play = () => {
+  // the start of the run: nothing drawn yet, every song still dark
+  const prepare = () => {
     tween?.kill();
     current = -2;
     card.classList.add("is-replaying");
@@ -236,6 +250,10 @@ function makeReplay(card) {
     head.hidden = false;
     playhead.at = 0;
     render(0);
+  };
+
+  const play = () => {
+    prepare();
     tween = gsap.to(playhead, {
       at: 1,
       duration: 9,
@@ -258,101 +276,101 @@ function makeReplay(card) {
     onEnterBack: () => tween?.resume(),
   });
 
-  return { play };
+  return { prepare, play };
 }
 
 function hero() {
   const title = document.querySelector("[data-hero-title]");
-  const fades = document.querySelectorAll("[data-hero-fade]");
   const card = document.querySelector("[data-replay]");
   const replay = card ? makeReplay(card) : null;
-  const timeline = gsap.timeline({ defaults: { ease: "expo.out" } });
+  replay?.prepare();
+  const timeline = gsap.timeline();
   if (title) {
     const words = splitWords(title);
     gsap.set(title, { opacity: 1 });
-    timeline.from(words, { yPercent: 110, duration: 1.05, stagger: 0.05 }, 0);
+    timeline.from(words, { yPercent: 110, duration: 1.05, stagger: 0.05, ease: "expo.out" }, 0);
   }
-  timeline.fromTo(fades, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.08 }, 0.3);
-  if (card) {
-    timeline.fromTo(card, { opacity: 0, y: 36, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 1.2 }, 0.2);
-  }
-  if (replay) timeline.add(() => replay.play(), 1.1);
+  if (replay) timeline.add(() => replay.play(), 0.7);
 }
 
 /* ---- the story ------------------------------------------------------------ */
 
+/** Count a lift badge's figure up from zero, keeping its arrow and its words for screen readers. */
+function countUp(badge, value) {
+  const figure = [...badge.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim());
+  if (!figure) return;
+  const shown = { value: 0 };
+  figure.nodeValue = liftText(0);
+  gsap.to(shown, {
+    value,
+    duration: 1.1,
+    ease: "power2.out",
+    onUpdate: () => (figure.nodeValue = liftText(shown.value)),
+    onComplete: () => (figure.nodeValue = liftText(value)),
+  });
+}
+
 function story() {
-  const steps = [...document.querySelectorAll("[data-story-step]")];
-  steps.forEach((step, index) => {
+  document.querySelectorAll("[data-story-step]").forEach((step, index) => {
     const kind = step.dataset.storyStep;
     const figure = step.querySelector(".story__figure");
     const plot = figure?.querySelector(".chart__plot");
     let play = () => {};
 
     if (kind === "pace" && plot) {
+      // the line draws itself, left to right
       const clip = clipLines(plot, `story-clip-${index}`);
-      if (clip) {
-        play = () => gsap.to(clip.rect, { attr: { width: clip.box }, duration: 1.8, ease: "power2.inOut" });
-      }
+      if (clip) play = () => gsap.to(clip.rect, { attr: { width: clip.box }, duration: 1.8, ease: "power2.inOut" });
     } else if (kind === "songs" && plot) {
-      const bands = plot.querySelectorAll(".band");
-      const blocks = figure.querySelectorAll(".lane__block");
-      gsap.set(bands, { opacity: 0 });
-      gsap.set(blocks, { opacity: 0, y: -10 });
+      // the songs land along the run, from its start to its finish
+      const bands = [...plot.querySelectorAll(".band")];
+      const lane = figure.querySelector(".lane");
+      const reveal = bands.length ? clipChildren(plot, bands, `story-bands-${index}`, { width: "0%" }) : null;
+      if (lane) gsap.set(lane, { clipPath: "inset(0 100% 0 0)" });
       play = () => {
-        gsap.to(blocks, { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, ease: "back.out(1.6)" });
-        gsap.to(bands, { opacity: 1, duration: 0.6, stagger: 0.06, delay: 0.15, ease: "power1.out" });
+        if (reveal) gsap.to(reveal, { attr: { width: "100%" }, duration: 1.6, ease: "power2.inOut" });
+        if (lane) gsap.to(lane, { clipPath: "inset(0 0% 0 0)", duration: 1.6, ease: "power2.inOut" });
       };
     } else if (kind === "context" && plot) {
-      const around = plot.querySelectorAll(".band--context");
-      const song = plot.querySelectorAll(".band--best");
+      // the five minutes either side open out from the song, and its lift counts up
+      const around = [...plot.querySelectorAll(".band--context")];
+      const song = plot.querySelector(".band--best");
       const result = figure.querySelector("[data-story-result]");
-      gsap.set([...around, ...song], { opacity: 0 });
-      if (result) gsap.set(result, { opacity: 0, y: 8 });
-      play = () => {
-        const sequence = gsap.timeline();
-        sequence.to(song, { opacity: 1, duration: 0.5, ease: "power1.out" });
-        sequence.to(around, { opacity: 1, duration: 0.6, stagger: 0.15, ease: "power1.out" }, "+=0.15");
-        if (result) sequence.to(result, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, "+=0.1");
-      };
+      const badge = result?.querySelector(".lift");
+      const lift = Number.parseFloat(result?.dataset.lift ?? "");
+      if (around.length && song) {
+        const from = { x: song.getAttribute("x"), width: song.getAttribute("width") };
+        const first = Number.parseFloat(around[0].getAttribute("x"));
+        const last = around[around.length - 1];
+        const end = Number.parseFloat(last.getAttribute("x")) + Number.parseFloat(last.getAttribute("width"));
+        const opening = clipChildren(plot, around, `story-context-${index}`, from);
+        play = () => {
+          gsap.to(opening, {
+            attr: { x: `${first}%`, width: `${end - first}%` },
+            duration: 1.2,
+            delay: 0.2,
+            ease: "power3.out",
+          });
+          if (badge && Number.isFinite(lift)) countUp(badge, lift);
+        };
+      }
     } else if (kind === "ranked" && figure) {
+      // the strongest song is struck with volt
       const host = figure.querySelector("[data-sweep-host]");
-      const rows = figure.querySelectorAll(".mini-rank");
-      gsap.set(rows, { opacity: 0, y: 12 });
-      play = () => {
-        gsap.to(rows, { opacity: 1, y: 0, duration: 0.6, stagger: 0.08, ease: "expo.out" });
-        if (host) sweep(host, { delay: 0.45 });
-      };
+      if (host) play = () => sweep(host, { delay: 0.3 });
     }
 
     whenSeen(step, play, "top 65%");
-    ScrollTrigger.create({ trigger: step, start: "top 55%", end: "bottom 45%", toggleClass: "is-active" });
   });
 }
 
-/* ---- everything else that eases in -------------------------------------- */
+/* ---- the closing panel ------------------------------------------------------ */
 
-function reveals() {
-  const items = gsap.utils.toArray("[data-reveal]");
-  gsap.set(items, { y: 24 });
-  ScrollTrigger.batch(items, {
-    start: "top 88%",
-    once: true,
-    onEnter: (batch) =>
-      gsap.to(batch, { opacity: 1, y: 0, duration: 0.9, stagger: 0.08, ease: "expo.out", overwrite: true }),
-  });
-  // anything the page has already gone past is simply shown
-  items.forEach((item) => {
-    if (item.getBoundingClientRect().bottom < 0) gsap.set(item, { opacity: 1, y: 0 });
-  });
-
+function closingLine() {
   const trace = document.querySelector(".cta__trace");
-  if (trace) {
-    gsap.set(trace, { clipPath: "inset(0 100% 0 0)" });
-    whenSeen(trace, () =>
-      gsap.to(trace, { clipPath: "inset(0 0% 0 0)", duration: 2.4, ease: "power2.inOut" }),
-    );
-  }
+  if (!trace) return;
+  gsap.set(trace, { clipPath: "inset(0 100% 0 0)" });
+  whenSeen(trace, () => gsap.to(trace, { clipPath: "inset(0 0% 0 0)", duration: 2.4, ease: "power2.inOut" }));
 }
 
 /* ---- start --------------------------------------------------------------- */
@@ -365,6 +383,6 @@ if (!motionAllowed || !gsap || !ScrollTrigger) {
   root.classList.add("is-animating");
   hero();
   story();
-  reveals();
+  closingLine();
   document.fonts?.ready.then(() => ScrollTrigger.refresh());
 }
