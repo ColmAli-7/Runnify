@@ -102,7 +102,7 @@ shows how many runs it rests on. Confidence is "high" from five plays.
 | Drag songs | The five largest negative shrunk lifts |
 | Top artists | The same, grouping every song by an artist |
 | Heart raisers | Songs with two or more plays that raised heart rate, the biggest rise first |
-| Most skipped | Songs skipped most often during runs |
+| Most skipped | The five songs skipped most often during your runs in the range, counted over every play, measured or not, so a skip that left too little running to measure still counts. The figure is skips out of all those plays (on All time, the same numbers as the song's page), and a tie goes to the song heard more often |
 | With and without music | Average pace of whole runs that had matched songs, and of those that didn't (a rough guide: you may run different sessions with and without music) |
 | Where songs work hardest | See below |
 
