@@ -67,6 +67,33 @@ def _rank_key(session):
     return lambda effect: effect.shrunk_lift
 
 
+def eligible(effects, session, minimum=insights.MIN_PLAYS_TO_RANK):
+    """The song effects a ``session`` may draw on, best first for that session.
+
+    Easy runs also accept songs that barely slow the runner (down to -1 s/km),
+    since they're ranked on keeping the heart rate down as much as on pace.
+    """
+    floor = -1.0 if session == "easy" else 0.0
+    pool = [e for e in effects if e.plays >= minimum and e.shrunk_lift > floor]
+    return sorted(pool, key=_rank_key(session), reverse=True)
+
+
+def choose(ranked, target_seconds, track_for):
+    """Take tracks from ``ranked`` until they fill ``target_seconds``.
+
+    Args:
+        ranked: Effects in the order to take them (see :func:`eligible`).
+        target_seconds: The playlist length to reach.
+        track_for: Builds a :class:`PlannedTrack` from an effect.
+    """
+    chosen = []
+    for effect in ranked:
+        if sum(track.seconds for track in chosen) >= target_seconds:
+            break
+        chosen.append(track_for(effect))
+    return chosen
+
+
 def arrange(session, chosen):
     """Order chosen tracks (best first on entry) to suit the session."""
     if session == "tempo":
@@ -101,11 +128,7 @@ def plan(user_id, session, target_minutes, include_untested=False):
     if session not in SESSIONS:
         raise ValueError(f"unknown session {session!r}")
     minimum = 1 if include_untested else insights.MIN_PLAYS_TO_RANK
-    effects = [
-        e
-        for e in insights.song_effects(user_id)
-        if e.plays >= minimum and e.shrunk_lift > (-1.0 if session == "easy" else 0.0)
-    ]
+    effects = eligible(insights.song_effects(user_id), session, minimum)
     result = PlaylistPlan(session=session, target_minutes=target_minutes)
     if not effects:
         result.note = (
@@ -114,22 +137,19 @@ def plan(user_id, session, target_minutes, include_untested=False):
         )
         return result
 
-    effects.sort(key=_rank_key(session), reverse=True)
     songs = {s.id: s for s in Song.query.filter(Song.id.in_([e.key for e in effects]))}
     target = target_minutes * 60
-    chosen = []
-    for effect in effects:
-        if sum(t.seconds for t in chosen) >= target:
-            break
+
+    def track_for(effect):
         song = songs[effect.key]
-        chosen.append(
-            PlannedTrack(
-                song=song,
-                seconds=song.duration or DEFAULT_TRACK_SECONDS,
-                lift=round(effect.shrunk_lift, 1),
-                plays=effect.plays,
-            )
+        return PlannedTrack(
+            song=song,
+            seconds=song.duration or DEFAULT_TRACK_SECONDS,
+            lift=round(effect.shrunk_lift, 1),
+            plays=effect.plays,
         )
+
+    chosen = choose(effects, target, track_for)
     result.tracks = arrange(session, chosen)
     if result.total_seconds < target * 0.9:
         minutes = round(result.total_seconds / 60)
