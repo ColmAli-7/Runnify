@@ -27,8 +27,9 @@ def index():
     week_chart = charts.bar_chart(
         [(short_day(start), metres / 1000) for start, metres in weeks],
         value_format=lambda km: f"{km:.0f}" if km >= 0.5 else "",
+        current=-1,
     )
-    effects = insights.song_effects(user.id, since=insights.range_start("90d"))
+    overview = insights.overview(user.id, "90d")
     return render_template(
         "dashboard/index.html",
         setup=setup,
@@ -39,6 +40,7 @@ def index():
         week_chart=week_chart,
         period=dashboard_service.totals(user.id, since=weeks[0][0]),
         all_time=dashboard_service.totals(user.id),
-        power=insights.ranked(effects, best=True, limit=3),
-        drag=insights.ranked(effects, best=False, limit=3),
+        power=overview.power_songs[:3],
+        drag=overview.drag_songs[:3],
+        highlights=insights.highlights(overview)[:3],
     )

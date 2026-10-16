@@ -1,51 +1,142 @@
-/* The dashboard. */
+/* Dashboard: set-up progress, the latest run, highlights, recent weeks and standout songs. */
 
 @layer pages {
+  /* ---- set-up ------------------------------------------------------------ */
+
   .setup {
-    margin-bottom: var(--s-6);
+    display: grid;
+    gap: var(--s-4);
+    padding: var(--card-pad);
+    margin-bottom: var(--s-5);
   }
 
-  .setup__steps {
-    padding-inline: var(--s-5);
+  .setup__intro {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
   }
 
-  .step__mark .icon {
-    width: 18px;
-    height: 18px;
+  .setup__lede {
+    margin-top: 2px;
+    font-size: var(--fs-md);
+    color: var(--text-2);
   }
+
+  @media (min-width: 960px) {
+    .setup {
+      grid-template-columns: minmax(240px, 0.8fr) minmax(0, 2fr);
+      align-items: start;
+      gap: var(--s-6);
+    }
+
+    .setup__intro {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .setup__steps {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s-5);
+    }
+
+    .setup__steps .step {
+      padding: 0;
+    }
+
+    .setup__steps .step + .step {
+      border-top: 0;
+    }
+  }
+
+  /* ---- the grid ---------------------------------------------------------- */
 
   .dash {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-5);
     align-items: start;
   }
 
+  .dash__chart {
+    padding-bottom: var(--s-3);
+  }
+
+  .dash__section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    margin-bottom: var(--s-3);
+  }
+
+  .dash__section-title {
+    font-size: var(--fs-lg);
+    font-weight: 650;
+  }
+
+  .dash__more {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: var(--fs-md);
+    font-weight: 550;
+    color: var(--text-2);
+    text-decoration: none;
+  }
+
+  .dash__more:hover {
+    color: var(--text);
+  }
+
+  .dash__highlight-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+
+  .dash__highlight-list .highlight {
+    gap: var(--s-2);
+  }
+
+  .dash__highlight-list .highlight__text {
+    font-size: var(--fs-base);
+  }
+
   .dash__subhead {
-    padding: var(--s-4) var(--s-5) var(--s-2);
-    margin-top: var(--s-2);
-    border-top: var(--heavy);
-    font-size: var(--text-md);
-    font-weight: 750;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--card-pad) var(--s-2);
+    border-top: var(--hair);
+    font-size: var(--fs-base);
+    font-weight: 650;
   }
 
-  .dash__songs .ranks {
-    padding-inline: var(--s-3);
+  .dash__subhead .icon {
+    color: var(--drag);
   }
 
-  .dash__songs > .empty {
-    padding: var(--s-5);
-    color: var(--ink-2);
+  .dash__songs .card__title .icon {
+    color: var(--accent-ink);
+  }
+
+  .dash__weeks {
+    --bar-colour: var(--text-3);
+    --bar-current: var(--text);
   }
 
   .chart--weeks {
     --chart-h: 170px;
   }
 
-  @media (max-width: 759px) {
-    /* every other week label, so they don't collide */
-    .chart--weeks .chart__x text:nth-child(even) {
+  @media (max-width: 559px) {
+    .chart--weeks .chart__x text:nth-child(odd):not(:last-child),
+    .chart--weeks .chart__value {
       display: none;
+    }
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) {
+    .dash__highlight-list {
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     }
   }
 
@@ -58,27 +149,20 @@
       grid-column: span 8;
     }
 
-    .dash__songs {
+    .dash__highlights {
       grid-column: span 4;
     }
 
-    .dash__weeks {
+    .dash:not(:has(.dash__highlights)) .dash__latest {
       grid-column: 1 / -1;
     }
 
-    .dash__weeks-body {
-      display: grid;
-      grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
-      align-items: stretch;
+    .dash__weeks {
+      grid-column: span 7;
     }
 
-    .dash__period {
-      border-right: var(--hair);
+    .dash__songs {
+      grid-column: span 5;
     }
-  }
-
-  .dash__period {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-content: start;
   }
 }

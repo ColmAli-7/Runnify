@@ -1,6 +1,6 @@
 {% extends "layouts/app.html" %}
-{% from "macros/ui.html" import icon, lift, csrf %}
-{% from "macros/charts.html" import run_chart, bar_chart %}
+{% from "macros/ui.html" import icon, lift, csrf, highlight_card, progress_ring %}
+{% from "macros/charts.html" import run_chart, bar_chart, song_lane %}
 {% from "macros/results.html" import results_table, effect_list %}
 
 {% block title %}Dashboard | Runnify{% endblock %}
@@ -12,7 +12,7 @@
 {% block content %}
 <header class="page-head">
   <div>
-    <h1>Dashboard</h1>
+    <h1>Hi, {{ current_user.name|first_name }}</h1>
     <p class="page-head__meta">
       {% if all_time.runs %}{{ all_time.runs|plural("run") }}, {{ all_time.metres|km(0) }} km in total.{% endif %}
       {% if setup.garmin_linked %}Garmin synced {{ current_user.garmin_last_synced_at|ago }}.{% endif %}
@@ -33,11 +33,14 @@
 
 {% if not setup.complete %}
   {% set done = [setup.has_runs, setup.has_music, setup.has_results]|select|list|length %}
-  <section class="sheet setup" aria-labelledby="setup-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="setup-title">Get your first results</h2>
-      <p class="sheet__meta">{{ done }} of 3 done</p>
-    </header>
+  <section class="card setup" aria-labelledby="setup-title">
+    <div class="setup__intro">
+      {{ progress_ring(done, 3, done ~ " of 3 set-up steps done") }}
+      <div>
+        <h2 class="card__title" id="setup-title">Get your first results</h2>
+        <p class="setup__lede">Three steps, and the slow one is waiting for Spotify. Start it today.</p>
+      </div>
+    </div>
     <ol class="steps setup__steps">
       <li class="step{% if setup.has_runs %} is-done{% endif %}">
         <span class="step__mark" aria-hidden="true">{% if setup.has_runs %}{{ icon("check") }}{% endif %}</span>
@@ -67,7 +70,7 @@
         <span class="step__mark" aria-hidden="true">{% if setup.has_results %}{{ icon("check") }}{% endif %}</span>
         <div class="step__body">
           <p class="step__title">Read your results</p>
-          <p>Once songs have played during your runs, each run gets a results sheet and your best songs appear here.</p>
+          <p>Once songs have played during your runs, each run shows how every song changed your pace, and your best songs appear here.</p>
         </div>
       </li>
     </ol>
@@ -76,11 +79,11 @@
 
 {% if latest %}
 <div class="dash">
-  <section class="sheet dash__latest" aria-labelledby="latest-title">
-    <header class="sheet__head">
+  <section class="card dash__latest" aria-labelledby="latest-title">
+    <header class="card__head">
       <div>
-        <h2 class="sheet__title" id="latest-title">Latest run</h2>
-        <p class="sheet__meta">{{ latest.local_start|run_name }}, {{ latest.local_start|day }} at {{ latest.local_start|clock }}</p>
+        <h2 class="card__title" id="latest-title">{{ icon("route") }}Latest run</h2>
+        <p class="card__meta">{{ latest.local_start|run_name }}, {{ latest.local_start|day }} at {{ latest.local_start|clock }}</p>
       </div>
       <a class="btn btn--sm" href="{{ url_for('runs.detail', run_id=latest.id) }}">Full results{{ icon("arrow-right") }}</a>
     </header>
@@ -91,8 +94,9 @@
       <div class="stat"><dt>Heart rate</dt><dd><span class="stat__value">{{ latest.avg_hr or "-" }}</span>{% if latest.avg_hr %}<span class="stat__unit">bpm</span>{% endif %}</dd></div>
     </dl>
     {% if results.ranked %}
-      <div class="sheet__body">
-        {{ run_chart(latest_chart, "Pace through the run, faster higher, with a band for each song." ~ (" " ~ results.best.song.name ~ " was the fastest stretch." if results.best else ""), class="chart--compact") }}
+      <div class="card__body dash__chart">
+        {{ run_chart(latest_chart, "Pace through the run, faster higher, with a band for each song." ~ (" " ~ results.best.song.name ~ " was the fastest stretch." if results.best else ""), class="chart--compact", uid="latest") }}
+        {{ song_lane(latest_chart, class="lane--run", labels=101) }}
       </div>
       {{ results_table(results.ranked, "Songs from your latest run, ranked by how they changed your pace", top=3) }}
     {% else %}
@@ -103,10 +107,39 @@
     {% endif %}
   </section>
 
-  <section class="sheet dash__songs" aria-labelledby="power-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="power-title">Power songs</h2>
-      <p class="sheet__meta">Last 90 days</p>
+  {% if highlights %}
+    <section class="dash__highlights" aria-labelledby="highlights-title">
+      <div class="dash__section-head">
+        <h2 class="dash__section-title" id="highlights-title">Highlights</h2>
+        <a class="dash__more" href="{{ url_for('insights.index') }}">All insights{{ icon("chevron-right") }}</a>
+      </div>
+      <ul class="highlights dash__highlight-list">
+        {% for h in highlights %}{{ highlight_card(h) }}{% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <section class="card dash__weeks" aria-labelledby="weeks-title">
+    <header class="card__head">
+      <h2 class="card__title" id="weeks-title">{{ icon("bars") }}Last {{ weeks|length }} weeks</h2>
+      <p class="card__meta">Kilometres per week</p>
+    </header>
+    <dl class="stats stats--4 stats--flush dash__period">
+      <div class="stat"><dt>Runs</dt><dd><span class="stat__value">{{ period.runs }}</span></dd></div>
+      <div class="stat"><dt>Distance</dt><dd><span class="stat__value">{{ period.metres|km(0) }}</span><span class="stat__unit">km</span></dd></div>
+      <div class="stat"><dt>Time</dt><dd><span class="stat__value">{{ (period.seconds / 3600)|round(1) }}</span><span class="stat__unit">h</span></dd></div>
+      <div class="stat"><dt>Avg pace</dt><dd><span class="stat__value">{{ period.pace|pace }}</span><span class="stat__unit">/km</span></dd></div>
+    </dl>
+    {% set summary %}Kilometres run each week: {% for start, metres in weeks %}week of {{ start|short_day }}, {{ metres|km(1) }}{{ "; " if not loop.last else "." }}{% endfor %}{% endset %}
+    <div class="card__body">
+      {{ bar_chart(week_chart, summary, class="chart--weeks") }}
+    </div>
+  </section>
+
+  <section class="card dash__songs" aria-labelledby="power-title">
+    <header class="card__head">
+      <h2 class="card__title" id="power-title">{{ icon("trend-up") }}Power songs</h2>
+      <p class="card__meta">Last 90 days</p>
     </header>
     {% if power %}
       {{ effect_list(power, highlight=True) }}
@@ -114,29 +147,10 @@
       <p class="empty">Songs appear here once they've played on at least two runs and lifted your pace.</p>
     {% endif %}
     {% if drag %}
-      <h3 class="dash__subhead">Drag songs</h3>
+      <h3 class="dash__subhead">{{ icon("trend-down") }}Drag songs</h3>
       {{ effect_list(drag, struck=True) }}
     {% endif %}
-    <p class="sheet__foot"><a href="{{ url_for('insights.index') }}">All insights</a></p>
-  </section>
-
-  <section class="sheet dash__weeks" aria-labelledby="weeks-title">
-    <header class="sheet__head">
-      <h2 class="sheet__title" id="weeks-title">Last {{ weeks|length }} weeks</h2>
-      <p class="sheet__meta">Kilometres per week</p>
-    </header>
-    <div class="dash__weeks-body">
-      <dl class="stats stats--flush dash__period">
-        <div class="stat"><dt>Runs</dt><dd><span class="stat__value">{{ period.runs }}</span></dd></div>
-        <div class="stat"><dt>Distance</dt><dd><span class="stat__value">{{ period.metres|km(0) }}</span><span class="stat__unit">km</span></dd></div>
-        <div class="stat"><dt>Time</dt><dd><span class="stat__value">{{ (period.seconds / 3600)|round(1) }}</span><span class="stat__unit">h</span></dd></div>
-        <div class="stat"><dt>Avg pace</dt><dd><span class="stat__value">{{ period.pace|pace }}</span><span class="stat__unit">/km</span></dd></div>
-      </dl>
-      {% set summary %}Kilometres run each week: {% for start, metres in weeks %}week of {{ start|short_day }}, {{ metres|km(1) }}{{ "; " if not loop.last else "." }}{% endfor %}{% endset %}
-      <div class="sheet__body">
-        {{ bar_chart(week_chart, summary, class="chart--weeks") }}
-      </div>
-    </div>
+    <p class="card__foot"><a href="{{ url_for('insights.index') }}">All insights</a></p>
   </section>
 </div>
 {% endif %}
