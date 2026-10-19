@@ -365,6 +365,9 @@
   /* ---- results table ----------------------------------------------------- */
 
   .table-wrap {
+    /* the box hidden labels (such as a lift's "faster") are placed in, so a table
+       wider than a phone scrolls inside it instead of widening the whole page */
+    position: relative;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
