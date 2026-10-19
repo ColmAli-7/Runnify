@@ -193,8 +193,8 @@
 
       <article class="tile tile--words">
         <p class="tile__kicker">{{ icon("info") }}In plain words</p>
-        <p class="tile__sentence"><strong>{{ top.label }}</strong> lifted the pace by {{ top.shrunk_lift|abs|round|int }}&nbsp;s/km across {{ top.runs|length|plural("run") }}.</p>
-        <p class="tile__sentence"><strong>{{ drag_top.label }}</strong> slowed it by {{ drag_top.shrunk_lift|abs|round|int }}&nbsp;s/km. Keep it for the cool-down.</p>
+        {% if top %}<p class="tile__sentence"><strong>{{ top.label }}</strong> lifted the pace by {{ top.shrunk_lift|abs|round|int }}&nbsp;s/km across {{ top.runs|length|plural("run") }}.</p>{% endif %}
+        {% if drag_top %}<p class="tile__sentence"><strong>{{ drag_top.label }}</strong> slowed it by {{ drag_top.shrunk_lift|abs|round|int }}&nbsp;s/km. Keep it for the cool-down.</p>{% endif %}
       </article>
 
       <article class="tile tile--drag">

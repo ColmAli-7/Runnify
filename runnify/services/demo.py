@@ -2,9 +2,12 @@
 
 ``flask --app runnify demo seed`` creates a demo account with four months of
 runs: second-by-second pace and heart rate with warm-ups, fatigue, hills,
-traffic-light stops and noise, and songs played through each run. Every song
-has a hidden "true" effect on pace; the real scoring pipeline then has to
-recover it, so the demo doubles as an end-to-end check of the analytics.
+traffic-light stops and noise, and songs played through each run. Easy, long
+and tempo runs are steady; interval sessions and run-walks have parts, with
+heart rate that lags the effort, and half of them carry the watch's laps
+while the rest leave the laps to be found. Every song has a hidden "true"
+effect on pace; the real scoring pipeline then has to recover it, so the demo
+doubles as an end-to-end check of the analytics.
 Friends, a pending friend request and a playlist are added too.
 Deterministic: the same data every time.
 """
@@ -20,12 +23,32 @@ from runnify.security.passwords import hash_password
 from runnify.services import playlists as playlist_service
 from runnify.services.account import delete_account
 from runnify.services.analysis import rescore_run
-from runnify.services.fit import Series
+from runnify.services.fit import Series, WatchLap
 from runnify.services.streams import save_stream
 
 DEMO_EMAIL = "demo@runnify.test"
 FRIEND_DOMAIN = "friends.runnify.test"
-RUN_KINDS = ("easy", "tempo", "easy", "long")
+RUN_KINDS = ("easy", "intervals", "easy", "long", "tempo", "run_walk")
+SESSIONS = ("intervals", "run_walk")  # runs with parts, simulated by _simulate_session
+# each part of a session: pace (s/km, None for a walk) and heart rate (bpm) against the
+# runner's base for the day
+SESSION_PARTS = {
+    "warmup": (25, 2),
+    "hard": (-55, 38),
+    "jog": (45, 14),
+    "cooldown": (30, 4),
+    "run": (12, 10),
+    "walk": (None, -18),
+}
+INTENSITIES = {  # how a watch following the workout marks each part's lap
+    "warmup": "warmup",
+    "hard": "active",
+    "jog": "rest",
+    "cooldown": "cooldown",
+    "run": "active",
+    "walk": "rest",
+}
+WALK_PACE = 660.0  # s/km, 11:00/km
 
 # title, artist, length (s), true pace effect (s/km faster), heart-rate effect (bpm)
 SONGS = [
@@ -85,19 +108,81 @@ def _run_profile(rng, kind):
     return rng.uniform(318, 340), rng.uniform(5000, 9000), 132
 
 
-def _simulate(rng, start, kind, songs):
+def _plan(rng, kind):
+    """The parts of an interval session or a run-walk, as ``(seconds, part)``."""
+    if kind == "intervals":
+        reps, rep, jog = rng.choice(((6, 180, 120), (8, 120, 90), (5, 240, 150)))
+        return [(600, "warmup")] + [(rep, "hard"), (jog, "jog")] * reps + [(600, "cooldown")]
+    run, walk = rng.choice(((240, 60), (300, 60), (180, 45)))
+    return [(run, "run"), (walk, "walk")] * rng.randint(7, 9)
+
+
+def _next_song(rng, queue, index, second, plays):
+    """Start the next song in ``queue`` at ``second``; returns its index and when it ends."""
+    index = (index + 1) % len(queue)
+    skipped = rng.random() < 0.1
+    length = rng.randint(15, 60) if skipped else queue[index][1]
+    plays.append([queue[index][0], second, length, skipped])
+    return index, second + length
+
+
+def _simulate_session(rng, start, kind, songs, watch_laps):
+    """An interval session or a run-walk, second by second (see :func:`_simulate`).
+
+    Heart rate eases towards each part's effort over about half a minute, as
+    it does, rather than jumping with the pace. With ``watch_laps`` the series
+    carries the watch's laps for the plan, as a watch following a workout
+    records them; without, the laps have to be found from the run.
+    """
+    base_pace, base_hr = rng.uniform(300, 325), rng.uniform(128, 136)
+    plan = _plan(rng, kind)
+    queue = rng.sample(songs, k=len(songs))
+    paces, heart_rates, timestamps, plays, laps = [], [], [], [], []
+    index, song_end, metres, heart, second = -1, 0, 0.0, base_hr, 0
+    for step, (seconds, part) in enumerate(plan):
+        laps.append(WatchLap(second, second + seconds, INTENSITIES[part], "time", step))
+        pace_offset, hr_offset = SESSION_PARTS[part]
+        for _ in range(seconds):
+            if second >= song_end:
+                index, song_end = _next_song(rng, queue, index, second, plays)
+            _song, _length, effect, hr_effect = queue[index]
+            effect = 0 if plays[-1][3] else effect
+            if pace_offset is None:  # walking: music or not, it's a walk
+                pace, hr_effect = WALK_PACE + rng.gauss(0, 15), 0
+            else:
+                pace = base_pace + pace_offset - effect + rng.gauss(0, 5)
+            heart += (base_hr + hr_offset + hr_effect - heart) / 30
+            paces.append(round(pace, 1))
+            metres += 1000 / pace
+            heart_rates.append(round(heart + rng.gauss(0, 1.5)))
+            timestamps.append(start + timedelta(seconds=second))
+            second += 1
+    plays[-1][2] = min(plays[-1][2], second - plays[-1][1])
+    series = Series(
+        timestamps=timestamps,
+        heart_rates=heart_rates,
+        paces=paces,
+        laps=laps if watch_laps else [],
+    )
+    return series, plays, metres, second, round(sum(heart_rates) / len(heart_rates))
+
+
+def _simulate(rng, start, kind, songs, watch_laps=False):
     """Simulate one run second by second.
 
     Args:
         rng: The random generator.
         start: When the run starts.
-        kind: "easy", "tempo" or "long".
+        kind: "easy", "tempo", "long", "intervals" or "run_walk".
         songs: ``(Song, length, pace effect, hr effect)`` tuples to play from.
+        watch_laps: For a session, whether the watch recorded its laps.
 
     Returns:
         ``(series, plays, metres, seconds, average_hr)`` where plays are
         ``(song, start_second, seconds_played, skipped)``.
     """
+    if kind in SESSIONS:
+        return _simulate_session(rng, start, kind, songs, watch_laps)
     base_pace, target_m, base_hr = _run_profile(rng, kind)
     hill_period, hill_phase = rng.uniform(420, 900), rng.uniform(0, 2 * math.pi)
     stops = {rng.randrange(600, 2400) for _ in range(rng.randint(0, 3))}
@@ -197,7 +282,9 @@ def seed(app, password, now=None):
             second=0,
             microsecond=0,
         )
-        series, plays, metres, seconds, avg_hr = _simulate(rng, start, RUN_KINDS[n % 4], songs)
+        kind = RUN_KINDS[n % len(RUN_KINDS)]
+        watch_laps = (n // len(RUN_KINDS)) % 2 == 0  # every other session recorded its laps
+        series, plays, metres, seconds, avg_hr = _simulate(rng, start, kind, songs, watch_laps)
         run = Run(
             user_id=user.id,
             activity_id=f"demo-{n:03d}",

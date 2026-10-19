@@ -39,6 +39,29 @@ def test_the_pipeline_recovers_the_hidden_song_effects(demo):
     assert draggers & {"Hallelujah", "Holocene", "The Night We Met", "Skinny Love"}
 
 
+def test_sessions_get_their_laps_and_kinds(demo):
+    user = User.query.filter_by(email=DEMO_EMAIL).one()
+    runs = Run.query.filter_by(user_id=user.id).all()
+    types = {run.run_type for run in runs}
+    assert {"easy", "long", "tempo", "intervals", "run_walk"} <= types
+    intervals = [run for run in runs if run.run_type == "intervals"]
+    assert {run.laps_source for run in intervals} == {"watch", "detected"}  # both ways work
+    for run in intervals:
+        kinds = [lap.kind for lap in run.laps]
+        assert kinds[0] == "warmup" and kinds[-1] == "cooldown"
+        assert kinds.count("hard") >= 5 and "jog" in kinds
+    for run in (run for run in runs if run.run_type == "run_walk"):
+        assert {lap.kind for lap in run.laps} == {"steady", "walk"}
+
+
+def test_the_known_best_songs_also_surface_on_hard_efforts(demo):
+    user = User.query.filter_by(email=DEMO_EMAIL).one()
+    hard = insights.overview(user.id, "all", "hard")
+    assert hard.plays > 20
+    boosters = {s.label for s in hard.power_songs}
+    assert boosters & {"Can't Hold Us", "Mr. Brightside", "Till I Collapse", "Lose Yourself"}
+
+
 def test_insights_counts_skips_as_each_song_page_does(demo):
     user = User.query.filter_by(email=DEMO_EMAIL).one()
     counts = {count.key: count for count in insights.skip_counts(user.id)}  # all time
