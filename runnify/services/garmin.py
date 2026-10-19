@@ -30,9 +30,10 @@ from garminconnect import (
 
 from runnify.extensions import db
 from runnify.models import Run, User, utcnow
+from runnify.services.analysis import rescore_run
 from runnify.services.fit import parse_fit
 from runnify.services.laps import refresh_laps, retype_runs
-from runnify.services.streams import save_stream
+from runnify.services.streams import FORMAT_VERSION, save_stream, stored_format
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +266,40 @@ def fetch_and_store_garmin_activities(user, pause=1.0):
     user.garmin_password = None  # legacy accounts: the password is no longer needed
     db.session.commit()
     return added
+
+
+def refetch_runs(user, pause=1.0):
+    """Download again the FIT files of ``user``'s runs stored before laps and cadence were kept.
+
+    Each such run gets a fresh stream, its laps worked out again (unless the
+    runner set them by hand) and its songs measured again; the refreshed
+    Garmin session is saved afterwards. Runs whose stream is already current
+    are left alone, so it can be run again safely.
+
+    Returns:
+        How many runs were refreshed.
+
+    Raises:
+        GarminError: Signing in to Garmin failed.
+    """
+    client = _client_for(user)
+    refreshed = 0
+    for run in Run.query.filter_by(user_id=user.id).order_by(Run.date_time.desc()):
+        if stored_format(run) >= FORMAT_VERSION:
+            continue
+        series = _download_series(run.activity_id, client)
+        if series is None:
+            continue
+        save_stream(run, series)
+        rescore_run(run, series)
+        db.session.commit()
+        refreshed += 1
+        time.sleep(pause)
+    retype_runs(user.id)
+    user.garmin_tokens = client.client.dumps()  # keep the refreshed session
+    user.garmin_password = None
+    db.session.commit()
+    return refreshed
 
 
 def start_background_sync(app, user_id):

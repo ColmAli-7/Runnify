@@ -100,6 +100,14 @@ def save_stream(run, series):
     return stream
 
 
+def stored_format(run):
+    """The format of ``run``'s stored stream (see :data:`FORMAT_VERSION`), or 0 with none."""
+    stream = db.session.get(RunStream, run.id)
+    if stream is None:
+        return 0
+    return json.loads(zlib.decompress(stream.samples)).get("v", 1)
+
+
 def load_series(run):
     """Return ``run``'s samples: from its stored stream, or a legacy FIT file, or empty."""
     stream = db.session.get(RunStream, run.id)

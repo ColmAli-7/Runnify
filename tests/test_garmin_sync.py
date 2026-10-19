@@ -4,6 +4,7 @@ import io
 import json
 import pathlib
 import zipfile
+import zlib
 from datetime import datetime, timedelta
 
 import pytest
@@ -259,3 +260,67 @@ def test_sync_fills_in_local_time_for_runs_stored_without_it(app, user):
         db.session.commit()
         garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
         assert Run.query.one().utc_offset == 60
+
+
+# half an hour at 5:33/km, recorded following a workout: warm-up, run, cool-down
+WORKOUT_FIT = build_fit(
+    [(datetime(2026, 10, 1, 7) + timedelta(seconds=i), 150, 3.0 * i, 3.0) for i in range(1800)],
+    laps=[
+        (datetime(2026, 10, 1, 7, 0), 600, 2, 1, 0),
+        (datetime(2026, 10, 1, 7, 10), 600, 0, 1, 1),
+        (datetime(2026, 10, 1, 7, 20), 600, 3, 7, 2),
+    ],
+)
+
+
+def _old_run(app, user):
+    """A run stored before laps were kept: its stream is format 1."""
+    with app.app_context():
+        run = Run(
+            user_id=user, activity_id="123", date_time=datetime(2026, 10, 1, 7), duration=1800
+        )
+        db.session.add(run)
+        db.session.flush()
+        old = {"v": 1, "t": [0, 1], "p": [300.0, 300.0], "h": [150, 150]}
+        db.session.add(
+            RunStream(
+                run_id=run.id,
+                started_at=run.date_time,
+                sample_count=2,
+                samples=zlib.compress(json.dumps(old).encode()),
+            )
+        )
+        db.session.commit()
+
+
+def test_refetching_old_runs_keeps_the_watchs_laps(app, user, monkeypatch):
+    monkeypatch.setattr(
+        FakeGarmin, "download_activity", lambda self, a, dl_fmt=None: _fit_zip(data=WORKOUT_FIT)
+    )
+    _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
+    _old_run(app, user)
+    with app.app_context():
+        assert garmin_service.refetch_runs(db.session.get(User, user), pause=0) == 1
+        run = Run.query.one()
+        assert run.laps_source == "watch"
+        assert [lap.kind for lap in run.laps] == ["warmup", "steady", "cooldown"]
+        assert db.session.get(RunStream, run.id).sample_count == 1800
+        # already current: nothing to fetch the second time
+        assert garmin_service.refetch_runs(db.session.get(User, user), pause=0) == 0
+
+
+def test_the_refetch_command_skips_runners_without_garmin(app, user, monkeypatch):
+    monkeypatch.setattr(
+        FakeGarmin, "download_activity", lambda self, a, dl_fmt=None: _fit_zip(data=WORKOUT_FIT)
+    )
+    _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
+    _old_run(app, user)
+    with app.app_context():
+        unlinked = User(name="Unlinked", email="u@example.com", password_hash="unused")
+        unlinked.garmin_username = "u@example.com"  # linked once, tokens since removed
+        db.session.add(unlinked)
+        db.session.commit()
+        unlinked_id = unlinked.id
+    result = app.test_cli_runner().invoke(args=["laps", "refetch", "--pause", "0"])
+    assert f"Skipped user {unlinked_id}: Garmin isn't connected." in result.output
+    assert "Refreshed 1 run from Garmin." in result.output

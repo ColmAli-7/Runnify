@@ -42,6 +42,29 @@ def rebuild_scores(user_id):
     click.echo(f"Scored {total} song play{'s' if total != 1 else ''}.")
 
 
+laps_cli = AppGroup("laps", help="Manage runs' laps.")
+
+
+@laps_cli.command("refetch")
+@click.option("--user", "user_id", type=int, help="Only this user's runs.")
+@click.option("--pause", default=1.0, show_default=True, help="Seconds between downloads.")
+def refetch_laps(user_id, pause):
+    """Download old runs' FIT files from Garmin again, for the watch's laps and cadence."""
+    from runnify.models import User
+    from runnify.services.garmin import GarminError, refetch_runs
+
+    users = User.query.filter(User.garmin_username.isnot(None))
+    if user_id:
+        users = users.filter(User.id == user_id)
+    total = 0
+    for user in users.all():
+        try:
+            total += refetch_runs(user, pause=pause)
+        except GarminError as error:
+            click.echo(f"Skipped user {user.id}: {error}")
+    click.echo(f"Refreshed {total} run{'s' if total != 1 else ''} from Garmin.")
+
+
 demo_cli = AppGroup("demo", help="Synthetic demo data for local development (never production).")
 
 
@@ -70,4 +93,5 @@ def register_cli(app: Flask):
     """Attach the maintenance command groups to ``app``."""
     app.cli.add_command(streams_cli)
     app.cli.add_command(scores_cli)
+    app.cli.add_command(laps_cli)
     app.cli.add_command(demo_cli)
