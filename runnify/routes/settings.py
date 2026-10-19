@@ -1,7 +1,5 @@
 """Account management: name, password, two-step verification and signed-in devices."""
 
-import json
-
 from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
@@ -182,7 +180,7 @@ def export_data():
     audit.record(current_user, "data_exported")
     db.session.commit()
     return Response(
-        json.dumps(payload, indent=2),
+        account_service.to_json(payload),
         mimetype="application/json",
         headers={"Content-Disposition": 'attachment; filename="runnify-data.json"'},
     )

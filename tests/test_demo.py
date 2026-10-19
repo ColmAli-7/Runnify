@@ -1,11 +1,13 @@
 """The demo seed: realistic data that the real pipeline must make sense of."""
 
+import json
+
 import pytest
 
 from runnify import create_app
 from runnify.extensions import db
 from runnify.models import Playlist, Run, RunSongAnalysis, User, UserSongHistory
-from runnify.services import insights, songs
+from runnify.services import account, insights, songs
 from runnify.services.demo import DEMO_EMAIL, DemoError, seed
 from tests.test_config import SafeProductionConfig
 
@@ -71,6 +73,21 @@ def test_insights_counts_skips_as_each_song_page_does(demo):
         record = songs.song_record(user.id, song_id)
         page = (record.skips, len(record.plays), record.runs)
         assert (count.skips, count.heard, len(count.runs)) == page, record.name
+
+
+def test_the_data_export_has_every_run_second_by_second(demo):
+    user = User.query.filter_by(email=DEMO_EMAIL).one()
+    runs = {
+        run["garmin_activity_id"]: run
+        for run in json.loads(account.to_json(account.export_data(user)))["runs"]
+    }
+    assert len(runs) == 36
+    for run in runs.values():
+        samples = run["samples"]
+        assert len(samples["seconds"]) == len(samples["pace_s_per_km"]) == run["duration_s"]
+        assert samples["cadence_steps_per_min"] is None  # the demo's watch records no cadence
+    from_watch = [run.activity_id for run in user.runs if run.laps_source == "watch"]
+    assert from_watch and all(runs[activity_id]["watch_laps"] for activity_id in from_watch)
 
 
 def test_seeding_twice_replaces_the_demo(demo):

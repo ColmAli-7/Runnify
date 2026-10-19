@@ -1,11 +1,13 @@
 """Account data rights: export everything we hold about a user, or delete it all.
 
 The export never includes secrets (password hash, tokens, two-step secrets).
+Each run's samples are exported as they are stored, one list a channel.
 Deletion removes every personal row and the user's stored FIT files; the
 shared song catalogue (track names and artists) is not personal data and is
 kept.
 """
 
+import json
 import shutil
 from pathlib import Path
 
@@ -29,10 +31,43 @@ from runnify.models import (
     utcnow,
 )
 from runnify.security.audit import DESCRIPTIONS
+from runnify.services.streams import decode
+
+_compact = json.JSONEncoder(separators=(",", ":")).encode
 
 
 def _iso(value):
     return value.isoformat() + "Z" if value else None
+
+
+def _stream(stream):
+    """A run's stored stream for the export: the watch's laps, and the samples as recorded.
+
+    The samples are parallel lists, one a channel, counted in seconds from the
+    first sample; a channel the recording didn't have is ``None``.
+    """
+    series = decode(stream.samples, stream.started_at, spread=False)
+    start = stream.started_at
+    return {
+        "watch_laps": [
+            {
+                "start_s": lap.start,
+                "end_s": lap.end,
+                "intensity": lap.intensity,
+                "trigger": lap.trigger,
+                "workout_step": lap.step,
+            }
+            for lap in series.laps
+        ],
+        "samples": {
+            "started_at": _iso(start),
+            "seconds": [round((t - start).total_seconds()) for t in series.timestamps],
+            "pace_s_per_km": series.paces,
+            "heart_rate_bpm": series.heart_rates,
+            "cadence_steps_per_min": series.cadences or None,
+            "distance_m": series.distances or None,
+        },
+    }
 
 
 def export_data(user):
@@ -49,6 +84,10 @@ def export_data(user):
                 "distance_m": lap.distance,
             }
         )
+    streams = {
+        stream.run_id: _stream(stream)
+        for stream in RunStream.query.filter(RunStream.run_id.in_(activity_ids))
+    }
     plays = (
         db.session.query(UserSongHistory, Song)
         .join(Song, Song.id == UserSongHistory.song_id)
@@ -86,6 +125,7 @@ def export_data(user):
                 "run_type_set_by_you": run.run_type_manual,
                 "laps": laps.get(run.id, []),
                 "workout": run.workout,
+                **streams.get(run.id, {}),
             }
             for run in runs
         ],
@@ -131,6 +171,25 @@ def export_data(user):
             for e in events
         ],
     }
+
+
+def to_json(value, depth=0):
+    """``value`` as JSON indented two spaces a level, with each list of plain values on one line.
+
+    Objects and lists of objects get a line an item. A run's samples run to
+    thousands of numbers a channel, and a line each keeps the file readable
+    and about a third of the size of a number a line.
+    """
+    if isinstance(value, dict) and value:
+        items = [f"{json.dumps(key)}: {to_json(item, depth + 1)}" for key, item in value.items()]
+        opening, closing = "{", "}"
+    elif isinstance(value, list) and value and isinstance(value[0], dict | list):
+        items = [to_json(item, depth + 1) for item in value]
+        opening, closing = "[", "]"
+    else:
+        return _compact(value)
+    indent = "\n" + "  " * (depth + 1)
+    return opening + indent + ("," + indent).join(items) + "\n" + "  " * depth + closing
 
 
 def _remove_fit_files(user):

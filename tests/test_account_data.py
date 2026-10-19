@@ -2,7 +2,7 @@
 
 import json
 import pathlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from runnify.extensions import db, mail
 from runnify.models import (
@@ -17,11 +17,14 @@ from runnify.models import (
     UserSongHistory,
 )
 from runnify.security.passwords import hash_password
+from runnify.services.account import to_json
+from runnify.services.fit import Series, WatchLap
+from runnify.services.streams import save_stream
 from tests.conftest import PASSWORD
 
 
 def _seed(app, user_id):
-    """One run with a lap and one scored song play, a friend request and a stored FIT file."""
+    """Two runs (one recorded, with a lap and a scored play), a friend request and a FIT file."""
     with app.app_context():
         other = User(name="Friend", email="friend@example.com", password_hash=hash_password("x"))
         db.session.add(other)
@@ -33,7 +36,10 @@ def _seed(app, user_id):
             duration=1500,
             run_type="easy",
         )
-        db.session.add_all([run, Song(id="trk", name="Song", artist="Artist")])
+        unrecorded = Run(
+            user_id=user_id, activity_id="43", date_time=datetime(2026, 10, 2, 7), distance=3000
+        )
+        db.session.add_all([run, unrecorded, Song(id="trk", name="Song", artist="Artist")])
         db.session.flush()
         db.session.add(
             RunLap(
@@ -68,8 +74,17 @@ def _seed(app, user_id):
         fit_dir.mkdir(parents=True)
         (fit_dir / "42.fit").write_bytes(b"FIT")
         run.fit_file_path = str(fit_dir / "42.fit")
-        db.session.add(
-            RunStream(run_id=run.id, started_at=run.date_time, sample_count=1, samples=b"x")
+        save_stream(
+            run,
+            Series(
+                # smart recording: a sample every two seconds, stopped at the last
+                timestamps=[run.date_time + timedelta(seconds=s) for s in (0, 2, 4)],
+                heart_rates=[140, 141, None],
+                paces=[300.0, 299.5, None],
+                cadences=[170, 172, None],
+                distances=[0.0, 6.6, 13.2],
+                laps=[WatchLap(0, 4, "active", "manual")],
+            ),
         )
         db.session.commit()
         return other.id
@@ -91,6 +106,44 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
     text = response.get_data(as_text=True)
     for secret in ("secret-access", "secret-refresh", "argon2", "password_hash", "session_token"):
         assert secret not in text
+
+
+def test_export_gives_each_runs_recording_as_stored(app, auth_client, user):
+    _seed(app, user)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    recorded, unrecorded = json.loads(response.data)["runs"]
+    assert recorded["samples"] == {
+        "started_at": "2026-10-01T07:00:00Z",
+        "seconds": [0, 2, 4],  # as the watch recorded them, not spread to one a second
+        "pace_s_per_km": [300.0, 299.5, None],
+        "heart_rate_bpm": [140, 141, None],
+        "cadence_steps_per_min": [170, 172, None],
+        "distance_m": [0, 7, 13],
+    }
+    assert recorded["watch_laps"] == [
+        {"start_s": 0, "end_s": 4, "intensity": "active", "trigger": "manual", "workout_step": None}
+    ]
+    assert unrecorded["garmin_activity_id"] == "43"
+    assert "samples" not in unrecorded and "watch_laps" not in unrecorded
+    assert '"seconds": [0,2,4],' in response.get_data(as_text=True)  # a channel to a line
+
+
+def test_to_json_puts_each_list_of_plain_values_on_one_line():
+    value = {"runs": [{"seconds": [0, 1], "laps": [], "workout": None}], "friends": ["Ann"]}
+    text = to_json(value)
+    assert json.loads(text) == value
+    assert text == (
+        "{\n"
+        '  "runs": [\n'
+        "    {\n"
+        '      "seconds": [0,1],\n'
+        '      "laps": [],\n'
+        '      "workout": null\n'
+        "    }\n"
+        "  ],\n"
+        '  "friends": ["Ann"]\n'
+        "}"
+    )
 
 
 def test_export_needs_the_password(auth_client):
