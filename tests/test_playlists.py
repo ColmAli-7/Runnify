@@ -193,3 +193,24 @@ def test_spotify_errors_become_clear_messages(app, library, monkeypatch):
         monkeypatch.setattr(spotify_service, "client_for", lambda user: timeout)
         with pytest.raises(playlist_service.SpotifyExportError, match="couldn't be reached"):
             playlist_service.send_to_spotify(account, playlist)
+
+
+def test_intervals_start_from_songs_proven_on_hard_efforts(app, library):
+    with app.app_context():
+        on_reps = RunSongAnalysis.query.join(UserSongHistory).filter(
+            UserSongHistory.song_id == "fine"
+        )
+        for analysis in on_reps:
+            analysis.lap_kind = "hard"  # "fine" was measured on reps, the rest on steady running
+        db.session.commit()
+        result = playlist_service.plan(library, "intervals", 120)
+        # the rep song leads the efforts; the rest of the proven songs fill in after it
+        assert _keys(result) == ["fine", "good", "best", "meh"]
+        assert "hard efforts" not in result.note
+
+
+def test_intervals_say_when_no_song_is_proven_on_hard_efforts_yet(app, library):
+    with app.app_context():
+        result = playlist_service.plan(library, "intervals", 120)
+        assert result.note.startswith(playlist_service.NO_EFFORTS)
+        assert "instead of 120" in result.note  # and why it runs short

@@ -8,7 +8,7 @@ A playlist is chosen from the runner's own song effects (see
 * **long**: steady, with the strongest songs held back for the final stretch.
 * **race**: strong throughout, the very best saved for the finish.
 * **intervals**: alternates the hardest-working songs (efforts) with calmer
-  ones (recoveries).
+  ones (recoveries), drawing first on the songs measured on hard efforts.
 
 Track lengths come from the runner's history (plays that ran to the end);
 unknown lengths count as 3.5 minutes. Songs are never repeated: if the proven
@@ -26,6 +26,9 @@ from runnify.services import spotify as spotify_service
 
 DEFAULT_TRACK_SECONDS = 210
 SPOTIFY_BATCH = 100  # most tracks Spotify accepts per request
+NO_EFFORTS = (
+    "No songs have been measured on hard efforts yet, so this playlist uses all your running."
+)
 
 SESSIONS = {
     "easy": "Easy run",
@@ -78,6 +81,23 @@ def eligible(effects, session, minimum=insights.MIN_PLAYS_TO_RANK):
     return sorted(pool, key=_rank_key(session), reverse=True)
 
 
+def eligible_for(session, effects, efforts, minimum=insights.MIN_PLAYS_TO_RANK):
+    """The song effects a ``session`` draws on, best first, and a note when it had to make do.
+
+    Interval playlists start with the songs proven on hard efforts (``efforts``,
+    their lifts on those laps), then the rest of the runner's proven songs.
+    With none proven on hard efforts yet, they use all running and say so.
+    """
+    ranked = eligible(effects, session, minimum)
+    if session != "intervals":
+        return ranked, None
+    on_efforts = eligible(efforts, session, minimum)
+    if not on_efforts:
+        return ranked, NO_EFFORTS if ranked else None
+    taken = {effect.key for effect in on_efforts}
+    return on_efforts + [effect for effect in ranked if effect.key not in taken], None
+
+
 def choose(ranked, target_seconds, track_for):
     """Take tracks from ``ranked`` until they fill ``target_seconds``.
 
@@ -128,7 +148,8 @@ def plan(user_id, session, target_minutes, include_untested=False):
     if session not in SESSIONS:
         raise ValueError(f"unknown session {session!r}")
     minimum = 1 if include_untested else insights.MIN_PLAYS_TO_RANK
-    effects = eligible(insights.song_effects(user_id), session, minimum)
+    efforts = insights.song_effects(user_id, kind="hard") if session == "intervals" else []
+    effects, making_do = eligible_for(session, insights.song_effects(user_id), efforts, minimum)
     result = PlaylistPlan(session=session, target_minutes=target_minutes)
     if not effects:
         result.note = (
@@ -151,12 +172,14 @@ def plan(user_id, session, target_minutes, include_untested=False):
 
     chosen = choose(effects, target, track_for)
     result.tracks = arrange(session, chosen)
+    notes = [making_do]
     if result.total_seconds < target * 0.9:
         minutes = round(result.total_seconds / 60)
-        result.note = (
+        notes.append(
             f"Only {len(chosen)} songs have enough evidence, so this playlist runs "
             f"{minutes} minutes instead of {target_minutes}."
         )
+    result.note = " ".join(note for note in notes if note) or None
     return result
 
 

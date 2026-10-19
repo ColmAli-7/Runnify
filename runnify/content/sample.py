@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from runnify.filters import NBSP, lift_number, plural
 from runnify.services import charts, insights
 from runnify.services.demo import SONGS, _simulate
-from runnify.services.playlists import SESSIONS, PlannedTrack, arrange, choose, eligible
+from runnify.services.playlists import SESSIONS, PlannedTrack, arrange, choose, eligible_for
 from runnify.services.scoring import song_effect
 
 FEATURED_START = datetime(2026, 9, 29, 7, 4)
@@ -215,6 +215,15 @@ def landing_sample():
         plays, key_of=lambda s: s, label_of=lambda s: s.name, detail_of=lambda s: s.artist
     )
 
+    # songs measured on hard efforts, which interval playlists draw on first (the sample's
+    # runs are steady, so there are none, as for a runner who hasn't run intervals yet)
+    efforts = insights.aggregate(
+        [row for row in plays if row[0].lap_kind in insights.lap_kinds("hard")],
+        key_of=lambda s: s,
+        label_of=lambda s: s.name,
+        detail_of=lambda s: s.artist,
+    )
+
     # playlists chosen and ordered the way the playlist builder does it, one per session
     def track_for(effect):
         return PlannedTrack(
@@ -223,7 +232,8 @@ def landing_sample():
 
     sessions = []
     for key, label in SESSIONS.items():
-        chosen = choose(eligible(effects, key), PLAYLIST_MINUTES * 60, track_for)
+        pool, _note = eligible_for(key, effects, efforts)
+        chosen = choose(pool, PLAYLIST_MINUTES * 60, track_for)
         tracks, clock = [], 0
         for track in arrange(key, chosen):
             tracks.append((track, clock))
