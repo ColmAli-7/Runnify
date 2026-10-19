@@ -187,6 +187,17 @@
     max-width: 8rem;
   }
 
+  .run__workout {
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  .run__workout-text {
+    padding: 0 var(--card-pad) var(--s-3);
+    font-size: var(--fs-md);
+    color: var(--text-2);
+  }
+
   @media (max-width: 559px) {
     .lap-edits__row {
       grid-template-columns: auto minmax(0, 1fr);

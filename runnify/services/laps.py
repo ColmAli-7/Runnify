@@ -110,7 +110,7 @@ def _rolling_median(values, half=HALF_WINDOW, minimum=10):
     return smoothed
 
 
-def _speeds(series):
+def smoothed_speeds(series):
     """Rolling-median speed in m/s each second (``None`` where the runner was mostly stopped)."""
     return _rolling_median([None if p is None else 1000 / p for p in series.paces])
 
@@ -298,7 +298,7 @@ def detect(series, usual_pace=None):
     length = len(series)
     if length < 2 * MIN_LAP:
         return steady(series)
-    speeds, cadences = _speeds(series), _cadences(series)
+    speeds, cadences = smoothed_speeds(series), _cadences(series)
     stretches = _merge(_runs_of([_state(s, c) for s, c in zip(speeds, cadences, strict=True)]))
     running = [(s, e) for s, e, state in stretches if state == "run"]
     parts = _fast_and_slow(speeds, running)
@@ -351,7 +351,7 @@ def from_watch(series, usual_pace=None):
     tidy = _tidy(series.laps, len(series))
     if len(tidy) < 2:
         return None
-    speeds, cadences = _speeds(series), _cadences(series)
+    speeds, cadences = smoothed_speeds(series), _cadences(series)
     workout = any(
         lap.intensity in STRUCTURED_INTENSITIES or lap.step is not None for _, _, lap in tidy
     )

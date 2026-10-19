@@ -100,6 +100,9 @@
         <h2 class="card__title" id="laps-title">{{ icon("stopwatch") }}Laps</h2>
         <p class="card__meta">{{ lap_sources.get(run.laps_source, "") }}</p>
       </header>
+      {% if run.workout and run.laps_source == "manual" %}
+        <p class="run__workout-text">Lined up from your workout: {{ run.workout }}</p>
+      {% endif %}
       {% if laps|length > 1 %}
         <div class="table-wrap">
           <table class="results laps-table">
@@ -191,6 +194,16 @@
               <input class="input lap-edits__split" id="split-at" name="split_at" maxlength="8" inputmode="numeric" autocomplete="off" aria-describedby="split-at-hint">
             </div>
             <p><button class="btn" type="submit" name="action" value="split">Split the lap</button></p>
+          </form>
+
+          <form class="run__edit-form" method="post" action="{{ edit_action }}">
+            {{ csrf() }}
+            <div class="field">
+              <label class="field__label" for="workout">Type the workout</label>
+              <p class="field__hint" id="workout-hint">Like 15 min warm-up, 6 x 3 min hard with 2 min jog, 10 min cool-down. Give each step a time or a distance and say whether it was a warm-up, hard, steady, jog, walk or cool-down. Runnify keeps only the steps it reads, not what you type.</p>
+              <textarea class="input run__workout" id="workout" name="workout" rows="3" maxlength="300" aria-describedby="workout-hint">{{ run.workout or "" }}</textarea>
+            </div>
+            <p><button class="btn" type="submit" name="action" value="workout">Line it up with the run</button></p>
           </form>
 
           {% if run.laps_source == "manual" %}

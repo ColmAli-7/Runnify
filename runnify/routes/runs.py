@@ -5,9 +5,10 @@ from flask_login import current_user, login_required
 from sqlalchemy import exists
 
 from runnify.extensions import db
+from runnify.filters import plural
 from runnify.forms import LapsForm, first_error
 from runnify.models import Run, UserSongHistory
-from runnify.services import charts
+from runnify.services import charts, workouts
 from runnify.services import laps as lap_service
 from runnify.services.analysis import rescore_run
 from runnify.services.laps import KINDS, RUN_TYPES
@@ -118,6 +119,9 @@ def _change(run, series, action, form):
     if action == "reset":
         lap_service.reset_laps(run)
         return "Laps worked out again from the run."
+    if action == "workout":
+        laps = workouts.apply_workout(run, series, form.workout.data)
+        return f"Your workout is lined up with the run: {plural(len(laps), 'lap')}."
     raise lap_service.LapError("That change isn't one Runnify knows how to make.")
 
 
