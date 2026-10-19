@@ -11,14 +11,21 @@ bp = Blueprint("insights", __name__)
 @bp.route("/insights")
 @login_required
 def index():
-    """Every finding for the ``?range=`` window (30d, 90d, year or all; 90 days by default)."""
-    overview = insights.overview(current_user.id, request.args.get("range", insights.DEFAULT_RANGE))
+    """Every finding for the ``?range=`` window (30d, 90d, year or all; 90 days by default),
+    narrowed by ``?kind=`` to hard efforts, steady running or recoveries (all running by default).
+    """
+    overview = insights.overview(
+        current_user.id,
+        request.args.get("range", insights.DEFAULT_RANGE),
+        request.args.get("kind", insights.ALL_RUNNING),
+    )
     strengths = [phase.strength for phase in overview.phases if phase.strength is not None]
     return render_template(
         "insights/index.html",
         overview=overview,
         highlights=insights.highlights(overview),
         ranges=insights.RANGES,
+        kinds=insights.RUNNING,
         strongest=max(strengths, default=None),
         min_phase_plays=insights.MIN_PHASE_PLAYS,
     )

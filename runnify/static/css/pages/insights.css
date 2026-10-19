@@ -7,6 +7,21 @@
     align-items: start;
   }
 
+  /* the date range above the kind of running, at the right of the page head */
+  .insights__filters {
+    display: grid;
+    justify-items: end;
+    gap: var(--s-2);
+    max-width: 100%;
+  }
+
+  @media (max-width: 759px) {
+    .insights__filters {
+      justify-items: start;
+      width: 100%;
+    }
+  }
+
   .insights__heading {
     margin-bottom: var(--s-3);
     font-size: var(--fs-lg);

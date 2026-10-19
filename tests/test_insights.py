@@ -25,7 +25,7 @@ def _heard(user, run, song, seconds=12, skipped=True):
     return play
 
 
-def _play(user, run, song, lift, seconds=180, position=0.5, hr=None, skipped=None):
+def _play(user, run, song, lift, seconds=180, position=0.5, hr=None, skipped=None, lap=None):
     play = _heard(user, run, song, seconds, skipped)
     db.session.add(
         RunSongAnalysis(
@@ -37,7 +37,8 @@ def _play(user, run, song, lift, seconds=180, position=0.5, hr=None, skipped=Non
             hr_delta=hr,
             seconds=seconds,
             position=position,
-            method_version=2,
+            lap_kind=lap,
+            method_version=3,
         )
     )
 
@@ -242,3 +243,64 @@ def test_confidence_levels():
 
 def test_year_range_starts_on_january_first():
     assert insights.range_start("year", now=datetime(2026, 10, 9)) == datetime(2026, 1, 1)
+
+
+@pytest.fixture
+def intervals(app, seeded):
+    """On top of ``seeded``'s steady running: two interval runs, where "rep" lifts the reps and
+    "float" helps only the jogs between them."""
+    with app.app_context():
+        db.session.add_all(
+            [
+                Song(id="rep", name="Rep", artist="Delta"),
+                Song(id="float", name="Float", artist="Delta"),
+            ]
+        )
+        for days_ago in (2, 4):
+            run = Run(
+                user_id=seeded,
+                activity_id=f"intervals{days_ago}",
+                date_time=utcnow() - timedelta(days=days_ago),
+                duration=2400,
+                distance=8000,
+                run_type="intervals",
+            )
+            db.session.add(run)
+            db.session.flush()
+            _play(seeded, run, "rep", 9.0, lap="hard")
+            _play(seeded, run, "float", 6.0, lap="jog")
+            _play(seeded, run, "boost", -3.0, lap="hard")  # lifts steady running, not reps
+        db.session.commit()
+    return seeded
+
+
+def test_findings_narrow_to_one_kind_of_running(app, intervals):
+    with app.app_context():
+        everything = insights.overview(intervals, "90d")
+        assert everything.all_running and everything.plays == 15
+        hard = insights.overview(intervals, "90d", "hard")
+        assert (hard.kind, hard.kind_label, hard.plays) == ("hard", "Hard efforts", 4)
+        assert [s.key for s in hard.power_songs] == ["rep"]
+        assert [s.key for s in hard.drag_songs] == ["boost"]
+        recoveries = insights.overview(intervals, "90d", "recoveries")
+        assert [s.key for s in recoveries.power_songs] == ["float"]
+        # skips and whole runs have no one kind of lap: they stay across all running
+        assert [s.key for s in hard.most_skipped] == [s.key for s in everything.most_skipped]
+        kickers = {h.kicker for h in insights.highlights(hard)}
+        assert "Power song" in kickers and not kickers & {"Most skipped", "With music"}
+        assert insights.overview(intervals, "90d", "sideways").all_running  # unknown: all running
+
+
+def test_the_page_offers_each_kind_of_running_and_keeps_the_range(app, auth_client, intervals):
+    html = auth_client.get("/insights?range=all&kind=hard").get_data(as_text=True)
+    assert 'href="/insights?range=all&amp;kind=hard" aria-current="true">Hard efforts</a>' in html
+    assert 'href="/insights?range=30d&amp;kind=hard">Last 30 days</a>' in html
+    assert 'href="/insights?range=all">All running</a>' in html
+    assert "4 song plays measured on hard efforts across 2 runs, all time." in html
+    assert "Across all running" in html  # most skipped
+
+
+def test_a_kind_with_nothing_measured_says_so(app, auth_client, seeded):
+    html = auth_client.get("/insights?kind=recoveries").get_data(as_text=True)
+    assert "Nothing measured on recoveries in this period" in html
+    assert 'href="/insights?range=90d">See all running</a>' in html

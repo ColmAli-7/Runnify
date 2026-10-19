@@ -8,34 +8,52 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/insights.css') }}">
 {% endblock %}
 
+{%- set kind = None if overview.all_running else overview.kind -%}
+
 {% block content %}
 <header class="page-head">
   <div>
     <h1>Insights</h1>
     <p class="page-head__meta">
       {% if overview.has_data %}
-        {{ overview.plays|plural("song play") }} measured across {{ overview.runs_with_music|plural("run") }}, {{ overview.range_label|lower }}.
+        {{ overview.plays|plural("song play") }} measured{% if kind %} on {{ overview.kind_label|lower }}{% endif %} across {{ overview.runs_with_music|plural("run") }}, {{ overview.range_label|lower }}.
       {% else %}
-        {{ overview.range_label }}.
+        {{ overview.range_label }}{% if kind %}, {{ overview.kind_label|lower }}{% endif %}.
       {% endif %}
     </p>
   </div>
-  <nav class="segmented" aria-label="Date range">
-    {% for key, (label, _days) in ranges.items() %}
-      <a href="{{ url_for('insights.index', range=key) }}"{% if key == overview.range_key %} aria-current="true"{% endif %}>{{ label }}</a>
-    {% endfor %}
-  </nav>
+  <div class="insights__filters">
+    <nav class="segmented" aria-label="Date range">
+      {% for key, (label, _days) in ranges.items() %}
+        <a href="{{ url_for('insights.index', range=key, kind=kind) }}"{% if key == overview.range_key %} aria-current="true"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="segmented" aria-label="Kind of running">
+      {% for key, (label, _laps) in kinds.items() %}
+        <a href="{{ url_for('insights.index', range=overview.range_key, kind=None if key == 'all' else key) }}"{% if key == overview.kind %} aria-current="true"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+  </div>
 </header>
 
 {% if not overview.has_data %}
   <div class="card">
     <div class="empty">
-      <p class="empty__title">Nothing measured in this period</p>
-      <p>Insights appear once songs have played during your runs. Try a longer range, or upload your Spotify history if you haven't yet.</p>
-      <p class="cluster">
-        <a class="btn btn--primary" href="{{ url_for('imports.index') }}">Upload your history</a>
-        {% if overview.range_key != "all" %}<a class="btn" href="{{ url_for('insights.index', range='all') }}">See all time</a>{% endif %}
-      </p>
+      {% if kind %}
+        <p class="empty__title">Nothing measured on {{ overview.kind_label|lower }} in this period</p>
+        <p>Songs that played during {{ overview.kind_label|lower }} appear here. Runs get their laps from your watch, or from their pace and heart rate. Try a longer range, or all running.</p>
+        <p class="cluster">
+          <a class="btn btn--primary" href="{{ url_for('insights.index', range=overview.range_key) }}">See all running</a>
+          {% if overview.range_key != "all" %}<a class="btn" href="{{ url_for('insights.index', range='all', kind=kind) }}">See all time</a>{% endif %}
+        </p>
+      {% else %}
+        <p class="empty__title">Nothing measured in this period</p>
+        <p>Insights appear once songs have played during your runs. Try a longer range, or upload your Spotify history if you haven't yet.</p>
+        <p class="cluster">
+          <a class="btn btn--primary" href="{{ url_for('imports.index') }}">Upload your history</a>
+          {% if overview.range_key != "all" %}<a class="btn" href="{{ url_for('insights.index', range='all') }}">See all time</a>{% endif %}
+        </p>
+      {% endif %}
     </div>
   </div>
 {% else %}
@@ -132,7 +150,7 @@
   <section class="card insights__skipped" aria-labelledby="skipped-title">
     <header class="card__head">
       <h2 class="card__title" id="skipped-title">{{ icon("skip") }}Most skipped</h2>
-      <p class="card__meta">During runs</p>
+      <p class="card__meta">{{ "During runs" if not kind else "Across all running" }}</p>
     </header>
     {% if overview.most_skipped %}
       {{ effect_list(overview.most_skipped, measure="skips") }}

@@ -29,6 +29,15 @@ RANGES = {
     "all": ("All time", None),
 }
 DEFAULT_RANGE = "90d"
+# the kinds of running findings can be narrowed to: label, the lap kinds measured on them.
+# Warm-ups and cool-downs count only in all running.
+RUNNING = {
+    "all": ("All running", None),
+    "hard": ("Hard efforts", ("hard",)),
+    "steady": ("Steady running", ("steady",)),
+    "recoveries": ("Recoveries", ("jog",)),
+}
+ALL_RUNNING = "all"
 PHASES = (("Start", 0.0, 0.2), ("Middle", 0.2, 0.8), ("Finish", 0.8, 1.01))
 MIN_PHASE_PLAYS = 30  # plays of repeated songs needed to judge a part of the run
 
@@ -147,8 +156,16 @@ def phase_summary(plays):
     ]
 
 
-def _rows(user_id, since=None):
-    """Scored plays for ``user_id`` as ``(analysis, play, song, run)`` tuples."""
+def lap_kinds(kind):
+    """The lap kinds measured for the kind of running ``kind`` (``None`` for all running)."""
+    return RUNNING.get(kind, RUNNING[ALL_RUNNING])[1]
+
+
+def _rows(user_id, since=None, kind=ALL_RUNNING):
+    """Scored plays for ``user_id`` as ``(analysis, play, song, run)`` tuples.
+
+    ``kind`` (a :data:`RUNNING` key) keeps only plays measured on that kind of running.
+    """
     query = (
         db.session.query(RunSongAnalysis, UserSongHistory, Song, Run)
         .join(UserSongHistory, UserSongHistory.id == RunSongAnalysis.user_song_id)
@@ -158,6 +175,8 @@ def _rows(user_id, since=None):
     )
     if since is not None:
         query = query.filter(Run.date_time >= since)
+    if (kinds := lap_kinds(kind)) is not None:
+        query = query.filter(RunSongAnalysis.lap_kind.in_(kinds))
     return query.all()
 
 
@@ -194,20 +213,20 @@ def aggregate(rows, key_of, label_of, detail_of=lambda song: ""):
     return list(groups.values())
 
 
-def song_effects(user_id, since=None):
-    """Every scored song for ``user_id`` (optionally only runs since ``since``)."""
+def song_effects(user_id, since=None, kind=ALL_RUNNING):
+    """Every scored song for ``user_id`` (optionally only runs since ``since``, or one kind)."""
     return aggregate(
-        _rows(user_id, since),
+        _rows(user_id, since, kind),
         key_of=lambda song: song.id,
         label_of=lambda song: song.name or "Unknown track",
         detail_of=lambda song: song.artist or "",
     )
 
 
-def artist_effects(user_id, since=None):
+def artist_effects(user_id, since=None, kind=ALL_RUNNING):
     """Every artist with scored plays for ``user_id``."""
     return aggregate(
-        _rows(user_id, since),
+        _rows(user_id, since, kind),
         key_of=lambda song: (song.artist or "").strip() or None,
         label_of=lambda song: song.artist,
     )
@@ -279,7 +298,11 @@ def most_skipped(counts, limit=5):
 
 @dataclass
 class Overview:
-    """Everything the Insights page shows for one date range."""
+    """Everything the Insights page shows for one date range and kind of running.
+
+    ``most_skipped`` and the paces with and without music always cover all
+    running: a skip or a whole run has no one kind of lap.
+    """
 
     range_key: str
     range_label: str
@@ -295,10 +318,19 @@ class Overview:
     most_skipped: list  # SkipCount, over every play in the range
     with_music_pace: float | None
     without_music_pace: float | None
+    kind: str = ALL_RUNNING  # a RUNNING key
 
     @property
     def has_data(self):
         return self.plays > 0
+
+    @property
+    def kind_label(self):
+        return RUNNING[self.kind][0]
+
+    @property
+    def all_running(self):
+        return self.kind == ALL_RUNNING
 
 
 def _run_paces(user_id, since):
@@ -320,11 +352,16 @@ def _run_paces(user_id, since):
     return _weighted_mean(groups[True]), _weighted_mean(groups[False])
 
 
-def overview(user_id, range_key=DEFAULT_RANGE):
-    """Compute every finding for ``user_id`` over ``range_key`` (see :data:`RANGES`)."""
+def overview(user_id, range_key=DEFAULT_RANGE, kind=ALL_RUNNING):
+    """Compute every finding for ``user_id`` over ``range_key`` (see :data:`RANGES`).
+
+    ``kind`` (a :data:`RUNNING` key) narrows the measured findings to plays on
+    that kind of running.
+    """
     range_key = range_key if range_key in RANGES else DEFAULT_RANGE
+    kind = kind if kind in RUNNING else ALL_RUNNING
     since = range_start(range_key)
-    rows = _rows(user_id, since)
+    rows = _rows(user_id, since, kind)
     songs = aggregate(
         rows, lambda s: s.id, lambda s: s.name or "Unknown track", lambda s: s.artist or ""
     )
@@ -348,6 +385,7 @@ def overview(user_id, range_key=DEFAULT_RANGE):
         most_skipped=most_skipped(skip_counts(user_id, since)),
         with_music_pace=with_music,
         without_music_pace=without_music,
+        kind=kind,
     )
 
 
@@ -381,7 +419,8 @@ def highlights(overview):
     """Plain-language findings from an :class:`Overview`, the strongest evidence first.
 
     Every sentence is worked out from the numbers on the page (nothing is
-    generated), and each carries the runs and plays it rests on.
+    generated), and each carries the runs and plays it rests on. Narrowed to
+    one kind of running, the findings about all running are left out.
     """
     found = []
     if overview.power_songs:
@@ -444,7 +483,7 @@ def highlights(overview):
                 song_id=raiser.key,
             )
         )
-    if overview.with_music_pace and overview.without_music_pace:
+    if overview.all_running and overview.with_music_pace and overview.without_music_pace:
         gap = round(overview.without_music_pace - overview.with_music_pace)
         if gap:
             direction = "faster" if gap > 0 else "slower"
@@ -463,7 +502,7 @@ def highlights(overview):
                 "A rough guide: you may run different sessions with and without music.",
             )
         )
-    if overview.most_skipped:
+    if overview.all_running and overview.most_skipped:
         skipped = overview.most_skipped[0]
         found.append(
             Highlight(
