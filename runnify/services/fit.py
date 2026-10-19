@@ -4,18 +4,20 @@ Pace comes from the recorded (enhanced) speed, or from the change in distance
 between records when speed is missing. Samples where the runner is stopped
 (slower than 15:00/km) or the GPS glitches (faster than 2:00/km) carry no
 pace, so a traffic-light stop is never mistaken for slow running. The
-remaining pace is lightly smoothed with an exponential moving average.
+remaining pace is lightly smoothed with an exponential moving average, and
+the series is spread to one sample a second (see :func:`at_one_hertz`).
 """
 
 import io
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fitparse import FitFile
 
 STOPPED_PACE = 900.0  # s/km; slower than 15:00/km counts as stopped
 GLITCH_PACE = 120.0  # s/km; faster than 2:00/km is a GPS spike
 SMOOTHING = 0.2  # EMA alpha: higher reacts faster
+GAP_FILL = 10  # seconds; a longer gap between records (auto-pause) counts as stopped
 
 
 @dataclass
@@ -33,6 +35,38 @@ class Series:
     def as_tuple(self):
         """``(timestamps, heart_rates, paces)``, the shape older callers expect."""
         return self.timestamps, self.heart_rates, self.paces
+
+
+def at_one_hertz(series):
+    """Return ``series`` with one sample a second, from its first sample to its last.
+
+    Watches on "smart" recording write a record every few seconds and auto-pause
+    leaves longer gaps, but charts and scoring read one sample as one second.
+    A gap up to ``GAP_FILL`` seconds carries the last record's values; a longer
+    one counts as stopped (no pace, no heart rate). A series that already has
+    one sample a second comes back as it is.
+    """
+    timestamps = series.timestamps
+    if not timestamps:
+        return series
+    start = timestamps[0]
+    offsets = [round((t - start).total_seconds()) for t in timestamps]
+    if offsets == list(range(len(offsets))):
+        return series
+    length = offsets[-1] + 1
+    heart_rates, paces = [None] * length, [None] * length
+    for i, offset in enumerate(offsets):
+        until = offsets[i + 1] if i + 1 < len(offsets) else offset + 1
+        if until - offset > GAP_FILL:  # a pause: only this second has values
+            until = offset + 1
+        for second in range(offset, until):
+            heart_rates[second] = series.heart_rates[i]
+            paces[second] = series.paces[i]
+    return Series(
+        timestamps=[start + timedelta(seconds=s) for s in range(length)],
+        heart_rates=heart_rates,
+        paces=paces,
+    )
 
 
 def _ema(values, alpha=SMOOTHING):
@@ -82,10 +116,12 @@ def parse_fit(fileish):
                 (fields["timestamp"], fields.get("heart_rate"), speed, fields.get("distance"))
             )
     rows.sort(key=lambda row: row[0])
-    return Series(
-        timestamps=[row[0] for row in rows],
-        heart_rates=[row[1] for row in rows],
-        paces=_ema([_raw_pace(rows, i) for i in range(len(rows))]),
+    return at_one_hertz(
+        Series(
+            timestamps=[row[0] for row in rows],
+            heart_rates=[row[1] for row in rows],
+            paces=_ema([_raw_pace(rows, i) for i in range(len(rows))]),
+        )
     )
 
 

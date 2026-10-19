@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from runnify.extensions import db
 from runnify.models import Run, RunStream
-from runnify.services.fit import Series, parse_fit
+from runnify.services.fit import Series, at_one_hertz, parse_fit
 from runnify.services.streams import (
     backfill_from_fit_files,
     decode,
@@ -39,6 +39,44 @@ def test_stops_and_glitches_have_no_pace():
     paces = parse_fit(build_fit(_samples(speeds))).paces
     assert paces[5:9] == [None] * 4
     assert all(p is not None for p in paces[:5] + paces[9:])
+
+
+def test_smart_recording_is_spread_to_one_sample_a_second():
+    rows = [(START + timedelta(seconds=3 * i), 140 + i, 9.0 * i, 3.0) for i in range(11)]
+    series = parse_fit(build_fit(rows))
+    assert len(series) == 31  # a record every 3 seconds for 30 seconds
+    assert series.timestamps[-1] - series.timestamps[0] == timedelta(seconds=30)
+    assert series.heart_rates[:7] == [140, 140, 140, 141, 141, 141, 142]  # each record carries on
+    assert all(pace is not None for pace in series.paces)
+
+
+def test_an_auto_pause_counts_as_stopped():
+    before = [(START + timedelta(seconds=i), 150, 3.0 * i, 3.0) for i in range(30)]
+    after = [(START + timedelta(seconds=90 + i), 150, 90.0 + 3.0 * i, 3.0) for i in range(30)]
+    series = parse_fit(build_fit(before + after))
+    assert len(series) == 120
+    assert series.paces[30:90] == [None] * 60 and series.heart_rates[30:90] == [None] * 60
+    assert series.paces[29] is not None and series.paces[90] is not None
+
+
+def test_one_sample_a_second_is_left_as_it_is():
+    series = Series(
+        timestamps=[START + timedelta(seconds=i) for i in range(5)],
+        heart_rates=[150] * 5,
+        paces=[300.0] * 5,
+    )
+    assert at_one_hertz(series) is series
+
+
+def test_streams_stored_from_smart_recording_decode_one_sample_a_second():
+    sparse = Series(
+        timestamps=[START + timedelta(seconds=s) for s in (0, 4, 8)],
+        heart_rates=[150, 152, 154],
+        paces=[300.0, 301.0, 302.0],
+    )
+    restored = decode(encode(sparse), START)
+    assert len(restored) == 9
+    assert restored.heart_rates == [150] * 4 + [152] * 4 + [154]
 
 
 def test_stream_round_trip_is_compact_and_lossless_enough():

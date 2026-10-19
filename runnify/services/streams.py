@@ -14,7 +14,7 @@ from pathlib import Path
 
 from runnify.extensions import db
 from runnify.models import RunStream
-from runnify.services.fit import Series, parse_fit
+from runnify.services.fit import Series, at_one_hertz, parse_fit
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +34,17 @@ def encode(series):
 
 
 def decode(blob, started_at):
-    """Rebuild a :class:`Series` from :func:`encode` output and the first sample's time."""
+    """Rebuild a :class:`Series` from :func:`encode` output and the first sample's time.
+
+    Streams stored from smart recording are spread to one sample a second here.
+    """
     payload = json.loads(zlib.decompress(blob))
-    return Series(
-        timestamps=[started_at + timedelta(seconds=s) for s in payload["t"]],
-        heart_rates=payload["h"],
-        paces=payload["p"],
+    return at_one_hertz(
+        Series(
+            timestamps=[started_at + timedelta(seconds=s) for s in payload["t"]],
+            heart_rates=payload["h"],
+            paces=payload["p"],
+        )
     )
 
 
