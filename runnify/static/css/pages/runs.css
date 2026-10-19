@@ -90,6 +90,29 @@
     font-size: var(--fs-sm);
   }
 
+  .run__type {
+    margin-left: var(--s-2);
+    vertical-align: 1px;
+  }
+
+  /* the lap kinds under the lanes, lined up with them */
+  .run__lap-legend {
+    padding-left: 2.75rem;
+  }
+
+  .lap-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-weight: 550;
+  }
+
+  .run__laps-none {
+    padding: var(--s-2) var(--card-pad) var(--card-pad);
+    font-size: var(--fs-md);
+    color: var(--text-2);
+  }
+
   .run__charts {
     position: relative;
     display: grid;

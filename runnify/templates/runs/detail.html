@@ -1,6 +1,6 @@
 {% extends "layouts/app.html" %}
 {% from "macros/ui.html" import icon, lift, data_island %}
-{% from "macros/charts.html" import run_chart, song_lane %}
+{% from "macros/charts.html" import run_chart, song_lane, lap_lane %}
 {% from "macros/results.html" import results_table %}
 
 {% set title = run.local_start|run_name %}
@@ -17,13 +17,15 @@
 {% set best = results.best %}
 {% set worst = results.worst %}
 {% set measured = results.ranked|length %}
+{% set structured = laps|map(attribute="kind")|unique|list|length > 1 %}
+{% set lap_sources = {"watch": "From your watch's laps", "detected": "Worked out from your pace and heart rate", "manual": "Set by you"} %}
 
 {% block content %}
 <header class="page-head">
   <div>
     <p class="page-head__crumb"><a href="{{ url_for('runs.index') }}">{{ icon("arrow-left") }}All runs</a></p>
     <h1>{{ title }}</h1>
-    <p class="page-head__meta">{{ run.local_start|day }} at {{ run.local_start|clock }}</p>
+    <p class="page-head__meta">{{ run.local_start|day }} at {{ run.local_start|clock }}{% if run.run_type %}<span class="tag run__type">{{ run_types[run.run_type] }}</span>{% endif %}</p>
   </div>
   <nav class="page-head__actions" aria-label="Other runs">
     {% if older %}<a class="btn btn--sm" href="{{ url_for('runs.detail', run_id=older.id) }}" rel="prev">{{ icon("arrow-left") }}Older run</a>{% endif %}
@@ -43,7 +45,7 @@
       <p class="run__verdict">
         {%- if best %}Your fastest stretch came during <strong>{{ best.song.name }}</strong>, {{ lift(best.lift) }}.{% endif %}
         {% if worst %}<strong>{{ worst.song.name }}</strong> was the biggest drag, {{ lift(worst.lift) }}.{% endif %}
-        <span class="run__verdict-note">{{ measured }} of {{ results.rows|length|plural("song") }} measured against the minutes around them.</span>
+        <span class="run__verdict-note">{{ measured }} of {{ results.rows|length|plural("song") }} measured against the running around them.</span>
       </p>
     {% endif %}
   </section>
@@ -72,6 +74,14 @@
           <h3 class="run__chart-title">Pace <span class="results__unit">min/km, faster higher</span></h3>
           {{ run_chart(pace_chart, "Pace through the run, faster higher, with a band for each song." ~ (" The fastest stretch was during " ~ best.song.name ~ "." if best else ""), class="chart--tall", uid="pace") }}
           {{ song_lane(pace_chart, class="lane--run") }}
+          {{ lap_lane(lap_blocks, class="lane--run") }}
+          {% if lap_blocks %}
+            <ul class="legend run__lap-legend" aria-label="Laps">
+              {% for kind, label in lap_kinds.items() if kind in laps|map(attribute="kind")|list %}
+                <li><span class="legend__swatch legend__swatch--lap-{{ kind }}" aria-hidden="true"></span>{{ label }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
         </div>
         {% if not heart_chart.empty %}
           <div class="run__chart">
@@ -84,13 +94,58 @@
     </section>
   {% endif %}
 
+  {% if laps %}
+    <section class="card run__laps" id="laps" aria-labelledby="laps-title">
+      <header class="card__head">
+        <h2 class="card__title" id="laps-title">{{ icon("stopwatch") }}Laps</h2>
+        <p class="card__meta">{{ lap_sources.get(run.laps_source, "") }}</p>
+      </header>
+      {% if laps|length > 1 %}
+        <div class="table-wrap">
+          <table class="results laps-table">
+            <caption class="visually-hidden">Each lap of the run, with its kind, time, distance, pace and heart rate</caption>
+            <thead>
+              <tr>
+                <th scope="col"><span class="visually-hidden">Lap</span></th>
+                <th scope="col">Kind</th>
+                <th scope="col" class="is-numeric">Starts</th>
+                <th scope="col" class="is-numeric">Time</th>
+                <th scope="col" class="is-numeric">Distance <span class="results__unit">km</span></th>
+                <th scope="col" class="is-numeric">Pace <span class="results__unit">/km</span></th>
+                <th scope="col" class="is-numeric results__optional">Heart rate <span class="results__unit">bpm</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lap in laps %}
+                <tr>
+                  <td class="results__pos"><span class="rank">{{ loop.index }}</span></td>
+                  <td><span class="lap-kind"><span class="legend__swatch legend__swatch--lap-{{ lap.kind }}" aria-hidden="true"></span>{{ lap_kinds[lap.kind] }}</span></td>
+                  <td class="is-numeric">{{ lap.start_second|duration }}</td>
+                  <td class="is-numeric">{{ (lap.end_second - lap.start_second)|duration }}</td>
+                  <td class="is-numeric">{{ lap.distance|km }}</td>
+                  <td class="is-numeric">{{ lap.distance|run_pace(lap.moving_seconds) }}</td>
+                  <td class="is-numeric results__optional">{{ lap.avg_hr or "-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if structured %}
+          <p class="card__foot">Each song is compared with the same kind of lap around it, so a song during a rep is measured against your other reps. Walks never count.</p>
+        {% endif %}
+      {% else %}
+        <p class="run__laps-none">One steady stretch from start to finish, so each song is compared with the running either side of it.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
   <section class="card run__results" aria-labelledby="results-title">
     <header class="card__head">
       <h2 class="card__title" id="results-title">{{ icon("music") }}Song results</h2>
-      <p class="card__meta">Lift: how much faster you ran during a song than in the five minutes either side.</p>
+      <p class="card__meta">Lift: how much faster you ran during a song than on the same kind of running around it, less any extra effort.</p>
     </header>
     {% if results.ranked %}
-      {{ results_table(results.ranked, "Songs from this run, ranked by how they changed your pace", show_heart=True) }}
+      {{ results_table(results.ranked, "Songs from this run, ranked by how they changed your pace", show_heart=True, show_laps=structured) }}
     {% elif not results.rows %}
       <div class="empty">
         <p class="empty__title">No songs matched to this run</p>

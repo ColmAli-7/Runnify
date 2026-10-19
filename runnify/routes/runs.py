@@ -6,6 +6,7 @@ from sqlalchemy import exists
 
 from runnify.models import Run, UserSongHistory
 from runnify.services import charts
+from runnify.services.laps import KINDS, RUN_TYPES
 from runnify.services.results import run_results, run_summaries
 
 bp = Blueprint("runs", __name__)
@@ -31,13 +32,14 @@ def index():
         pagination=pagination,
         summaries=run_summaries([run.id for run in pagination.items]),
         music_only=music_only,
+        run_types=RUN_TYPES,
     )
 
 
 @bp.route("/runs/<int:run_id>")
 @login_required
 def detail(run_id):
-    """One run's results: pace and heart rate through the run, and every song ranked."""
+    """One run's results: pace and heart rate through the run, its laps, and every song ranked."""
     run = Run.query.filter_by(id=run_id, user_id=current_user.id).first_or_404()
     results = run_results(run)
     bands = results.bands()
@@ -46,12 +48,25 @@ def detail(run_id):
     newer = mine.filter(Run.date_time > run.date_time).order_by(Run.date_time.asc()).first()
     pace_chart = charts.run_chart(results.series.paces, bands)
     heart_chart = charts.heart_chart(results.series.heart_rates, bands)
+    laps = run.laps
+    lap_blocks = (
+        charts.lap_lane(
+            [(lap.start_second, lap.end_second, lap.kind, KINDS[lap.kind]) for lap in laps],
+            pace_chart.seconds,
+        )
+        if len(laps) > 1
+        else []
+    )
     return render_template(
         "runs/detail.html",
         run=run,
         results=results,
         pace_chart=pace_chart,
         heart_chart=heart_chart,
+        laps=laps,
+        lap_blocks=lap_blocks,
+        lap_kinds=KINDS,
+        run_types=RUN_TYPES,
         older=older,
         newer=newer,
         timeline={

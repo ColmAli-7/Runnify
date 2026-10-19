@@ -10,6 +10,7 @@ from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory
 from runnify.services.analysis import song_segments
 from runnify.services.fit import Series
+from runnify.services.laps import KINDS
 from runnify.services.streams import load_series
 
 
@@ -25,10 +26,15 @@ class ResultRow:
     hr_delta: float | None = None  # bpm above (+) or below (-) the minutes around it
     position: int | None = None  # rank among the scored songs, 1 = the biggest lift
     kind: str = "normal"  # "best", "worst" or "normal"
+    lap_kind: str | None = None  # the kind of lap it was measured on
 
     @property
     def scored(self):
         return self.lift is not None
+
+    @property
+    def lap_label(self):
+        return KINDS.get(self.lap_kind)
 
     @property
     def note(self):
@@ -88,6 +94,7 @@ def run_results(run, series=None):
                 seconds=int((end - start).total_seconds()),
                 lift=effect.pace_delta if effect else None,
                 hr_delta=effect.hr_delta if effect else None,
+                lap_kind=effect.lap_kind if effect else None,
             )
         )
     ranked = results.ranked

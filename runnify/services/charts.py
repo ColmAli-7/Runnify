@@ -209,6 +209,31 @@ def heart_chart(heart_rates, songs=(), points=240, max_x_ticks=6):
 
 
 @dataclass
+class LapBlock:
+    """One lap along a run, in percentages of the plot."""
+
+    x: float
+    width: float
+    kind: str  # services.laps.KINDS key
+    label: str
+
+
+def lap_lane(laps, seconds):
+    """Lay out ``(start, end, kind, label)`` laps along a run of ``seconds``, as the run
+    chart places its bands, so the lane lines up under the pace chart."""
+
+    def x_at(second):
+        return second / max(seconds - 1, 1)
+
+    blocks = []
+    for start, end, kind, label in laps:
+        x0, x1 = x_at(max(start, 0)), x_at(min(end, seconds - 1))
+        if x1 > x0:
+            blocks.append(LapBlock(_pct(x0), _pct(x1 - x0), kind, label))
+    return blocks
+
+
+@dataclass
 class Bar:
     """One bar, in percentages of the plot."""
 

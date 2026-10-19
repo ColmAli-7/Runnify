@@ -69,6 +69,29 @@
 {%- endif %}
 {% endmacro %}
 
+{#- One block per lap under the song lane (services.charts.lap_lane). Kinds differ by more than
+    shade: hard laps are solid ink, steady ones grey, jogs outlined, walks hatched, warm-ups
+    and cool-downs dashed. A block wider than `labels` percent of the run carries its kind.
+    Decorative: the lap table carries the facts. -#}
+{% macro lap_lane(blocks, class="", labels=7) %}
+{%- if blocks %}
+<svg class="lane lane--laps {{ class }}" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="lap-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect class="lap-hatch__ground" x="0" y="0" width="6" height="6"></rect>
+      <line class="lap-hatch__line" x1="0" y1="0" x2="0" y2="6"></line>
+    </pattern>
+  </defs>
+  {%- for block in blocks %}
+  <svg class="lane__block lane__block--{{ block.kind }}" x="{{ block.x }}%" y="0" width="{{ block.width }}%" height="100%">
+    <rect x="0" y="0" width="100%" height="100%" rx="7"></rect>
+    {%- if block.width >= labels %}<text x="9" y="50%" dy="0.36em">{{ block.label }}</text>{% endif %}
+  </svg>
+  {%- endfor %}
+</svg>
+{%- endif %}
+{% endmacro %}
+
 {#- Vertical bars; values sit above (or, for negative bars, below) each bar. -#}
 {% macro bar_chart(chart, summary, class="") %}
 <div class="chart chart--bars {{ class }}">

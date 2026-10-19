@@ -1334,6 +1334,65 @@
     padding-left: 2.75rem;
   }
 
+  /* ---- the lap lane: one block per lap, under the song lane -------------- */
+  /* kinds differ by more than shade: solid, grey, outlined, hatched, dashed */
+
+  .lane--laps {
+    height: 24px;
+    margin-top: var(--s-1);
+  }
+
+  .lane--laps .lane__block rect {
+    fill: var(--surface-3);
+    stroke: var(--surface);
+    stroke-width: 3px;
+  }
+
+  .lane--laps .lane__block text {
+    fill: var(--text-2);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .lane--laps .lane__block--hard rect {
+    fill: var(--surface-inverse);
+  }
+
+  .lane--laps .lane__block--hard text {
+    fill: var(--text-inverse);
+  }
+
+  .lane--laps .lane__block--jog rect {
+    fill: var(--surface);
+    stroke: var(--field);
+  }
+
+  .lane--laps .lane__block--warmup rect,
+  .lane--laps .lane__block--cooldown rect {
+    fill: var(--surface-2);
+    stroke: var(--field);
+    stroke-dasharray: 5 4;
+  }
+
+  .lane--laps .lane__block--walk rect {
+    fill: url("#lap-hatch");
+  }
+
+  .lane--laps .lane__block--walk text {
+    stroke: var(--surface);
+    stroke-width: 3px;
+    paint-order: stroke;
+  }
+
+  .lap-hatch__ground {
+    fill: var(--surface);
+  }
+
+  .lap-hatch__line {
+    stroke: var(--text-3);
+    stroke-width: 1.5px;
+  }
+
   /* a single horizontal bar */
   .meter {
     display: block;
@@ -1395,6 +1454,31 @@
 
   .legend__swatch--heart {
     --swatch: var(--heart);
+  }
+
+  /* lap kinds, drawn as their blocks in the lap lane */
+  .legend__swatch--lap-hard {
+    --swatch: var(--surface-inverse);
+  }
+
+  .legend__swatch--lap-steady {
+    --swatch: var(--surface-3);
+  }
+
+  .legend__swatch--lap-jog {
+    --swatch: var(--surface);
+    box-shadow: inset 0 0 0 1.5px var(--field);
+  }
+
+  .legend__swatch--lap-walk {
+    background: repeating-linear-gradient(45deg, var(--text-3) 0 1.5px, var(--surface) 1.5px 4px);
+  }
+
+  .legend__swatch--lap-warmup,
+  .legend__swatch--lap-cooldown {
+    --swatch: var(--surface-2);
+    outline: 1.5px dashed var(--field);
+    outline-offset: -1.5px;
   }
 
   .legend__note {

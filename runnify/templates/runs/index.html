@@ -48,6 +48,7 @@
             <tr class="is-linked">
               <td class="results__track">
                 <a class="runs-table__link" href="{{ url_for('runs.detail', run_id=run.id) }}">{{ run.local_start|run_name }}</a>
+                {%- if run.run_type and run.run_type != "easy" %} <span class="tag">{{ run_types[run.run_type] }}</span>{% endif %}
                 <span class="results__sub">{{ run.local_start|day }}, {{ run.local_start|clock }}</span>
               </td>
               <td class="is-numeric runs-table__figure">{{ run.distance|km }} <span class="results__unit">km</span></td>
