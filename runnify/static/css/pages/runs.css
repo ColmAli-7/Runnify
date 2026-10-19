@@ -113,6 +113,92 @@
     color: var(--text-2);
   }
 
+  /* changing the laps: small forms that each work without scripts */
+  .run__edit {
+    border-top: var(--hair);
+  }
+
+  .run__edit-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--card-pad);
+    font-size: var(--fs-md);
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .run__edit-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .run__edit-icon {
+    margin-left: auto;
+    color: var(--text-3);
+    transition: transform var(--t-base) var(--ease-out);
+  }
+
+  .run__edit[open] .run__edit-icon {
+    transform: rotate(180deg);
+  }
+
+  .run__edit-body {
+    display: grid;
+    gap: var(--s-6);
+    padding: 0 var(--card-pad) var(--card-pad);
+  }
+
+  .run__edit-form {
+    display: grid;
+    gap: var(--s-3);
+    max-width: 40rem;
+  }
+
+  .lap-edits {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .lap-edits__list {
+    display: grid;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+    padding: 0;
+    list-style: none;
+  }
+
+  .lap-edits__row {
+    display: grid;
+    grid-template-columns: auto minmax(7rem, 1fr) minmax(8rem, 11rem) minmax(9rem, auto);
+    align-items: center;
+    gap: var(--s-2) var(--s-3);
+  }
+
+  .lap-edits__time {
+    font-size: var(--fs-md);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
+  }
+
+  .lap-edits__split {
+    max-width: 8rem;
+  }
+
+  @media (max-width: 559px) {
+    .lap-edits__row {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .lap-edits__kind,
+    .lap-edits__join {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+
   .run__charts {
     position: relative;
     display: grid;

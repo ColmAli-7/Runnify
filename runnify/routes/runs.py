@@ -1,13 +1,18 @@
-"""The runs list and each run's results."""
+"""The runs list, each run's results, and changing a run's laps and kind."""
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import exists
 
+from runnify.extensions import db
+from runnify.forms import LapsForm, first_error
 from runnify.models import Run, UserSongHistory
 from runnify.services import charts
+from runnify.services import laps as lap_service
+from runnify.services.analysis import rescore_run
 from runnify.services.laps import KINDS, RUN_TYPES
 from runnify.services.results import run_results, run_summaries
+from runnify.services.streams import load_series
 
 bp = Blueprint("runs", __name__)
 
@@ -87,3 +92,62 @@ def detail(run_id):
             ],
         },
     )
+
+
+def _change(run, series, action, form):
+    """Make the change the button ``action`` asks for; returns what to tell the runner."""
+    if action == "type":
+        lap_service.set_run_type(run, form.run_type.data)
+        if run.run_type_manual:
+            return f"Saved as {RUN_TYPES[run.run_type].lower()}."
+        return "Runnify will work out the kind of run again."
+    if action == "kinds":
+        lap_service.set_kinds(run, series, request.form.getlist("kind"))
+        return "Laps saved, and the songs measured again against them."
+    if action.startswith("merge-") and action.removeprefix("merge-").isdigit():
+        position = int(action.removeprefix("merge-"))
+        lap_service.set_kinds(run, series, request.form.getlist("kind"))
+        lap_service.merge_laps(run, series, position)
+        return f"Laps {position + 1} and {position + 2} joined."
+    if action == "split":
+        second = lap_service.parse_time(form.split_at.data)
+        if second is None:
+            raise lap_service.LapError("Give the time as minutes and seconds, like 12:30.")
+        position = lap_service.split_lap(run, series, second)
+        return f"Lap {position + 1} split at {form.split_at.data}."
+    if action == "reset":
+        lap_service.reset_laps(run)
+        return "Laps worked out again from the run."
+    raise lap_service.LapError("That change isn't one Runnify knows how to make.")
+
+
+@bp.route("/runs/<int:run_id>/laps", methods=["GET", "POST"])
+@login_required
+def laps(run_id):
+    """Change a run's kind or its laps, then measure its songs again.
+
+    Each small form on the run page posts here with the button it was sent by.
+    A GET returns to the run, so a form that expired lands back on the run page.
+    """
+    run = Run.query.filter_by(id=run_id, user_id=current_user.id).first_or_404()
+    back = redirect(url_for("runs.detail", run_id=run.id, _anchor="laps"))
+    if request.method == "GET":
+        return back
+    form = LapsForm()
+    if not form.validate_on_submit():
+        flash(first_error(form) or "That change couldn't be made.", "error")
+        return back
+    series = load_series(run)
+    if not len(series):
+        flash("This run has no second-by-second recording, so it has no laps to change.", "error")
+        return back
+    try:
+        message = _change(run, series, request.form.get("action", ""), form)
+    except lap_service.LapError as error:
+        db.session.rollback()
+        flash(str(error), "error")
+        return back
+    rescore_run(run, series)
+    db.session.commit()
+    flash(message, "success")
+    return back

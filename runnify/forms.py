@@ -8,10 +8,18 @@ input can be arbitrarily large.
 import re
 
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, EmailField, PasswordField, SelectField, StringField
+from wtforms import (
+    BooleanField,
+    EmailField,
+    PasswordField,
+    SelectField,
+    StringField,
+    TextAreaField,
+)
 from wtforms.validators import DataRequired, EqualTo, Length, Regexp, ValidationError
 
 from runnify.security.passwords import MAX_LENGTH, password_problems
+from runnify.services.laps import RUN_TYPES
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -197,6 +205,22 @@ class PlaylistForm(FlaskForm):
         default=45,
     )
     include_untested = BooleanField("Include songs heard on only one run")
+
+
+class LapsForm(FlaskForm):
+    """Change a run's kind or its laps; each small form on the run page sends some of these.
+
+    Which change is meant comes from the button pressed (``action``), and the
+    kind of each lap from its ``kind`` select, in order (read by the view).
+    """
+
+    run_type = SelectField(
+        "Kind of run",
+        choices=[("auto", "Work it out for me"), *RUN_TYPES.items()],
+        default="auto",
+    )
+    split_at = StringField("Split a lap at", filters=[strip], validators=[Length(max=8)])
+    workout = TextAreaField("Your workout", filters=[strip], validators=[Length(max=300)])
 
 
 class ConsentForm(ConsentFields, FlaskForm):

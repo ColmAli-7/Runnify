@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% from "macros/ui.html" import icon, lift, data_island %}
+{% from "macros/ui.html" import icon, lift, data_island, csrf %}
 {% from "macros/charts.html" import run_chart, song_lane, lap_lane %}
 {% from "macros/results.html" import results_table %}
 
@@ -136,6 +136,72 @@
       {% else %}
         <p class="run__laps-none">One steady stretch from start to finish, so each song is compared with the running either side of it.</p>
       {% endif %}
+
+      {%- set edit_action = url_for("runs.laps", run_id=run.id) %}
+      <details class="run__edit">
+        <summary class="run__edit-summary">{{ icon("sliders") }}Change the laps or the kind of run{{ icon("chevron-down", class="run__edit-icon") }}</summary>
+        <div class="run__edit-body">
+          <form class="run__edit-form" method="post" action="{{ edit_action }}">
+            {{ csrf() }}
+            <div class="field">
+              <label class="field__label" for="run-type">Kind of run</label>
+              <div class="select-wrap">
+                <select class="select" id="run-type" name="run_type">
+                  <option value="auto"{% if not run.run_type_manual %} selected{% endif %}>Work it out for me{% if run.run_type and not run.run_type_manual %} ({{ run_types[run.run_type]|lower }} for now){% endif %}</option>
+                  {% for key, label in run_types.items() %}
+                    <option value="{{ key }}"{% if run.run_type_manual and run.run_type == key %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <p><button class="btn" type="submit" name="action" value="type">Save the kind of run</button></p>
+          </form>
+
+          <form class="run__edit-form" method="post" action="{{ edit_action }}">
+            {{ csrf() }}
+            <fieldset class="lap-edits">
+              <legend class="field__label">Each lap</legend>
+              <ol class="lap-edits__list">
+                {% for lap in laps %}
+                  <li class="lap-edits__row">
+                    <span class="rank">{{ loop.index }}</span>
+                    <label class="lap-edits__time" for="lap-kind-{{ loop.index }}">{{ lap.start_second|duration }} to {{ lap.end_second|duration }}<span class="visually-hidden">, kind of lap {{ loop.index }}</span></label>
+                    <div class="select-wrap lap-edits__kind">
+                      <select class="select" id="lap-kind-{{ loop.index }}" name="kind">
+                        {% for key, label in lap_kinds.items() %}
+                          <option value="{{ key }}"{% if key == lap.kind %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% if not loop.last %}
+                      <button class="btn btn--sm btn--quiet lap-edits__join" type="submit" name="action" value="merge-{{ loop.index0 }}">Join with lap {{ loop.index + 1 }}</button>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ol>
+            </fieldset>
+            <p><button class="btn" type="submit" name="action" value="kinds">Save the laps</button></p>
+          </form>
+
+          <form class="run__edit-form" method="post" action="{{ edit_action }}">
+            {{ csrf() }}
+            <div class="field">
+              <label class="field__label" for="split-at">Split a lap</label>
+              <p class="field__hint" id="split-at-hint">At a time into the run, like 12:30. Both halves keep the lap's kind.</p>
+              <input class="input lap-edits__split" id="split-at" name="split_at" maxlength="8" inputmode="numeric" autocomplete="off" aria-describedby="split-at-hint">
+            </div>
+            <p><button class="btn" type="submit" name="action" value="split">Split the lap</button></p>
+          </form>
+
+          {% if run.laps_source == "manual" %}
+            <form class="run__edit-form" method="post" action="{{ edit_action }}">
+              {{ csrf() }}
+              <p class="field__hint">Changed your mind? Runnify can work the laps out again from the watch, or from your pace and heart rate.</p>
+              <p><button class="btn btn--quiet" type="submit" name="action" value="reset">Work the laps out again</button></p>
+            </form>
+          {% endif %}
+        </div>
+      </details>
     </section>
   {% endif %}
 

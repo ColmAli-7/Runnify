@@ -576,3 +576,87 @@ def retype_runs(user_id):
         run.run_type = run_type(
             laps_of(run), run.duration or 0, run.distance or 0, usual_pace(user_id, run.id, paces)
         )
+
+
+# ---- changes the runner makes by hand ---------------------------------------
+
+MIN_SPLIT = 10  # seconds a split must leave either side, so no lap is all edge
+
+
+class LapError(ValueError):
+    """A change to a run's laps that can't be made; the message is safe to show."""
+
+
+STALE = "Those laps have changed since the page loaded. Have another look and try again."
+
+
+def parse_time(text):
+    """Seconds from a time into the run: ``"12:30"``, ``"1:02:30"`` or whole minutes ``"12"``.
+
+    ``None`` when ``text`` isn't one.
+    """
+    parts = (text or "").strip().split(":")
+    if not 1 <= len(parts) <= 3 or not all(part.isdigit() for part in parts):
+        return None
+    if len(parts) == 1:
+        return int(parts[0]) * 60
+    *bigger, seconds = (int(part) for part in parts)
+    if seconds >= 60 or (len(bigger) == 2 and bigger[1] >= 60):
+        return None
+    minutes = bigger[-1] + (bigger[0] * 60 if len(bigger) == 2 else 0)
+    return minutes * 60 + seconds
+
+
+def set_run_type(run, run_type):
+    """Set the kind of run by hand, or ``"auto"`` to have it worked out again."""
+    if run_type == "auto":
+        run.run_type_manual = False
+    elif run_type in RUN_TYPES:
+        run.run_type, run.run_type_manual = run_type, True
+    else:
+        raise LapError("Pick a kind of run from the list.")
+
+
+def set_kinds(run, series, kinds):
+    """Give each of the run's laps the kind in ``kinds``, in order."""
+    laps = laps_of(run)
+    if len(kinds) != len(laps):
+        raise LapError(STALE)
+    if any(kind not in KINDS for kind in kinds):
+        raise LapError("Pick a kind for every lap.")
+    store_laps(
+        run,
+        series,
+        [Lap(lap.start, lap.end, kind) for lap, kind in zip(laps, kinds, strict=True)],
+        "manual",
+    )
+
+
+def merge_laps(run, series, position):
+    """Join lap ``position`` (counting from 0) with the next one, keeping its kind."""
+    laps = laps_of(run)
+    if not 0 <= position < len(laps) - 1:
+        raise LapError(STALE)
+    first, second = laps[position], laps[position + 1]
+    laps[position : position + 2] = [Lap(first.start, second.end, first.kind)]
+    store_laps(run, series, laps, "manual")
+
+
+def split_lap(run, series, second):
+    """Split the lap that ``second`` falls in into two of the same kind; returns its position."""
+    laps = laps_of(run)
+    for position, lap in enumerate(laps):
+        if lap.start + MIN_SPLIT <= second <= lap.end - MIN_SPLIT:
+            laps[position : position + 1] = [
+                Lap(lap.start, second, lap.kind),
+                Lap(second, lap.end, lap.kind),
+            ]
+            store_laps(run, series, laps, "manual")
+            return position
+    raise LapError("Give a time inside a lap, at least 10 seconds from either end, like 12:30.")
+
+
+def reset_laps(run):
+    """Forget the laps set by hand, so the next refresh works them out again."""
+    run.laps_source = None
+    run.workout = None
