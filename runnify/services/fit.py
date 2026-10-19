@@ -6,6 +6,7 @@ between records when speed is missing. Samples where the runner is stopped
 pace, so a traffic-light stop is never mistaken for slow running. The
 remaining pace is lightly smoothed with an exponential moving average, and
 the series is spread to one sample a second (see :func:`at_one_hertz`).
+Cadence, distance and the watch's own laps are kept when the file has them.
 """
 
 import io
@@ -18,16 +19,44 @@ STOPPED_PACE = 900.0  # s/km; slower than 15:00/km counts as stopped
 GLITCH_PACE = 120.0  # s/km; faster than 2:00/km is a GPS spike
 SMOOTHING = 0.2  # EMA alpha: higher reacts faster
 GAP_FILL = 10  # seconds; a longer gap between records (auto-pause) counts as stopped
+# FIT's lap intensities; fitparse 1.2 names only the first four
+INTENSITIES = {
+    0: "active",
+    1: "rest",
+    2: "warmup",
+    3: "cooldown",
+    4: "recovery",
+    5: "interval",
+    6: "other",
+}
+
+
+@dataclass
+class WatchLap:
+    """A lap as the watch recorded it, in seconds from the run's first sample."""
+
+    start: int
+    end: int
+    intensity: str | None = None  # "active", "rest", "warmup", "cooldown", "recovery", ...
+    trigger: str | None = None  # "manual" (the lap button), "distance", "time", "session_end", ...
+    step: int | None = None  # the workout step it belonged to, when the run followed a workout
 
 
 @dataclass
 class Series:
-    """Equal-length, time-ordered samples from one run."""
+    """Time-ordered samples from one run, one a second (see :func:`at_one_hertz`).
+
+    ``cadences`` and ``distances`` are the same length as ``timestamps``, or
+    empty when the recording had none. ``laps`` holds the watch's own laps.
+    """
 
     timestamps: list[datetime] = field(default_factory=list)
     heart_rates: list[int | None] = field(default_factory=list)
     # seconds per km; None while stopped or unknown
     paces: list[float | None] = field(default_factory=list)
+    cadences: list[int | None] = field(default_factory=list)  # steps a minute
+    distances: list[float | None] = field(default_factory=list)  # metres from the start
+    laps: list[WatchLap] = field(default_factory=list)
 
     def __len__(self):
         return len(self.timestamps)
@@ -42,9 +71,10 @@ def at_one_hertz(series):
 
     Watches on "smart" recording write a record every few seconds and auto-pause
     leaves longer gaps, but charts and scoring read one sample as one second.
-    A gap up to ``GAP_FILL`` seconds carries the last record's values; a longer
-    one counts as stopped (no pace, no heart rate). A series that already has
-    one sample a second comes back as it is.
+    A gap up to ``GAP_FILL`` seconds carries the last record's values (distance
+    grows evenly across it); a longer one counts as stopped, with no pace,
+    heart rate or cadence, and the distance standing still. A series that
+    already has one sample a second comes back as it is.
     """
     timestamps = series.timestamps
     if not timestamps:
@@ -55,17 +85,32 @@ def at_one_hertz(series):
         return series
     length = offsets[-1] + 1
     heart_rates, paces = [None] * length, [None] * length
+    cadences = [None] * length if series.cadences else []
+    distances = [None] * length if series.distances else []
     for i, offset in enumerate(offsets):
-        until = offsets[i + 1] if i + 1 < len(offsets) else offset + 1
-        if until - offset > GAP_FILL:  # a pause: only this second has values
-            until = offset + 1
-        for second in range(offset, until):
+        following = offsets[i + 1] if i + 1 < len(offsets) else offset + 1
+        bridged = following - offset <= GAP_FILL
+        for second in range(offset, following if bridged else offset + 1):
             heart_rates[second] = series.heart_rates[i]
             paces[second] = series.paces[i]
+            if cadences:
+                cadences[second] = series.cadences[i]
+        if distances:
+            here = series.distances[i]
+            there = series.distances[i + 1] if i + 1 < len(offsets) else None
+            for second in range(offset, following):
+                if bridged and here is not None and there is not None:
+                    share = (second - offset) / (following - offset)
+                    distances[second] = here + (there - here) * share
+                else:
+                    distances[second] = here
     return Series(
         timestamps=[start + timedelta(seconds=s) for s in range(length)],
         heart_rates=heart_rates,
         paces=paces,
+        cadences=cadences,
+        distances=distances,
+        laps=series.laps,
     )
 
 
@@ -91,9 +136,9 @@ def _ema(values, alpha=SMOOTHING):
 
 def _raw_pace(rows, index):
     """Unsmoothed pace (s/km) for record ``index``, or ``None`` when stopped or unknown."""
-    timestamp, _, speed, distance = rows[index]
+    timestamp, _, speed, distance, _ = rows[index]
     if speed is None and index > 0 and distance is not None:
-        previous_time, _, _, previous_distance = rows[index - 1]
+        previous_time, _, _, previous_distance, _ = rows[index - 1]
         seconds = (timestamp - previous_time).total_seconds()
         if previous_distance is not None and seconds > 0:
             speed = (distance - previous_distance) / seconds
@@ -103,24 +148,75 @@ def _raw_pace(rows, index):
     return pace if GLITCH_PACE <= pace <= STOPPED_PACE else None
 
 
+def _cadence(fields):
+    """Steps a minute, or ``None``: FIT counts one foot (``cadence`` plus its fraction)."""
+    cadence = fields.get("cadence")
+    if cadence is None:
+        return None
+    return round(2 * (cadence + (fields.get("fractional_cadence") or 0)))
+
+
+def _named(value, names):
+    """A FIT enum value by name; numbers fitparse doesn't name are looked up in ``names``."""
+    if isinstance(value, int):
+        return names.get(value, str(value))
+    return value
+
+
+def _watch_laps(laps, first):
+    """The watch's ``lap`` messages as :class:`WatchLap`, in seconds from ``first``."""
+    found = []
+    for fields in laps:
+        start_time, elapsed = fields.get("start_time"), fields.get("total_elapsed_time")
+        if start_time is None or elapsed is None:
+            continue
+        start = max(round((start_time - first).total_seconds()), 0)
+        step = fields.get("wkt_step_index")
+        found.append(
+            WatchLap(
+                start=start,
+                end=start + round(elapsed),
+                intensity=_named(fields.get("intensity"), INTENSITIES),
+                trigger=_named(fields.get("lap_trigger"), {}),
+                step=step if isinstance(step, int) else None,
+            )
+        )
+    return sorted(found, key=lambda lap: lap.start)
+
+
 def parse_fit(fileish):
-    """Parse FIT data (a path, bytes or a binary file) into a :class:`Series`."""
+    """Parse FIT data (a path, bytes or a binary file) into a :class:`Series`, laps included."""
     if isinstance(fileish, bytes | bytearray):
         fileish = io.BytesIO(fileish)
-    rows = []
-    for record in FitFile(fileish).get_messages("record"):
-        fields = {f.name: f.value for f in record}
-        if fields.get("timestamp") is not None:
-            speed = fields.get("enhanced_speed", fields.get("speed"))
+    rows, laps = [], []
+    for message in FitFile(fileish).get_messages(("record", "lap")):
+        fields = {f.name: f.value for f in message}
+        if message.name == "lap":
+            laps.append(fields)
+        elif fields.get("timestamp") is not None:
+            speed = fields.get("enhanced_speed")
+            if speed is None:
+                speed = fields.get("speed")
             rows.append(
-                (fields["timestamp"], fields.get("heart_rate"), speed, fields.get("distance"))
+                (
+                    fields["timestamp"],
+                    fields.get("heart_rate"),
+                    speed,
+                    fields.get("distance"),
+                    _cadence(fields),
+                )
             )
     rows.sort(key=lambda row: row[0])
+    has_distance = any(row[3] is not None for row in rows)
+    has_cadence = any(row[4] is not None for row in rows)
     return at_one_hertz(
         Series(
             timestamps=[row[0] for row in rows],
             heart_rates=[row[1] for row in rows],
             paces=_ema([_raw_pace(rows, i) for i in range(len(rows))]),
+            cadences=[row[4] for row in rows] if has_cadence else [],
+            distances=[row[3] for row in rows] if has_distance else [],
+            laps=_watch_laps(laps, rows[0][0]) if rows else [],
         )
     )
 

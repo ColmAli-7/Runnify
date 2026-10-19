@@ -1,11 +1,15 @@
-"""FIT parsing (stops and GPS glitches) and run streams stored in the database."""
+"""FIT parsing (stops and GPS glitches, laps, cadence) and run streams stored in the database."""
 
+import json
 import pathlib
+import zlib
 from datetime import datetime, timedelta
+
+import pytest
 
 from runnify.extensions import db
 from runnify.models import Run, RunStream
-from runnify.services.fit import Series, at_one_hertz, parse_fit
+from runnify.services.fit import Series, WatchLap, at_one_hertz, parse_fit
 from runnify.services.streams import (
     backfill_from_fit_files,
     decode,
@@ -41,6 +45,27 @@ def test_stops_and_glitches_have_no_pace():
     assert all(p is not None for p in paces[:5] + paces[9:])
 
 
+def test_parse_fit_reads_cadence_distance_and_the_watch_laps():
+    samples = [(START + timedelta(seconds=i), 150, 3.0 * i, 3.0, 85) for i in range(120)]
+    laps = [
+        (START, 60, 2, 0, None),  # a warm-up ended with the lap button
+        (START + timedelta(seconds=60), 60, 4, 7, 1),  # a recovery: newer than fitparse's names
+    ]
+    series = parse_fit(build_fit(samples, laps))
+    assert series.cadences[0] == 170  # FIT counts one foot: 85 a minute is 170 steps
+    assert series.distances[-1] == pytest.approx(357.0)
+    assert series.laps == [
+        WatchLap(0, 60, "warmup", "manual", None),
+        WatchLap(60, 120, "recovery", "session_end", 1),
+    ]
+
+
+def test_a_recording_without_cadence_or_laps_has_none():
+    series = parse_fit(build_fit(_samples([3.0] * 10)))
+    assert series.cadences == [] and series.laps == []
+    assert series.distances[:3] == [3.0, 6.0, 9.0]
+
+
 def test_smart_recording_is_spread_to_one_sample_a_second():
     rows = [(START + timedelta(seconds=3 * i), 140 + i, 9.0 * i, 3.0) for i in range(11)]
     series = parse_fit(build_fit(rows))
@@ -57,6 +82,21 @@ def test_an_auto_pause_counts_as_stopped():
     assert len(series) == 120
     assert series.paces[30:90] == [None] * 60 and series.heart_rates[30:90] == [None] * 60
     assert series.paces[29] is not None and series.paces[90] is not None
+
+
+def test_distance_grows_evenly_across_a_gap_and_stands_still_through_a_pause():
+    series = at_one_hertz(
+        Series(
+            timestamps=[START + timedelta(seconds=s) for s in (0, 4, 64)],
+            heart_rates=[150, 150, 150],
+            paces=[300.0, 300.0, 300.0],
+            cadences=[170, 172, 174],
+            distances=[0.0, 12.0, 20.0],
+        )
+    )
+    assert series.distances[:5] == [0.0, 3.0, 6.0, 9.0, 12.0]
+    assert series.distances[5:64] == [12.0] * 59  # paused
+    assert series.cadences[3] == 170 and series.cadences[5] is None
 
 
 def test_one_sample_a_second_is_left_as_it_is():
@@ -87,6 +127,22 @@ def test_stream_round_trip_is_compact_and_lossless_enough():
     assert restored.timestamps == series.timestamps
     assert restored.heart_rates == series.heart_rates
     assert all(abs(a - b) <= 0.05 for a, b in zip(restored.paces, series.paces, strict=True))
+
+
+def test_streams_keep_cadence_distance_and_laps():
+    samples = [(START + timedelta(seconds=i), 150, 3.1 * i, 3.1, 85) for i in range(600)]
+    series = parse_fit(build_fit(samples, [(START, 300, 0, 0, None), (START, 600, 1, 7, None)]))
+    restored = decode(encode(series), START)
+    assert restored.cadences == series.cadences
+    assert restored.distances == [round(d) for d in series.distances]  # whole metres
+    assert restored.laps == series.laps
+
+
+def test_streams_stored_before_cadence_and_laps_still_decode():
+    old = {"v": 1, "t": [0, 1, 2], "p": [300.0, 301.0, None], "h": [150, 151, 152]}
+    restored = decode(zlib.compress(json.dumps(old).encode()), START)
+    assert restored.paces == [300.0, 301.0, None] and restored.heart_rates == [150, 151, 152]
+    assert (restored.cadences, restored.distances, restored.laps) == ([], [], [])
 
 
 def _run(app, user, **fields):

@@ -4,6 +4,10 @@ Hosts such as Render wipe the local disk on every deploy, so FIT files kept on
 disk would vanish. Instead the parsed samples are stored compactly (offsets in
 seconds, pace to 0.1 s/km, whole-beat heart rate, zlib-compressed JSON; a
 one-hour run is roughly 15 KB). Raw FIT files are not kept at all.
+
+Format 2 adds cadence (``"c"``, steps a minute), distance (``"d"``, whole
+metres, each written as the step from the one before, which compresses to
+almost nothing) and the watch's laps (``"l"``). Format 1 streams still read.
 """
 
 import json
@@ -14,11 +18,36 @@ from pathlib import Path
 
 from runnify.extensions import db
 from runnify.models import RunStream
-from runnify.services.fit import Series, at_one_hertz, parse_fit
+from runnify.services.fit import Series, WatchLap, at_one_hertz, parse_fit
 
 logger = logging.getLogger(__name__)
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
+
+
+def _steps(values):
+    """Whole numbers, each written as the step from the last known one (``None`` kept)."""
+    steps, last = [], None
+    for value in values:
+        if value is None:
+            steps.append(None)
+            continue
+        whole = round(value)
+        steps.append(whole if last is None else whole - last)
+        last = whole
+    return steps
+
+
+def _totals(steps):
+    """Undo :func:`_steps`."""
+    totals, last = [], None
+    for step in steps:
+        if step is None:
+            totals.append(None)
+            continue
+        last = step if last is None else last + step
+        totals.append(last)
+    return totals
 
 
 def encode(series):
@@ -30,6 +59,14 @@ def encode(series):
         "p": [None if p is None else round(p, 1) for p in series.paces],
         "h": [None if h is None else int(h) for h in series.heart_rates],
     }
+    if series.cadences:
+        payload["c"] = [None if c is None else int(c) for c in series.cadences]
+    if series.distances:
+        payload["d"] = _steps(series.distances)
+    if series.laps:
+        payload["l"] = [
+            [lap.start, lap.end, lap.intensity, lap.trigger, lap.step] for lap in series.laps
+        ]
     return zlib.compress(json.dumps(payload, separators=(",", ":")).encode(), level=9)
 
 
@@ -44,6 +81,9 @@ def decode(blob, started_at):
             timestamps=[started_at + timedelta(seconds=s) for s in payload["t"]],
             heart_rates=payload["h"],
             paces=payload["p"],
+            cadences=payload.get("c", []),
+            distances=_totals(payload.get("d", [])),
+            laps=[WatchLap(*lap) for lap in payload.get("l", [])],
         )
     )
 
