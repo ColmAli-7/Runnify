@@ -19,6 +19,7 @@ from runnify.models import (
     PlaylistTrack,
     RecoveryCode,
     Run,
+    RunLap,
     RunSongAnalysis,
     RunStream,
     SecurityEvent,
@@ -38,6 +39,16 @@ def export_data(user):
     """Return a JSON-ready dict of everything Runnify stores about ``user``."""
     runs = Run.query.filter_by(user_id=user.id).order_by(Run.date_time).all()
     activity_ids = {run.id: run.activity_id for run in runs}
+    laps = {}
+    for lap in RunLap.query.filter(RunLap.run_id.in_(activity_ids)).order_by(RunLap.position):
+        laps.setdefault(lap.run_id, []).append(
+            {
+                "kind": lap.kind,
+                "start_s": lap.start_second,
+                "end_s": lap.end_second,
+                "distance_m": lap.distance,
+            }
+        )
     plays = (
         db.session.query(UserSongHistory, Song)
         .join(Song, Song.id == UserSongHistory.song_id)
@@ -71,6 +82,10 @@ def export_data(user):
                 "duration_s": run.duration,
                 "average_heart_rate": run.avg_hr,
                 "average_pace_min_per_km": run.avg_pace,
+                "run_type": run.run_type,
+                "run_type_set_by_you": run.run_type_manual,
+                "laps": laps.get(run.id, []),
+                "workout": run.workout,
             }
             for run in runs
         ],
@@ -90,6 +105,10 @@ def export_data(user):
                 "spotify_track_id": play.song_id,
                 "garmin_activity_id": activity_ids.get(analysis.run_id),
                 "score": analysis.performance_score,
+                "lift_s_per_km": analysis.pace_delta,
+                "heart_rate_change_bpm": analysis.hr_delta,
+                "lap_kind": analysis.lap_kind,
+                "effort_charge_s_per_km": analysis.effort_charge,
             }
             for analysis, play in scores
         ],
@@ -137,6 +156,7 @@ def delete_account(user):
         )
     )
     db.session.execute(delete(RunStream).where(RunStream.run_id.in_(run_ids)))
+    db.session.execute(delete(RunLap).where(RunLap.run_id.in_(run_ids)))
     db.session.execute(delete(UserSongHistory).where(UserSongHistory.user_id == user.id))
     db.session.execute(delete(Run).where(Run.user_id == user.id))
     db.session.execute(

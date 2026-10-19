@@ -3,6 +3,7 @@
 Entity overview (see ``docs/architecture.md`` for a diagram):
 
 - ``User`` has many ``Run`` and many ``UserSongHistory`` rows.
+- ``Run`` has many ``RunLap`` rows, its laps in order.
 - ``UserSongHistory`` links a ``User``, a ``Song`` and (optionally) a ``Run``.
 - ``RunSongAnalysis`` links a ``Run`` to a ``UserSongHistory`` row.
 
@@ -17,6 +18,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from flask_login import UserMixin
+from sqlalchemy import false
 
 from runnify.extensions import db, login_manager
 from runnify.security.crypto import EncryptedString
@@ -150,6 +152,12 @@ class Run(db.Model):
     ``distance`` is in metres, ``duration`` in seconds and ``avg_pace`` in
     minutes per km. Second-by-second samples live in :class:`RunStream`;
     ``fit_file_path`` only exists on runs imported before streams did.
+
+    ``run_type`` is one of :data:`runnify.services.laps.RUN_TYPES`, worked out
+    from the laps unless the runner chose it (``run_type_manual``).
+    ``laps_source`` says where the laps came from: "watch", "detected" or
+    "manual" (``None`` until they are first worked out). ``workout`` is a
+    workout the runner typed, as Runnify read it.
     """
 
     __tablename__ = "runs"
@@ -165,9 +173,19 @@ class Run(db.Model):
     fit_file_path = db.Column(db.String)
     # minutes the runner's clock was ahead of UTC at the start (from Garmin's local start time)
     utc_offset = db.Column(db.Integer)
+    run_type = db.Column(db.String(16))
+    run_type_manual = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
+    laps_source = db.Column(db.String(12))
+    workout = db.Column(db.String(300))
 
     user = db.relationship("User", back_populates="runs")  # link run to user
     analysis = db.relationship("RunSongAnalysis", back_populates="run")  # link run to analysis
+    laps = db.relationship(
+        "RunLap",
+        order_by="RunLap.position",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     @property
     def local_start(self):
@@ -226,9 +244,12 @@ class RunSongAnalysis(db.Model):
 
     ``performance_score`` is 0-100, where 50 is the runner's usual pace at that
     point of the run; ``pace_delta`` is the same effect in seconds per km
-    (positive = faster), ``hr_delta`` the heart-rate change in bpm, ``seconds``
-    the moving time measured and ``position`` where in the run the song started
-    (0 to 1). ``method_version`` identifies the scoring method that produced it.
+    (positive = faster), the lift every page and ranking shows, ``hr_delta``
+    the heart-rate change in bpm, ``seconds`` the moving time measured and
+    ``position`` where in the run the song started (0 to 1). ``lap_kind`` is
+    the kind of lap it was measured on and ``effort_charge`` the s/km taken
+    off its lift for extra effort (``None`` when heart rate wasn't used).
+    ``method_version`` identifies the scoring method that produced it.
     """
 
     __tablename__ = "run_song_analysis"
@@ -242,6 +263,8 @@ class RunSongAnalysis(db.Model):
     hr_delta = db.Column(db.Float)
     seconds = db.Column(db.Integer)
     position = db.Column(db.Float)
+    lap_kind = db.Column(db.String(12))
+    effort_charge = db.Column(db.Float)
     method_version = db.Column(db.Integer)
 
     run = db.relationship("Run", back_populates="analysis")
@@ -315,6 +338,30 @@ class RunStream(db.Model):
     started_at = db.Column(db.DateTime, nullable=False)  # UTC time of the first sample
     sample_count = db.Column(db.Integer, nullable=False)
     samples = db.Column(db.LargeBinary, nullable=False)
+
+
+class RunLap(db.Model):
+    """One lap of a run: a stretch of one kind of running (see :mod:`runnify.services.laps`).
+
+    ``start_second`` and ``end_second`` count from the run's first sample.
+    ``kind`` is "warmup", "hard", "steady", "jog", "walk" or "cooldown".
+    ``distance`` (metres), ``moving_seconds`` and ``avg_hr`` describe the lap
+    for the lap table and for working out the kind of run.
+    """
+
+    __tablename__ = "run_laps"
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(
+        db.Integer, db.ForeignKey("runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position = db.Column(db.Integer, nullable=False)
+    start_second = db.Column(db.Integer, nullable=False)
+    end_second = db.Column(db.Integer, nullable=False)
+    kind = db.Column(db.String(12), nullable=False)
+    distance = db.Column(db.Float)
+    moving_seconds = db.Column(db.Integer)
+    avg_hr = db.Column(db.Integer)
 
 
 class Playlist(db.Model):

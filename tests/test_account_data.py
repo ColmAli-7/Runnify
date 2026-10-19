@@ -8,6 +8,7 @@ from runnify.extensions import db, mail
 from runnify.models import (
     FriendRequest,
     Run,
+    RunLap,
     RunSongAnalysis,
     RunStream,
     SecurityEvent,
@@ -20,7 +21,7 @@ from tests.conftest import PASSWORD
 
 
 def _seed(app, user_id):
-    """One run with one scored song play, a friend request and a stored FIT file."""
+    """One run with a lap and one scored song play, a friend request and a stored FIT file."""
     with app.app_context():
         other = User(name="Friend", email="friend@example.com", password_hash=hash_password("x"))
         db.session.add(other)
@@ -30,9 +31,20 @@ def _seed(app, user_id):
             date_time=datetime(2026, 10, 1, 7),
             distance=5000,
             duration=1500,
+            run_type="easy",
         )
         db.session.add_all([run, Song(id="trk", name="Song", artist="Artist")])
         db.session.flush()
+        db.session.add(
+            RunLap(
+                run_id=run.id,
+                position=0,
+                start_second=0,
+                end_second=1500,
+                kind="steady",
+                distance=5000,
+            )
+        )
         play = UserSongHistory(
             user_id=user_id,
             song_id="trk",
@@ -70,6 +82,10 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
     data = json.loads(response.data)
     assert data["account"]["email"] == "runner@example.com"
     assert data["runs"][0]["garmin_activity_id"] == "42"
+    assert data["runs"][0]["run_type"] == "easy"
+    assert data["runs"][0]["laps"] == [
+        {"kind": "steady", "start_s": 0, "end_s": 1500, "distance_m": 5000}
+    ]
     assert data["song_plays_during_runs"][0]["track"] == "Song"
     assert data["song_scores"][0]["score"] == 61.5
     text = response.get_data(as_text=True)
@@ -92,6 +108,7 @@ def test_deleting_removes_everything_personal(app, auth_client, user):
         assert db.session.get(User, user) is None
         for model in (
             Run,
+            RunLap,
             RunStream,
             UserSongHistory,
             RunSongAnalysis,
