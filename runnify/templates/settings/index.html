@@ -111,7 +111,7 @@
       {{ username_hint(current_user.email) }}
       <div>
         <p class="settings__row-title">Download your data</p>
-        <p class="settings__row-text">Everything Runnify holds about you, as a JSON file: your account, runs, songs, results, playlists and friends.</p>
+        <p class="settings__row-text">Everything Runnify holds about you, as a JSON file: your account, runs, songs, results, playlists, friends and recent activity. Each run includes its laps and the pace, heart rate, cadence and distance your watch recorded, second by second.</p>
         {{ field(export_form.password, id="export-password", reveal=True, autocomplete="current-password") }}
       </div>
       <button class="btn" type="submit">{{ icon("download") }}Download</button>
