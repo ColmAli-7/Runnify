@@ -27,8 +27,9 @@ signed-in users who haven't agreed to the current policies are asked to first
 | POST | `/logout` | `auth.logout` | Sign out |
 | GET | `/dashboard` | `dashboard.index` | Set-up progress, totals, latest run, top songs and weekly distance |
 | GET | `/runs` | `runs.index` | Every run, newest first, 25 a page. Query: `music=1` (only runs with matched songs), `page` |
-| GET | `/runs/<id>` | `runs.detail` | One run's results: pace and heart rate with a band per song, every song ranked by its lift, and the plays that couldn't be measured |
-| GET | `/insights` | `insights.index` | Findings across runs. Query: `range` = `30d`, `90d` (default), `year` or `all` |
+| GET | `/runs/<id>` | `runs.detail` | One run's results: its kind of run, pace and heart rate with a band per song and a lane of laps, the laps, every song ranked by its lift, and the plays that couldn't be measured |
+| GET, POST | `/runs/<id>/laps` | `runs.laps` | Change the kind of run or its laps, then measure its songs again. Form: `action` is `type` (with `run_type`, or `auto`), `kinds` (a `kind` for each lap, in order), `merge-<n>` (join lap n, counting from 0, with the next), `split` (with `split_at`, such as `12:30`), `reset` (work the laps out again) or `workout` (with `workout`, the typed workout). A GET returns to the run |
+| GET | `/insights` | `insights.index` | Findings across runs. Query: `range` = `30d`, `90d` (default), `year` or `all`; `kind` = `all` (default), `hard`, `steady` or `recoveries` |
 | GET | `/songs/<id>` | `songs.detail` | One song across your runs, all time: a sentence on what it does for you, its lift with the runs, plays and confidence behind it (or how many more measured plays it needs to rank), its heart-rate effect and skips, a dot per measured play by run date with a trend line, and every run it played in. `<id>` is the Spotify track id |
 | GET, POST | `/playlists` | `playlists.index` | Saved playlists, and the builder. Form: `session`, `minutes`, `include_untested` |
 | GET | `/playlists/<id>` | `playlists.detail` | A playlist's tracks and the evidence behind each |

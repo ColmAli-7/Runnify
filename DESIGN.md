@@ -318,6 +318,9 @@ modules through `data-*` attributes.
   dashboard adds a progress ring.
 - **Account menu:** a native disclosure that closes on Escape, an outside click
   or focus leaving.
+- **Laps card:** a table of a run's laps (kind with its lane swatch, start, time,
+  distance, pace, heart rate), where they came from, and a disclosure of small
+  forms that change them, each with its own button and none needing scripts.
 - **Charts:** see below.
 
 ### Charts
@@ -328,6 +331,11 @@ modules through `data-*` attributes.
   biggest drag in coral, the minutes either side of a song in a faint blue).
 - **Song lane:** one rounded block per song under the pace chart, named when its
   block is wide enough.
+- **Lap lane:** one block per lap under the song lane, its kind told by more
+  than shade: hard laps solid ink, steady laps grey, jogs outlined, walks
+  hatched, warm-ups and cool-downs dashed, named when wide enough, with a legend
+  of the kinds in the run. No new hues: volt and coral stay for faster and
+  slower.
 - **Scrubbing:** a guide across both charts and the lane, dots on the lines, and a
   floating readout; the pointer, a finger or the arrow keys move it.
 - **Bars:** rounded; this week stronger; lifts in volt and coral.

@@ -4,9 +4,10 @@ Find the songs that make you run faster.
 
 Runnify lines up your Spotify listening history with the second-by-second pace
 from your Garmin runs, then ranks every song by how much faster or slower you
-ran while it played. Each song is measured against your own running in the
-minutes around it, in the same run, so warm-ups, hills and tired legs mostly
-cancel out.
+ran while it played. Each song is measured against your own running of the
+same kind in the minutes around it, in the same run (reps against reps, jogs
+against jogs), so warm-ups, hills, tired legs and the shape of a session mostly
+cancel out, and a song that only makes you work harder doesn't count as a lift.
 
 ## Contents
 
@@ -30,15 +31,23 @@ cancel out.
 - **Every run, song by song.** Pace and heart rate through the run with a band
   and a lane block for each song, a scrubbing readout, a sentence naming the
   fastest and slowest songs, and every song ranked by its lift in s/km.
+- **Laps and kinds of run.** Each run's laps (warm-up, hard, steady, jog, walk,
+  cool-down) come from the watch when it recorded a workout or lap-button laps,
+  and are otherwise read from the pace and heart rate; each run is named easy,
+  long, tempo, intervals, fartlek or run-walk. Change the kind, rename, join or
+  split laps, or type the workout ("6 x 3 min hard with 2 min jog") and Runnify
+  lines it up with the run.
 - **Insights.** Power songs and drag songs (ranked on shrunk effects, so one
   lucky play can't top the chart), where in a run songs work hardest, top
-  artists, heart raisers and the most skipped songs, over a chosen range.
+  artists, heart raisers and the most skipped songs, over a chosen range, for
+  all running or just hard efforts, steady running or recoveries.
 - **A page for every song.** Its lift with the evidence behind it, its
   heart-rate effect and skips, a dot for each measured play across your runs
   with a trend line, and every run it played in.
 - **Playlists for a session.** Easy, tempo, long, race or intervals, built from
-  the songs that have actually lifted your pace and ordered to suit the
-  session; save them to Spotify as private playlists.
+  the songs that have actually lifted your pace (on hard efforts, for
+  intervals) and ordered to suit the session; save them to Spotify as private
+  playlists.
 - **Friends.** A monthly distance leaderboard, friend requests and search.
 - **Account security.** Argon2id passwords, optional two-step verification
   with recovery codes, lockout after repeated failures, a security activity
@@ -117,6 +126,7 @@ uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_
 | Rebuild the favicon and app icons | `uv run python scripts/build_icons.py` |
 | List every URL | `uv run flask --app runnify routes` |
 | Re-score every run after the method changes | `uv run flask --app runnify scores rebuild` |
+| Fetch the watch's laps for runs stored before them | `uv run flask --app runnify laps refetch` |
 | Move old FIT files into the database | `uv run flask --app runnify streams backfill` |
 
 ## Project structure
@@ -171,6 +181,11 @@ Every module, class and function also has a docstring.
   recorded in, from Garmin's local start time; runs imported before that was
   stored show UTC until Garmin is next synced.
 - **Garmin rate limits.** Large first syncs may be throttled by Garmin.
+- **Laps read from the run have limits.** Hill repeats without the watch's
+  laps look like a hilly steady run, and before you have a few runs, intervals
+  with walking rest may be called a run-walk; set the laps or the kind by hand.
+- **Extra effort is judged against a resting heart rate of 60**, assumed
+  rather than measured.
 
 ## Author
 

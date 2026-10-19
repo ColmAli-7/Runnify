@@ -122,7 +122,7 @@ class Config:
 
     # bump when the terms or privacy policy change materially; users then re-confirm
     POLICY_VERSION = "2026-10"
-    POLICY_UPDATED = "16 October 2026"
+    POLICY_UPDATED = "19 October 2026"
     # who runs the site, shown on the legal pages
     OPERATOR_NAME = os.getenv("OPERATOR_NAME") or "Runnify"
     CONTACT_EMAIL = os.getenv("CONTACT_EMAIL") or "runnify.dev@gmail.com"

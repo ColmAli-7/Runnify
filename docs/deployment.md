@@ -64,7 +64,13 @@ proxy. Sessions and the remember-me cookie are `Secure`, `HttpOnly` and
   the first key and old values still decrypt. Remove the old key once every
   user's tokens have been re-saved (each Garmin sync re-saves them).
 - After a scoring change, re-measure every run with the Render shell:
-  `uv run flask --app runnify scores rebuild`.
+  `uv run flask --app runnify scores rebuild`. It also works out each run's
+  laps again (keeping any the runner set).
+- Runs stored before laps were kept (scoring method 3) can fetch the watch's
+  laps and cadence from Garmin again, first, with
+  `uv run flask --app runnify laps refetch` (one runner: `--user <id>`). It is
+  slow for long histories and safe to run twice; without it, old runs still
+  get laps worked out from their stored pace and heart rate.
 
 ## Things to know
 
