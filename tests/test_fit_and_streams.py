@@ -117,6 +117,7 @@ def test_streams_stored_from_smart_recording_decode_one_sample_a_second():
     restored = decode(encode(sparse), START)
     assert len(restored) == 9
     assert restored.heart_rates == [150] * 4 + [152] * 4 + [154]
+    assert decode(encode(sparse), START, spread=False) == sparse  # as stored, for the data export
 
 
 def test_stream_round_trip_is_compact_and_lossless_enough():

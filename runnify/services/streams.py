@@ -70,22 +70,22 @@ def encode(series):
     return zlib.compress(json.dumps(payload, separators=(",", ":")).encode(), level=9)
 
 
-def decode(blob, started_at):
+def decode(blob, started_at, spread=True):
     """Rebuild a :class:`Series` from :func:`encode` output and the first sample's time.
 
-    Streams stored from smart recording are spread to one sample a second here.
+    Streams stored from smart recording are spread to one sample a second
+    here, unless ``spread`` is false (the data export gives them as stored).
     """
     payload = json.loads(zlib.decompress(blob))
-    return at_one_hertz(
-        Series(
-            timestamps=[started_at + timedelta(seconds=s) for s in payload["t"]],
-            heart_rates=payload["h"],
-            paces=payload["p"],
-            cadences=payload.get("c", []),
-            distances=_totals(payload.get("d", [])),
-            laps=[WatchLap(*lap) for lap in payload.get("l", [])],
-        )
+    series = Series(
+        timestamps=[started_at + timedelta(seconds=s) for s in payload["t"]],
+        heart_rates=payload["h"],
+        paces=payload["p"],
+        cadences=payload.get("c", []),
+        distances=_totals(payload.get("d", [])),
+        laps=[WatchLap(*lap) for lap in payload.get("l", [])],
     )
+    return at_one_hertz(series) if spread else series
 
 
 def save_stream(run, series):
