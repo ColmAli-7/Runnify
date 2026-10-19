@@ -31,6 +31,7 @@ from garminconnect import (
 from runnify.extensions import db
 from runnify.models import Run, User, utcnow
 from runnify.services.fit import parse_fit
+from runnify.services.laps import refresh_laps, retype_runs
 from runnify.services.streams import save_stream
 
 logger = logging.getLogger(__name__)
@@ -206,8 +207,10 @@ def fetch_and_store_garmin_activities(user, pause=1.0):
 
     Pages through the user's Garmin activities, skips ones already stored and
     anything that isn't a run, stores each run's pace and heart-rate stream
-    and commits one page at a time. Afterwards the (possibly refreshed) Garmin tokens are saved and
-    any legacy stored password is erased.
+    and its laps, and commits one page at a time. Afterwards every run's type is
+    worked out again (now that the runner's usual pace includes the new runs),
+    the (possibly refreshed) Garmin tokens are saved and any legacy stored
+    password is erased.
 
     Args:
         user: The ``User`` to sync.
@@ -251,11 +254,13 @@ def fetch_and_store_garmin_activities(user, pause=1.0):
             series = _download_series(activity_id, client)
             if series is not None:
                 save_stream(run, series)
+                refresh_laps(run, series)
             added += 1
             time.sleep(pause)
         db.session.commit()
         start += PAGE_SIZE
 
+    retype_runs(user.id)
     user.garmin_tokens = client.client.dumps()  # keep the refreshed session
     user.garmin_password = None  # legacy accounts: the password is no longer needed
     db.session.commit()

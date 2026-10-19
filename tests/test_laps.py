@@ -7,8 +7,22 @@ from itertools import pairwise
 
 import pytest
 
+from runnify.extensions import db
+from runnify.models import Run
+from runnify.services.analysis import rescore_run
 from runnify.services.fit import Series, WatchLap
-from runnify.services.laps import detect, find_laps, from_watch
+from runnify.services.laps import (
+    Lap,
+    detect,
+    find_laps,
+    from_watch,
+    refresh_laps,
+    retype_runs,
+    run_type,
+    store_laps,
+    usual_pace,
+)
+from runnify.services.streams import load_series, save_stream
 
 START = datetime(2026, 10, 1, 7, 0)
 
@@ -177,3 +191,125 @@ def test_lap_button_presses_on_a_steady_run_say_nothing_about_it():
     buttons = [(300, None, "manual", None)] * 7 + [(300, None, "session_end", None)]
     laps, source = find_laps(_watch(series, buttons))
     assert source == "detected" and _kinds(laps) == ["steady"]
+
+
+def _laps(*pairs):
+    """Back-to-back laps from ``(seconds, kind)`` pairs."""
+    second, laps = 0, []
+    for seconds, kind in pairs:
+        laps.append(Lap(second, second + seconds, kind))
+        second += seconds
+    return laps
+
+
+@pytest.mark.parametrize(
+    ("laps", "seconds", "metres", "usual", "expected"),
+    [
+        (
+            _laps((600, "warmup"), *[(180, "hard"), (120, "jog")] * 6, (600, "cooldown")),
+            3000,
+            9000,
+            None,
+            "intervals",
+        ),
+        (
+            _laps(
+                (600, "warmup"),
+                (60, "hard"),
+                (240, "jog"),
+                (300, "hard"),
+                (180, "jog"),
+                (90, "hard"),
+                (600, "cooldown"),
+            ),
+            2070,
+            6500,
+            None,
+            "fartlek",
+        ),
+        (_laps((600, "warmup"), (1200, "hard"), (600, "cooldown")), 2400, 7500, None, "tempo"),
+        (
+            _laps((600, "warmup"), (900, "hard"), (180, "jog"), (900, "hard"), (600, "cooldown")),
+            3180,
+            10000,
+            None,
+            "tempo",
+        ),
+        (_laps(*[(240, "steady"), (60, "walk")] * 8), 2400, 5500, None, "run_walk"),
+        (_laps((6000, "steady")), 6000, 17000, None, "long"),
+        (_laps((2400, "steady")), 2400, 9000, 320, "tempo"),  # 4:27/km against a usual 5:20/km
+        (_laps((2400, "steady")), 2400, 9000, None, "easy"),  # no usual pace to judge it by yet
+        (_laps((2400, "steady")), 2400, 7500, 320, "easy"),
+    ],
+    ids=[
+        "intervals",
+        "fartlek",
+        "tempo",
+        "two tempo blocks",
+        "run-walk",
+        "long",
+        "quick",
+        "first run",
+        "easy",
+    ],
+)
+def test_the_kind_of_run_follows_from_its_laps(laps, seconds, metres, usual, expected):
+    assert run_type(laps, seconds, metres, usual) == expected
+
+
+def _run(user, series, activity_id="1", **fields):
+    run = Run(
+        user_id=user,
+        activity_id=activity_id,
+        date_time=series.timestamps[0] if len(series) else START,
+        duration=len(series),
+        distance=fields.pop("distance", 8000),
+        **fields,
+    )
+    db.session.add(run)
+    db.session.flush()
+    save_stream(run, series)
+    return run
+
+
+def test_laps_are_stored_with_what_each_lap_covered(app, user):
+    with app.app_context():
+        run = _run(user, _session(INTERVALS), distance=9000)
+        refresh_laps(run, load_series(run))
+        db.session.commit()
+        stored = db.session.get(Run, run.id)
+        assert stored.laps_source == "detected" and stored.run_type == "intervals"
+        assert [lap.kind for lap in stored.laps][:3] == ["warmup", "hard", "jog"]
+        rep = stored.laps[1]
+        assert rep.position == 1 and rep.moving_seconds == rep.end_second - rep.start_second
+        assert rep.distance == pytest.approx(180 * 1000 / 255, rel=0.05)  # 3 minutes at 4:15/km
+        assert 155 <= rep.avg_hr <= 172
+
+
+def test_laps_and_a_type_set_by_hand_are_kept(app, user):
+    with app.app_context():
+        run = _run(user, _session(INTERVALS), laps_source="manual", run_type="race")
+        run.run_type_manual = True
+        store_laps(run, load_series(run), [Lap(0, 3000, "steady")], "manual")
+        refresh_laps(run, load_series(run))
+        assert [lap.kind for lap in run.laps] == ["steady"] and run.run_type == "race"
+
+
+def test_a_run_is_judged_against_the_runners_usual_pace_once_there_is_one(app, user):
+    with app.app_context():
+        quick = _run(user, _session([(2400, 265, 160)]), "quick", distance=9050)
+        refresh_laps(quick, load_series(quick))
+        assert quick.run_type == "easy"  # nothing to compare it with yet
+        for n in range(3):
+            _run(user, _session([(2400, 320, 145)], seed=n), f"easy{n}", distance=7500)
+        retype_runs(user)
+        assert quick.run_type == "tempo"
+        assert usual_pace(user, exclude=quick.id) == pytest.approx(320)
+
+
+def test_rescoring_finds_the_laps(app, user):
+    with app.app_context():
+        run = _run(user, _session([(600, 330, 135), (1200, 275, 165), (600, 345, 135)]))
+        rescore_run(run)
+        assert [lap.kind for lap in run.laps] == ["warmup", "hard", "cooldown"]
+        assert run.run_type == "tempo"

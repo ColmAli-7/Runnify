@@ -11,6 +11,7 @@ from sqlalchemy import delete
 
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory
+from runnify.services.laps import refresh_laps
 from runnify.services.scoring import METHOD_VERSION, song_effect
 from runnify.services.streams import load_series
 
@@ -37,12 +38,13 @@ def song_segments(run, series):
 
 
 def rescore_run(run, series=None):
-    """Recompute and store the effect of every song played during ``run``.
+    """Work out the run's laps again (unless set by hand), then the effect of every song.
 
     Returns:
         How many song plays received a score.
     """
     series = series if series is not None else load_series(run)
+    refresh_laps(run, series)
     db.session.execute(delete(RunSongAnalysis).where(RunSongAnalysis.run_id == run.id))
     scored = 0
     for play, _song, start, end in song_segments(run, series):

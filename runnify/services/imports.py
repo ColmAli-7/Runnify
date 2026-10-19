@@ -21,6 +21,7 @@ from runnify.services.history_import import (
     import_history_zip_overlapping_runs,
     inspect_archive,
 )
+from runnify.services.laps import retype_runs
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ def run_import(user_id, path):
             min_overlap_seconds=current_app.config["HISTORY_MIN_OVERLAP_SECONDS"],
         )
         scored = rescore_runs(stats["run_ids"])
+        retype_runs(user_id)
         db.session.commit()
     except HistoryArchiveError as error:
         user.history_import_state, user.history_import_message = "failed", str(error)

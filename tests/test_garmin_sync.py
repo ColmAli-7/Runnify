@@ -118,6 +118,8 @@ def test_sync_from_tokens_saves_runs_and_their_streams(app, user):
         assert db.session.get(RunStream, run.id).sample_count == 60
         assert run.fit_file_path is None  # no FIT file is kept
         assert run.utc_offset == 60 and run.local_start.hour == 8
+        assert [lap.kind for lap in run.laps] == ["steady"] and run.laps_source == "detected"
+        assert run.run_type == "easy"
 
 
 def test_legacy_password_is_swapped_for_tokens(app, user):

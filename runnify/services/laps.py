@@ -23,11 +23,27 @@ more are found in every run, structured or not.
 
 All of it works in seconds of the run, which :func:`fit.at_one_hertz` makes
 the same as samples.
+
+**The kind of run** (:data:`RUN_TYPES`) follows from the laps: three or more
+similar reps are intervals and uneven efforts a fartlek; one or two long hard
+blocks make a tempo run; running between walks is a run-walk. A run with no
+efforts is long from 75 minutes or 15 km, a tempo run when clearly quicker
+than the runner's usual pace (the median over their other runs), else easy.
+A race is only ever the runner's own call. Laps and types the runner set by
+hand are never worked out again.
 """
 
+import logging
 from bisect import bisect_left
 from dataclasses import dataclass
-from statistics import median
+from statistics import median, pstdev
+
+from sqlalchemy.orm import selectinload
+
+from runnify.extensions import db
+from runnify.models import Run, RunLap
+
+logger = logging.getLogger(__name__)
 
 KINDS = {
     "warmup": "Warm-up",
@@ -36,6 +52,15 @@ KINDS = {
     "jog": "Jog",
     "walk": "Walk",
     "cooldown": "Cool-down",
+}
+RUN_TYPES = {
+    "easy": "Easy run",
+    "long": "Long run",
+    "tempo": "Tempo run",
+    "intervals": "Intervals",
+    "fartlek": "Fartlek",
+    "run_walk": "Run-walk",
+    "race": "Race",
 }
 
 MIN_LAP = 30  # seconds; shorter stretches join their neighbours
@@ -49,6 +74,11 @@ WARM_UP = 180  # seconds of slower running before the first effort to call it a 
 TEMPO_BLOCK = 480  # seconds a single effort needs to make a structured (tempo) run
 FASTER_THAN_USUAL = 0.07  # running this much quicker than usual is hard, not steady
 STRUCTURED_INTENSITIES = {"rest", "warmup", "cooldown", "recovery", "interval"}
+REP_SPREAD = 0.35  # reps whose lengths vary less than this (relative to their mean) are intervals
+LONG_SECONDS = 75 * 60
+LONG_METRES = 15_000
+TEMPO_SECONDS = 15 * 60  # a steady run needs this long to count as a tempo run
+MIN_USUAL_RUNS = 3  # other runs needed before "usual pace" means anything
 
 
 @dataclass
@@ -407,3 +437,133 @@ def find_laps(series, usual_pace=None):
     if watch:
         return watch, "watch"
     return detect(series, usual_pace), "detected"
+
+
+def run_type(laps, seconds, metres, usual_pace=None):
+    """The kind of run (a :data:`RUN_TYPES` key) from its laps and totals; never "race".
+
+    Args:
+        laps: The run's :class:`Lap` objects.
+        seconds, metres: The run's duration and distance.
+        usual_pace: The runner's usual pace in s/km, or ``None`` if not known yet.
+    """
+    hard = [lap.seconds for lap in laps if lap.kind == "hard"]
+    walked = sum(lap.seconds for lap in laps if lap.kind == "walk")
+    walks = sum(lap.kind == "walk" for lap in laps)
+    if len(hard) >= 3:
+        return "intervals" if pstdev(hard) <= REP_SPREAD * (sum(hard) / len(hard)) else "fartlek"
+    if hard:
+        return "tempo" if all(length >= TEMPO_BLOCK for length in hard) else "fartlek"
+    if walks >= 2 and walked >= 0.1 * seconds:
+        return "run_walk"
+    if seconds >= LONG_SECONDS or metres >= LONG_METRES:
+        return "long"
+    quick = (
+        usual_pace
+        and metres > 0
+        and seconds / (metres / 1000) < usual_pace * (1 - FASTER_THAN_USUAL)
+    )
+    return "tempo" if quick and seconds >= TEMPO_SECONDS else "easy"
+
+
+def lap_stats(series, start, end):
+    """``(distance, moving_seconds, average_heart_rate)`` from second ``start`` to ``end``.
+
+    Distance comes from the watch's own distance when the stream has it, else
+    from the pace each moving second.
+    """
+    distances, paces = series.distances, series.paces[start:end]
+    last = min(end, len(series) - 1)
+    if distances and distances[start] is not None and distances[last] is not None:
+        distance = distances[last] - distances[start]
+    else:
+        distance = sum(1000 / pace for pace in paces if pace is not None)
+    heart = [h for h in series.heart_rates[start:end] if h is not None]
+    return (
+        round(distance, 1),
+        sum(pace is not None for pace in paces),
+        round(sum(heart) / len(heart)) if heart else None,
+    )
+
+
+def laps_of(run):
+    """``run``'s stored laps as :class:`Lap` objects, in order."""
+    return [Lap(lap.start_second, lap.end_second, lap.kind) for lap in run.laps]
+
+
+def store_laps(run, series, laps, source):
+    """Replace ``run``'s laps with ``laps``, which came from ``source``, described from ``series``."""
+    rows = []
+    for position, lap in enumerate(laps):
+        distance, moving, heart = lap_stats(series, lap.start, lap.end)
+        rows.append(
+            RunLap(
+                position=position,
+                start_second=lap.start,
+                end_second=lap.end,
+                kind=lap.kind,
+                distance=distance,
+                moving_seconds=moving,
+                avg_hr=heart,
+            )
+        )
+    run.laps = rows
+    run.laps_source = source if rows else None
+
+
+def _paces(user_id):
+    """``{run id: pace in s/km}`` for the runner's runs long enough to judge a pace by."""
+    rows = db.session.query(Run.id, Run.duration, Run.distance).filter(
+        Run.user_id == user_id, Run.distance >= 1000, Run.duration > 0
+    )
+    return {run_id: duration / (distance / 1000) for run_id, duration, distance in rows}
+
+
+def usual_pace(user_id, exclude=None, paces=None):
+    """The runner's usual pace in s/km: the median over their runs other than ``exclude``.
+
+    ``None`` until there are :data:`MIN_USUAL_RUNS` of them. ``paces`` (from
+    :func:`_paces`) saves a query when typing many runs at once.
+    """
+    paces = _paces(user_id) if paces is None else paces
+    others = [pace for run_id, pace in paces.items() if run_id != exclude]
+    return median(others) if len(others) >= MIN_USUAL_RUNS else None
+
+
+def refresh_laps(run, series):
+    """Work out ``run``'s laps and type again, keeping whatever the runner set by hand.
+
+    A failure is logged and leaves the laps as they were, so it can never stop
+    a sync or an import.
+
+    Returns:
+        The run's laps as :class:`Lap` objects.
+    """
+    usual = usual_pace(run.user_id, exclude=run.id)
+    if run.laps_source != "manual" and len(series):
+        try:
+            laps, source = find_laps(series, usual)
+        except Exception:
+            logger.exception("Couldn't work out the laps of run %s", run.id)
+        else:
+            store_laps(run, series, laps, source)
+    laps = laps_of(run)
+    if not run.run_type_manual:
+        run.run_type = run_type(laps, run.duration or len(series), run.distance or 0, usual)
+    return laps
+
+
+def retype_runs(user_id):
+    """Work out again the type of each of the runner's runs that they haven't set by hand.
+
+    Done after every sync and import, so runs stored before there was a usual
+    pace to judge them by get one.
+    """
+    paces = _paces(user_id)
+    runs = Run.query.options(selectinload(Run.laps)).filter_by(
+        user_id=user_id, run_type_manual=False
+    )
+    for run in runs:
+        run.run_type = run_type(
+            laps_of(run), run.duration or 0, run.distance or 0, usual_pace(user_id, run.id, paces)
+        )
