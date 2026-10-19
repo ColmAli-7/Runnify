@@ -486,6 +486,15 @@ def lap_stats(series, start, end):
     )
 
 
+def kinds_by_second(laps, length):
+    """The kind of lap at each second of a ``length``-second run (``None`` where none covers it)."""
+    kinds = [None] * length
+    for lap in laps:
+        for second in range(max(lap.start, 0), min(lap.end, length)):
+            kinds[second] = lap.kind
+    return kinds
+
+
 def laps_of(run):
     """``run``'s stored laps as :class:`Lap` objects, in order."""
     return [Lap(lap.start_second, lap.end_second, lap.kind) for lap in run.laps]

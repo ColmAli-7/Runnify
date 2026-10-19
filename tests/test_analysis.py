@@ -45,8 +45,10 @@ def test_rescoring_stores_the_effect(app, user):
         analysis = RunSongAnalysis.query.one()
         assert analysis.pace_delta == 10.0
         assert analysis.performance_score > 50
-        assert analysis.method_version == 2
+        assert analysis.method_version == 3
         assert analysis.position > 0.3
+        assert analysis.lap_kind == "steady"
+        assert analysis.effort_charge == 0.0  # heart rate held steady, so nothing to charge
 
 
 def test_rescoring_is_idempotent(app, user):
