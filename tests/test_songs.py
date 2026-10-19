@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 
 from runnify.extensions import db
-from runnify.models import Run, Song, User, UserSongHistory, utcnow
+from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory, utcnow
 from runnify.security.passwords import hash_password
 from runnify.services import songs
 from runnify.services.insights import Effect
@@ -218,3 +218,23 @@ def test_the_trend_note_says_whether_the_line_is_more_than_chance():
         f"The trend line falls from \u22126 to \u221218{NBSP}s/km,"
         " more than the ups and downs of its plays would explain."
     )
+
+
+def test_a_song_page_splits_its_lift_by_kind_of_running(app, auth_client, user):
+    with app.app_context():
+        _runs(user, 2)  # steady runs: every measured play is on a steady lap
+        for analysis in RunSongAnalysis.query.join(UserSongHistory).filter(
+            UserSongHistory.song_id == "fast"
+        ):
+            analysis.lap_kind = "hard"  # make one of them a rep
+            break
+        db.session.commit()
+        record = songs.song_record(user, "fast")
+        assert [(label, e.plays) for label, e in record.by_kind] == [
+            ("Hard efforts", 1),
+            ("Steady running", 1),
+        ]
+    html = auth_client.get("/songs/fast").get_data(as_text=True)
+    assert "By kind of running" in html and '<td class="results__track">Hard efforts' in html
+    steady_only = auth_client.get("/songs/slow").get_data(as_text=True)
+    assert "By kind of running" not in steady_only  # one kind says nothing new

@@ -11,7 +11,7 @@ steep to put down to the ups and downs of the plays themselves.
 """
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy import and_
 
@@ -19,7 +19,15 @@ from runnify import filters
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory
 from runnify.services import charts
-from runnify.services.insights import MIN_PLAYS_TO_RANK, Effect, ranked, song_effects
+from runnify.services.insights import (
+    ALL_RUNNING,
+    MIN_PLAYS_TO_RANK,
+    RUNNING,
+    Effect,
+    aggregate,
+    ranked,
+    song_effects,
+)
 
 MIN_TREND_PLAYS = 3  # measured plays, on two days or more, before a trend line is drawn
 CLEAR_TREND = 3.0  # standard errors from level before the page calls the line a trend
@@ -110,6 +118,7 @@ class SongRecord:
     rank: int | None  # among songs that lift (or drag) the runner; None when it doesn't rank
     ranked_songs: int  # how many songs rank on the same side
     trend: Trend | None
+    by_kind: list = field(default_factory=list)  # (label, Effect) for each kind of running
 
     @property
     def name(self):
@@ -181,7 +190,24 @@ def song_record(user_id, song_id):
             for play in record.measured
         ]
     )
+    record.by_kind = _by_kind(record)
     return record
+
+
+def _by_kind(record):
+    """``(label, Effect)`` for each kind of running the song was measured on, from its own plays.
+
+    Warm-ups and cool-downs count only in the song's overall lift, as on Insights.
+    """
+    rows = [(play.analysis, play.play, record.song, play.run) for play in record.measured]
+    found = []
+    for key, (label, kinds) in RUNNING.items():
+        if key == ALL_RUNNING:
+            continue
+        on_kind = [row for row in rows if row[0].lap_kind in kinds]
+        effects = aggregate(on_kind, lambda s: s.id, lambda s: s.name or "Unknown track")
+        found += [(label, effect) for effect in effects]
+    return found
 
 
 @dataclass

@@ -56,6 +56,37 @@
     <p class="card__foot">Its lift is the average play held back towards zero while the evidence is thin, so one lucky run can't top your rankings. Heart rate and lift compare each play with the five minutes either side of it.</p>
   </section>
 
+  {% if record.by_kind|length > 1 %}
+    <section class="card" aria-labelledby="kinds-title">
+      <header class="card__head">
+        <h2 class="card__title" id="kinds-title">{{ icon("stopwatch") }}By kind of running</h2>
+        <p class="card__meta">Its lift from the plays on each kind of lap</p>
+      </header>
+      <div class="table-wrap">
+        <table class="results song-kinds">
+          <caption class="visually-hidden">{{ record.name }}'s lift on each kind of running</caption>
+          <thead>
+            <tr>
+              <th scope="col">Running</th>
+              <th scope="col" class="is-numeric">Plays</th>
+              <th scope="col" class="is-numeric">Lift <span class="results__unit">s/km</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for label, kind_effect in record.by_kind %}
+              <tr>
+                <td class="results__track">{{ label }}<span class="results__sub">{{ kind_effect.runs|length|plural("run") }}</span></td>
+                <td class="is-numeric">{{ kind_effect.plays }}</td>
+                <td class="is-numeric">{{ lift(kind_effect.shrunk_lift, unit=False) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="card__foot">Each lift is held back towards zero in the same way, so a kind with few plays counts for less. Warm-ups and cool-downs count only in the overall lift.</p>
+    </section>
+  {% endif %}
+
   <section class="card" aria-labelledby="chart-title">
     <header class="card__head">
       <div>
