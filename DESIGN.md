@@ -316,6 +316,11 @@ modules through `data-*` attributes.
 - **Notices:** a card with an icon, washed green for success and coral for errors.
 - **Steps:** numbered circles that turn green with a tick when done; the
   dashboard adds a progress ring.
+- **Job progress:** what a Garmin sync or history import is doing, over an 8px
+  rounded bar in ink on Surface 3; while how far it has got isn't known the
+  track is hatched and still, never animated. While a job runs, every signed-in
+  page but the one showing it in full carries a notice with its progress, which
+  turns green or coral to say how it ended. The upload shows the same bar.
 - **Account menu:** a native disclosure that closes on Escape, an outside click
   or focus leaving.
 - **Laps card:** a table of a run's laps (kind with its lane swatch, start, time,

@@ -49,7 +49,8 @@ signed-in users who haven't agreed to the current policies are asked to first
 | POST | `/connections/spotify/disconnect` | `connections.disconnect_spotify` | Forget the Spotify connection |
 | GET | `/spotify/login` | `spotify.login_spotify` | Start Spotify sign-in (with an anti-CSRF `state`) |
 | GET | `/spotify/callback` | `spotify.callback` | Spotify's redirect target; must match `SPOTIFY_REDIRECT_URI` |
-| GET, POST | `/import` | `imports.index` | How to get the Spotify export, and the upload, imported in the background. Form file: `history_zip` |
+| GET, POST | `/import` | `imports.index` | How to get the Spotify export, and the upload, imported in the background. Form file: `history_zip`. A request that accepts `application/json` (the page's own upload script) is answered with `{"location": ...}`, where the message waits, instead of a redirect |
+| GET | `/jobs` | `jobs.status` | What the Garmin sync and the history import are doing, as JSON: `state` (`running`, `ok`, `failed`, `interrupted` or none), `message`, `done`, `total` and `percent` for each. Polled by `js/jobs.js` while one runs |
 | GET, POST | `/settings` | `settings.index` | Name, password, sessions, your data and security activity |
 | GET, POST | `/settings/two-factor` | `settings.two_factor` | Set up or manage two-step verification |
 | POST | `/settings/two-factor/disable` | `settings.disable_two_factor` | Turn it off (password plus a code) |

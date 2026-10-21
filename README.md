@@ -24,10 +24,12 @@ cancel out, and a song that only makes you work harder doesn't count as a lift.
 
 - **Garmin sync.** Link Garmin Connect once; Runnify keeps an encrypted session
   token (never the password) and imports each run with its second-by-second
-  pace and heart rate, in the background.
+  pace and heart rate, in the background, three downloads at a time, with its
+  progress on every page.
 - **Spotify history matching.** Upload the extended streaming history zip
-  Spotify emails you. Only plays that overlap a run are kept; the file is
-  deleted as soon as it has been read.
+  Spotify emails you, with a progress bar, and it is matched to your runs in
+  the background. Only plays that overlap a run, and their songs, are kept;
+  the file is deleted as soon as it has been read.
 - **Every run, song by song.** Pace and heart rate through the run with a band
   and a lane block for each song, a scrubbing readout, a sentence naming the
   fastest and slowest songs, and every song ranked by its lift in s/km.
@@ -59,7 +61,7 @@ cancel out, and a song that only makes you work harder doesn't count as a lift.
 |---|---|
 | Backend | Python 3.13+, Flask, Flask-Login, Flask-WTF, Flask-Limiter, Flask-Mail |
 | Data | SQLAlchemy 2 with Flask-SQLAlchemy, Alembic through Flask-Migrate. SQLite by default, PostgreSQL supported |
-| Integrations | `garminconnect`, `fitparse`, `spotipy`, `ijson` |
+| Integrations | `garminconnect`, `spotipy`, `ijson`; FIT files are read by Runnify itself, with `fitparse` for unusual ones |
 | Security | Argon2id (`argon2-cffi`), Fernet encryption at rest (`cryptography`), TOTP (`pyotp`), QR codes (`segno`), a strict Content-Security-Policy |
 | Frontend | Server-rendered Jinja templates, plain CSS with cascade layers and light and dark themes, plain JavaScript modules, inline SVG charts drawn on the server, GSAP for the landing page motion, the Geist typeface. Everything is self-hosted |
 | Tooling | [uv](https://docs.astral.sh/uv/), pytest, ruff |
@@ -180,7 +182,9 @@ Every module, class and function also has a docstring.
 - **Run times follow the watch.** Each run is shown on the clock it was
   recorded in, from Garmin's local start time; runs imported before that was
   stored show UTC until Garmin is next synced.
-- **Garmin rate limits.** Large first syncs may be throttled by Garmin.
+- **Garmin rate limits.** Garmin may throttle a large first sync. Runnify then
+  pauses, carries on one download at a time, and if Garmin keeps refusing,
+  stops and fetches the rest on the next sync.
 - **Laps read from the run have limits.** Hill repeats without the watch's
   laps look like a hilly steady run, and before you have a few runs, intervals
   with walking rest may be called a run-walk; set the laps or the kind by hand.

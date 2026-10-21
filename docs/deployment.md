@@ -68,17 +68,26 @@ proxy. Sessions and the remember-me cookie are `Secure`, `HttpOnly` and
   laps again (keeping any the runner set).
 - Runs stored before laps were kept (scoring method 3) can fetch the watch's
   laps and cadence from Garmin again, first, with
-  `uv run flask --app runnify laps refetch` (one runner: `--user <id>`). It is
-  slow for long histories and safe to run twice; without it, old runs still
-  get laps worked out from their stored pace and heart rate.
+  `uv run flask --app runnify laps refetch` (one runner: `--user <id>`). It
+  downloads three files at a time (`--workers`, 1 to 5), slows down by itself
+  when Garmin asks, and is safe to run twice; without it, old runs still get
+  laps worked out from their stored pace and heart rate.
 
 ## Things to know
 
 - **Background work runs inside the web workers** (Garmin syncs and history
-  imports use threads). A deploy or restart in the middle of one interrupts it;
-  the user can start it again from Connections or Import. A job queue is the
-  next step if usage grows.
+  imports use threads; a sync downloads on three more). Each job reports its
+  progress on the user about once a second. A deploy or restart in the middle
+  of one ends it silently; ten minutes without a report and the pages call it
+  interrupted, and the runner can start it again from Connections or Import: a
+  sync carries on where it stopped, and an upload adds only what is new. A job
+  queue is the next step if usage grows.
+- **How long jobs take.** On a laptop, a history of 150,000 plays against
+  1,000 runs imports in about a minute and a half. A first Garmin sync spends
+  nearly all its time waiting on Garmin, three downloads at once: with Garmin
+  taking 0.8 s a file, about a third of a second a run.
 - **Uploads** are written to `runnify/instance/uploads/` (override with
   `UPLOAD_TMP_DIR`) and deleted as soon as they are read, so the ephemeral disk
-  is fine for them.
+  is fine for them. One an interrupted import left behind is deleted by the
+  next upload.
 - The demo seed command refuses to run in production.
