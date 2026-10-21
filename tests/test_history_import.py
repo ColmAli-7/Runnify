@@ -127,3 +127,61 @@ def test_import_records_skips_and_learns_track_lengths(app):
         assert plays == {"full": False, "skip": True}
         assert db.session.get(Song, "full").duration == 200
         assert db.session.get(Song, "skip").duration is None
+
+
+def _import(rows, runs):
+    """Import ``rows`` for a new user with ``runs`` (``(start, seconds)``); returns the stats."""
+    user = User(name="T", email="t@example.com", password_hash="x")
+    db.session.add(user)
+    db.session.flush()
+    for n, (start, seconds) in enumerate(runs):
+        db.session.add(
+            Run(
+                user_id=user.id,
+                activity_id=str(n),
+                date_time=start,
+                duration=seconds,
+                distance=5000,
+            )
+        )
+    db.session.commit()
+    return import_history_zip_overlapping_runs(
+        zip_file=io.BytesIO(_history_zip(rows)),
+        user_id=user.id,
+        db=db,
+        RunModel=Run,
+        SongModel=Song,
+        UserSongHistoryModel=UserSongHistory,
+    )
+
+
+def test_only_songs_played_during_a_run_join_the_catalogue(app):
+    rows = [
+        _row("2026-10-01T07:05:00Z", 200_000, "spotify:track:during"),
+        _row("2026-10-01T06:00:00Z", 180_000, "spotify:track:before", reason_end="trackdone"),
+        # a complete play of the run's song, the day before, still teaches its length
+        _row("2026-09-30T18:00:00Z", 215_000, "spotify:track:during", reason_end="trackdone"),
+    ]
+    with app.app_context():
+        _import(rows, [(datetime(2026, 10, 1, 7), 1800)])
+        assert [(song.id, song.duration) for song in Song.query] == [("during", 215)]
+
+
+def test_a_play_listed_twice_is_stored_once(app):
+    row = _row("2026-10-01T07:05:00Z", 200_000, "spotify:track:twice")
+    with app.app_context():
+        stats = _import([row, dict(row)], [(datetime(2026, 10, 1, 7), 1800)])
+        assert stats["saved"] == 1 and UserSongHistory.query.count() == 1
+
+
+def test_a_play_is_linked_to_every_recording_of_the_run_it_overlapped(app):
+    rows = [_row("2026-10-01T07:05:00Z", 200_000, "spotify:track:both")]
+    runs = [(datetime(2026, 10, 1, 7), 1800), (datetime(2026, 10, 1, 7, 2), 1500)]  # two watches
+    with app.app_context():
+        stats = _import(rows, runs)
+        first, second = sorted(stats["run_ids"])
+        plays = sorted((p.run_id, p.played_at, p.time_played) for p in UserSongHistory.query)
+        assert plays == [
+            (first, datetime(2026, 10, 1, 7, 1, 40), 200),
+            (second, datetime(2026, 10, 1, 7, 2), 180),  # the part after the second watch started
+        ]

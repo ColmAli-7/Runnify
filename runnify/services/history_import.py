@@ -4,17 +4,28 @@ Archives are checked with :func:`inspect_archive` before anything is parsed
 (entry count, total uncompressed size and compression ratio, so a zip bomb is
 refused), then streamed with ``ijson`` so multi-hundred-MB histories never
 need to fit in memory. Each music play is turned into a ``[start, end)``
-interval (Spotify's ``ts`` is when playback *stopped*), intersected with every
-run interval, and stored as ``UserSongHistory`` rows, noting whether the track
-was skipped. Plays that ran to the end teach the catalogue each track's length.
-Scoring happens afterwards, in :mod:`runnify.services.analysis`.
+interval (Spotify's ``ts`` is when playback *stopped*) and intersected with
+the runs it overlaps, found by bisecting the runs' start times rather than
+trying every run. Each overlap becomes a ``UserSongHistory`` row, noting
+whether the track was skipped, unless the runner already has it.
+
+Everything is read and matched before anything is written, then written in
+batches, so the database is never held for long. Only songs that played
+during a run join the song catalogue; plays that ran to the end, during a run
+or not, teach it each track's length. Scoring happens afterwards, in
+:mod:`runnify.services.analysis`.
 """
 
 import datetime as dt
 import zipfile
+from bisect import bisect_left
 from typing import Any
 
 import ijson
+from sqlalchemy import insert, select, update
+from sqlalchemy.exc import IntegrityError
+
+LOOKUP_CHUNK = 500  # ids per IN (...) query, well under every database's limit
 
 
 class HistoryArchiveError(ValueError):
@@ -130,16 +141,37 @@ def _seconds(td: dt.timedelta):
 
 def _collect_run_intervals(db, RunModel, user_id: int):
     """Return the user's runs as ``(run_id, start, end)`` tuples sorted by start time."""
-    runs = db.session.query(RunModel).filter(RunModel.user_id == user_id).all()
+    runs = db.session.query(RunModel.id, RunModel.date_time, RunModel.duration).filter(
+        RunModel.user_id == user_id
+    )
     out = []
-    for r in runs:
-        if not r.date_time or not r.duration:
+    for run_id, started, duration in runs:
+        if not started or not duration:
             continue
-        start = r.date_time
-        end = r.date_time + dt.timedelta(seconds=int(r.duration))
-        out.append((r.id, start, end))
+        out.append((run_id, started, started + dt.timedelta(seconds=int(duration))))
     out.sort(key=lambda t: t[1])
     return out
+
+
+class _RunTimes:
+    """The runner's runs in order of start, to find the ones a play could overlap."""
+
+    def __init__(self, intervals):
+        self.intervals = intervals  # (run_id, start, end), sorted by start
+        self.starts = [start for _, start, _ in intervals]
+        self.longest = max((end - start for _, start, end in intervals), default=dt.timedelta())
+
+    def around(self, start, end):
+        """The runs that started before ``end`` and late enough to still be going at ``start``."""
+        return self.intervals[
+            bisect_left(self.starts, start - self.longest) : bisect_left(self.starts, end)
+        ]
+
+
+def _chunks(items, size=LOOKUP_CHUNK):
+    items = list(items)
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
 
 
 def _iter_json_rows(file_like):
@@ -194,7 +226,7 @@ def import_history_zip_overlapping_runs(
         user_id: The user the history belongs to.
         db: Flask-SQLAlchemy ``db`` instance.
         RunModel, SongModel, UserSongHistoryModel: The model classes to use.
-        batch_size: How many rows to add before each commit.
+        batch_size: How many plays to add before each commit.
         min_overlap_seconds: Plays overlapping a run by less than this are ignored.
 
     Returns:
@@ -213,33 +245,28 @@ def import_history_zip_overlapping_runs(
         "run_ids": set(),
         "note": None,
     }
-    run_intervals = _collect_run_intervals(db, RunModel, user_id)
-    if not run_intervals:
+    runs = _RunTimes(_collect_run_intervals(db, RunModel, user_id))
+    if not runs.intervals:
         return {**stats, "note": "User has no runs"}
 
-    pending = []
-    seen_songs = set()
+    History = UserSongHistoryModel
+    known = {  # plays the runner already has, so a newer upload only adds what's new
+        tuple(row)
+        for row in db.session.query(History.song_id, History.run_id, History.played_at).filter(
+            History.user_id == user_id, History.run_id.isnot(None)
+        )
+    }
+    plays = []
+    names = {}  # track id -> (track, artist), as first seen
     lengths = {}  # track id -> longest complete play, in seconds
 
-    def flush():
-        if not pending:
-            return
-        try:
-            db.session.add_all(pending)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            stats["errors"] += 1
-        pending.clear()
-
     with zipfile.ZipFile(zip_file) as zf:
-        names = zf.namelist()
-        stats["files"] = len(names)
-        for name in names:
-            if not name.lower().endswith(".json"):
+        stats["files"] = len(zf.namelist())
+        for entry in zf.infolist():
+            if not entry.filename.lower().endswith(".json"):
                 continue
             stats["json_files"] += 1
-            with zf.open(name, "r") as f:
+            with zf.open(entry, "r") as f:
                 for row in _iter_json_rows(f):
                     stats["rows"] += 1
                     track_id = None if _is_podcast_or_video(row) else _spotify_track_id(row)
@@ -249,61 +276,87 @@ def import_history_zip_overlapping_runs(
                         continue
                     if (length := _full_length_seconds(row)) is not None:
                         lengths[track_id] = max(length, lengths.get(track_id, 0))
-                    if track_id not in seen_songs:  # make sure the track is in the catalogue
-                        seen_songs.add(track_id)
-                        if not db.session.get(SongModel, track_id):
-                            track, artist, _album = _names(row)
-                            db.session.add(
-                                SongModel(
-                                    id=track_id,
-                                    name=track,
-                                    artist=artist,
-                                    spotify_url=f"https://open.spotify.com/track/{track_id}",
-                                )
-                            )
+                    if track_id not in names:
+                        names[track_id] = _names(row)[:2]
 
                     play_start, play_end = interval
                     skipped = _was_skipped(row)
-                    for run_id, run_start, run_end in run_intervals:
+                    for run_id, run_start, run_end in runs.around(play_start, play_end):
                         overlap = _overlap(play_start, play_end, run_start, run_end)
                         if not overlap:
                             continue
                         seg_start, seg_end = overlap
                         seconds = _seconds(seg_end - seg_start)
-                        if seconds < min_overlap_seconds:
+                        key = (track_id, run_id, seg_start)
+                        if seconds < min_overlap_seconds or key in known:
                             continue
-                        already = (
-                            db.session.query(UserSongHistoryModel.id)
-                            .filter_by(
-                                user_id=user_id,
-                                song_id=track_id,
-                                run_id=run_id,
-                                played_at=seg_start,
-                            )
-                            .first()
-                        )
-                        if already:
-                            continue
-                        pending.append(
-                            UserSongHistoryModel(
-                                user_id=user_id,
-                                song_id=track_id,
-                                played_at=seg_start,
-                                time_played=seconds,
-                                run_id=run_id,
-                                skipped=skipped,
-                            )
+                        known.add(key)
+                        plays.append(
+                            {
+                                "user_id": user_id,
+                                "song_id": track_id,
+                                "played_at": seg_start,
+                                "time_played": seconds,
+                                "run_id": run_id,
+                                "skipped": skipped,
+                            }
                         )
                         stats["saved"] += 1
                         stats["skipped_during_runs"] += bool(skipped)
                         stats["run_ids"].add(run_id)
-                        if len(pending) >= batch_size:
-                            flush()
-    flush()
 
-    for track_id, length in lengths.items():  # learn track lengths for playlist building
-        song = db.session.get(SongModel, track_id)
-        if song is not None and (song.duration or 0) < length:
-            song.duration = length
-    db.session.commit()
+    # only songs that played during a run join the catalogue, before the plays that need them
+    _add_songs(db, SongModel, {play["song_id"]: names[play["song_id"]] for play in plays})
+    for batch in _chunks(plays, batch_size):
+        try:
+            db.session.execute(insert(History), batch)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            stats["errors"] += 1
+    _learn_lengths(db, SongModel, lengths)
     return stats
+
+
+def _add_songs(db, SongModel, names):
+    """Add the tracks in ``names`` (``{track id: (track, artist)}``) the catalogue lacks."""
+    for attempt in (1, 2):
+        existing = set()
+        for chunk in _chunks(names):
+            existing.update(db.session.scalars(select(SongModel.id).where(SongModel.id.in_(chunk))))
+        missing = [
+            {
+                "id": track_id,
+                "name": track,
+                "artist": artist,
+                "spotify_url": f"https://open.spotify.com/track/{track_id}",
+            }
+            for track_id, (track, artist) in names.items()
+            if track_id not in existing
+        ]
+        try:
+            for chunk in _chunks(missing):
+                db.session.execute(insert(SongModel), chunk)
+            db.session.commit()
+            return
+        except IntegrityError:  # another runner's import added one of them just now
+            db.session.rollback()
+            if attempt == 2:
+                raise
+
+
+def _learn_lengths(db, SongModel, lengths):
+    """Give catalogue songs the longest complete play heard of them, when that is longer."""
+    longer = []
+    for chunk in _chunks(lengths):
+        rows = db.session.execute(
+            select(SongModel.id, SongModel.duration).where(SongModel.id.in_(chunk))
+        )
+        longer += [
+            {"id": track_id, "duration": lengths[track_id]}
+            for track_id, duration in rows
+            if (duration or 0) < lengths[track_id]
+        ]
+    if longer:
+        db.session.execute(update(SongModel), longer)
+    db.session.commit()
