@@ -12,7 +12,7 @@ from sqlalchemy import delete
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory
 from runnify.services.laps import LOOK_UP, UsualPaces, kinds_by_second, refresh_laps
-from runnify.services.scoring import METHOD_VERSION, song_effect
+from runnify.services.scoring import METHOD_VERSION, RunScorer
 from runnify.services.streams import load_series
 
 
@@ -50,9 +50,9 @@ def rescore_run(run, series=None, usual=LOOK_UP):
     laps = refresh_laps(run, series, usual)
     kinds = kinds_by_second(laps, len(series)) if laps else None
     db.session.execute(delete(RunSongAnalysis).where(RunSongAnalysis.run_id == run.id))
-    scored = 0
+    scorer, scored = RunScorer(series, kinds), 0
     for play, _song, start, end in song_segments(run, series):
-        effect = song_effect(series, start, end, kinds)
+        effect = scorer.effect(start, end)
         if effect.score is None:
             continue
         db.session.add(

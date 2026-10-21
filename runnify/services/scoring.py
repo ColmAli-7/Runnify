@@ -32,9 +32,11 @@ the run", every robust standard deviation faster adds 20 points, clamped to
 to read ("11 s/km faster").
 """
 
+from bisect import bisect_left, bisect_right
 from collections import Counter
 from dataclasses import dataclass
 from datetime import timedelta
+from itertools import pairwise
 from statistics import median
 
 METHOD_VERSION = 3
@@ -118,8 +120,147 @@ def effort_charge(pace_change, hr_delta, context_pace, context_hr):
     return min(max(extra, 0.0) * cost, pace_change)
 
 
+class RunScorer:
+    """One run's samples, prepared once for measuring any number of its songs.
+
+    The usable seconds of each kind of lap and the spread of their paces are
+    worked out once per run instead of once per song, and a song's seconds and
+    the minutes around it are found by bisecting the timestamps instead of
+    scanning the whole run, so a run with twenty songs scores as quickly as one
+    with a single song. The results are exactly those of :func:`song_effect`.
+
+    Args:
+        series: The run's :class:`~runnify.services.fit.Series`.
+        kinds: The kind of lap each second (:func:`runnify.services.laps.kinds_by_second`),
+            or ``None`` to treat the run as one steady stretch.
+    """
+
+    def __init__(self, series, kinds=None):
+        self.series = series
+        self.usable = usable_kinds(kinds) if kinds is not None else None
+        timestamps = series.timestamps
+        self._in_order = all(a <= b for a, b in pairwise(timestamps))
+        self._alike = {}  # kind -> the indexes of its usable seconds
+        self._spread = {}  # kind (None: the whole run) -> robust spread of its paces
+
+    def _between(self, start, end):
+        """Indexes of the samples from ``start`` to ``end``, both included."""
+        timestamps = self.series.timestamps
+        if not self._in_order:
+            return [i for i, t in enumerate(timestamps) if start <= t <= end]
+        return list(range(bisect_left(timestamps, start), bisect_right(timestamps, end)))
+
+    def _around(self, start, end):
+        """Indexes of the samples in the ``CONTEXT`` before ``start`` and after ``end``."""
+        timestamps = self.series.timestamps
+        if not self._in_order:
+            return [
+                i
+                for i, t in enumerate(timestamps)
+                if (start - CONTEXT <= t < start) or (end < t <= end + CONTEXT)
+            ]
+        before = range(bisect_left(timestamps, start - CONTEXT), bisect_left(timestamps, start))
+        after = range(bisect_right(timestamps, end), bisect_right(timestamps, end + CONTEXT))
+        if after.start >= before.stop:
+            return [*before, *after]
+        return sorted({*before, *after})  # a segment ending before it starts
+
+    def _outside(self, span, alike):
+        """The indexes of ``alike`` (or of the whole run) that aren't in ``span``."""
+        rest = alike if alike is not None else range(len(self.series.timestamps))
+        if not self._in_order or not span:
+            excluded = set(span)
+            return [i for i in rest if i not in excluded]
+        if alike is None:
+            return [*range(span[0]), *range(span[-1] + 1, len(rest))]
+        return alike[: bisect_left(alike, span[0])] + alike[bisect_right(alike, span[-1]) :]
+
+    def _alike_of(self, kind):
+        if kind not in self._alike:
+            self._alike[kind] = [i for i, k in enumerate(self.usable) if k == kind]
+        return self._alike[kind]
+
+    def _spread_of(self, kind, alike):
+        if kind not in self._spread:
+            paces = self.series.paces
+            compared = [paces[i] for i in (alike if alike is not None else range(len(paces)))]
+            self._spread[kind] = max(
+                _robust_spread([p for p in compared if p is not None]), MIN_SPREAD
+            )
+        return self._spread[kind]
+
+    def effect(self, start, end):
+        """Measure the song from ``start`` to ``end`` (naive UTC, trimmed to the run).
+
+        Returns:
+            A :class:`SongEffect`, as :func:`song_effect` describes.
+        """
+        series = self.series
+        timestamps, paces = series.timestamps, series.paces
+        if not timestamps:
+            return SongEffect(None, None, None, 0, 0.0)
+        run_start, run_end = timestamps[0], timestamps[-1]
+        duration = (run_end - run_start).total_seconds() or 1.0
+        position = round(min(max((start - run_start).total_seconds() / duration, 0.0), 1.0), 3)
+
+        span = self._between(start, end)
+        inside, near = span, self._around(start, end)
+        kind, alike = None, None
+        if self.usable is not None:
+            usable = self.usable
+            found = Counter(
+                usable[i] for i in inside if usable[i] is not None and paces[i] is not None
+            )
+            if not found:
+                return SongEffect(None, None, None, 0, position)
+            kind = found.most_common(1)[0][0]
+            alike = self._alike_of(kind)
+            inside = [i for i in inside if usable[i] == kind]
+            near = [i for i in near if usable[i] == kind]
+
+        song_paces = [paces[i] for i in inside if paces[i] is not None]
+        if len(song_paces) < MIN_SONG_SAMPLES:
+            return SongEffect(None, None, None, len(song_paces), position, kind)
+
+        context_paces = [paces[i] for i in near if paces[i] is not None]
+        # too little alike running nearby (a song at the very start, say): use the rest of the run
+        if len(context_paces) < MIN_CONTEXT_SAMPLES:
+            near = self._outside(span, alike)
+            context_paces = [paces[i] for i in near if paces[i] is not None]
+            if len(context_paces) < MIN_CONTEXT_SAMPLES:
+                return SongEffect(None, None, None, len(song_paces), position, kind)
+
+        spread = self._spread_of(kind, alike)
+        pace_change = median(context_paces) - median(song_paces)  # positive = faster during it
+
+        song_hr, context_hr = _heart(series, inside), _heart(series, near)
+        hr_delta = median(song_hr) - median(context_hr) if song_hr and context_hr else None
+        charge = None
+        if kind in CHARGED_KINDS:
+            charge = effort_charge(
+                pace_change,
+                hr_delta,
+                median(context_paces),
+                median(context_hr) if context_hr else None,
+            )
+        lift = pace_change - (charge or 0.0)
+        score = max(0.0, min(100.0, 50 + 20 * lift / spread))
+
+        return SongEffect(
+            score=round(score, 1),
+            pace_delta=round(lift, 1),
+            hr_delta=None if hr_delta is None else round(hr_delta, 1),
+            seconds=len(song_paces),
+            position=position,
+            lap_kind=kind,
+            effort_charge=None if charge is None else round(charge, 1),
+        )
+
+
 def song_effect(series, start, end, kinds=None):
     """Measure how ``series`` changed between ``start`` and ``end`` relative to its surroundings.
+
+    For several songs of one run, :class:`RunScorer` prepares the run once.
 
     Args:
         series: The run's :class:`~runnify.services.fit.Series`.
@@ -131,64 +272,4 @@ def song_effect(series, start, end, kinds=None):
         A :class:`SongEffect`; its ``score`` is ``None`` when the segment or its
         surroundings have too few moving samples to judge.
     """
-    timestamps, paces = series.timestamps, series.paces
-    if not timestamps:
-        return SongEffect(None, None, None, 0, 0.0)
-    run_start, run_end = timestamps[0], timestamps[-1]
-    duration = (run_end - run_start).total_seconds() or 1.0
-    position = round(min(max((start - run_start).total_seconds() / duration, 0.0), 1.0), 3)
-
-    inside = [i for i, t in enumerate(timestamps) if start <= t <= end]
-    near = [
-        i
-        for i, t in enumerate(timestamps)
-        if (start - CONTEXT <= t < start) or (end < t <= end + CONTEXT)
-    ]
-    kind, alike = None, None
-    if kinds is not None:
-        usable = usable_kinds(kinds)
-        found = Counter(usable[i] for i in inside if usable[i] is not None and paces[i] is not None)
-        if not found:
-            return SongEffect(None, None, None, 0, position)
-        kind = found.most_common(1)[0][0]
-        alike = [i for i, k in enumerate(usable) if k == kind]
-        inside = [i for i in inside if usable[i] == kind]
-        near = [i for i in near if usable[i] == kind]
-
-    song_paces = [paces[i] for i in inside if paces[i] is not None]
-    if len(song_paces) < MIN_SONG_SAMPLES:
-        return SongEffect(None, None, None, len(song_paces), position, kind)
-
-    context_paces = [paces[i] for i in near if paces[i] is not None]
-    # too little alike running nearby (a song at the very start, say): use the rest of the run
-    if len(context_paces) < MIN_CONTEXT_SAMPLES:
-        span = {i for i, t in enumerate(timestamps) if start <= t <= end}
-        rest = alike if alike is not None else range(len(timestamps))
-        near = [i for i in rest if i not in span]
-        context_paces = [paces[i] for i in near if paces[i] is not None]
-        if len(context_paces) < MIN_CONTEXT_SAMPLES:
-            return SongEffect(None, None, None, len(song_paces), position, kind)
-
-    compared = [paces[i] for i in (alike if alike is not None else range(len(paces)))]
-    spread = max(_robust_spread([p for p in compared if p is not None]), MIN_SPREAD)
-    pace_change = median(context_paces) - median(song_paces)  # positive = faster during the song
-
-    song_hr, context_hr = _heart(series, inside), _heart(series, near)
-    hr_delta = median(song_hr) - median(context_hr) if song_hr and context_hr else None
-    charge = None
-    if kind in CHARGED_KINDS:
-        charge = effort_charge(
-            pace_change, hr_delta, median(context_paces), median(context_hr) if context_hr else None
-        )
-    lift = pace_change - (charge or 0.0)
-    score = max(0.0, min(100.0, 50 + 20 * lift / spread))
-
-    return SongEffect(
-        score=round(score, 1),
-        pace_delta=round(lift, 1),
-        hr_delta=None if hr_delta is None else round(hr_delta, 1),
-        seconds=len(song_paces),
-        position=position,
-        lap_kind=kind,
-        effort_charge=None if charge is None else round(charge, 1),
-    )
+    return RunScorer(series, kinds).effect(start, end)

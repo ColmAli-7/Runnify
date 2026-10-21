@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from runnify.services.fit import Series
 from runnify.services.laps import Lap, kinds_by_second
-from runnify.services.scoring import song_effect
+from runnify.services.scoring import RunScorer, song_effect
 
 START = datetime(2026, 10, 1, 7, 0, 0)
 
@@ -155,3 +155,30 @@ def test_walks_never_count():
         [Lap(0, 600, "steady"), Lap(600, 840, "walk"), Lap(840, 1440, "steady")], len(paces)
     )
     assert song_effect(_series(paces), _at(620), _at(820), kinds).score is None
+
+
+def test_one_scorer_measures_every_song_of_a_run_as_measuring_each_alone_does():
+    series, kinds = _intervals(rep=240, jog=90, reps=6)
+    songs = [(0, 200), (590, 800), (1185, 1365), (1400, 1600), (2000, 2240), (2700, 2900)]
+    for laps in (kinds, None):
+        scorer = RunScorer(series, laps)
+        measured = [scorer.effect(_at(start), _at(end)) for start, end in songs]
+        assert measured == [song_effect(series, _at(s), _at(e), laps) for s, e in songs]
+        assert any(effect.score is not None for effect in measured)
+
+
+def test_samples_out_of_order_are_measured_as_well():
+    paces = _steps((300, 300.0), (180, 280.0), (300, 300.0))
+    tidy = _series(paces)
+    shuffled = Series(
+        timestamps=tidy.timestamps[::-1], heart_rates=tidy.heart_rates[::-1], paces=paces[::-1]
+    )
+    effect, expected = (
+        song_effect(shuffled, _at(300), _at(479)),
+        song_effect(tidy, _at(300), _at(479)),
+    )
+    assert (effect.score, effect.pace_delta, effect.seconds) == (
+        expected.score,
+        expected.pace_delta,
+        expected.seconds,
+    )
