@@ -34,10 +34,10 @@ scores_cli = AppGroup("scores", help="Manage stored song effects.")
 @click.option("--user", "user_id", type=int, help="Only rebuild this user's runs.")
 def rebuild_scores(user_id):
     """Recompute every song's effect with the current scoring method."""
-    from runnify.services.analysis import rescore_run
+    from runnify.services.analysis import rescore_runs
 
     runs = Run.query.filter_by(user_id=user_id) if user_id else Run.query
-    total = sum(rescore_run(run) for run in runs.all())
+    total = rescore_runs([run_id for (run_id,) in runs.with_entities(Run.id)])
     db.session.commit()
     click.echo(f"Scored {total} song play{'s' if total != 1 else ''}.")
 

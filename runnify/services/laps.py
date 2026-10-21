@@ -556,27 +556,74 @@ def _paces(user_id):
     return {run_id: duration / (distance / 1000) for run_id, duration, distance in rows}
 
 
+class UsualPaces:
+    """The runner's usual pace with any one run left out, for many runs at once.
+
+    :func:`usual_pace` sorts every pace again for each run; this sorts them
+    once, so working out the usual pace of each of a thousand runs stays quick.
+
+    Args:
+        paces: ``{key: pace in s/km}``, as :func:`_paces` gives them (keys are
+            usually run ids).
+    """
+
+    def __init__(self, paces):
+        self.paces = dict(paces)
+        self._ordered = sorted(self.paces.values())
+
+    @classmethod
+    def for_runner(cls, user_id):
+        """The paces of every run of the runner's long enough to judge a pace by."""
+        return cls(_paces(user_id))
+
+    def excluding(self, key):
+        """The median of the paces other than ``key``'s (``None`` with too few of them).
+
+        The middle is taken exactly as :func:`statistics.median` takes it.
+        """
+        ordered, own = self._ordered, self.paces.get(key)
+        gap = len(ordered) if own is None else bisect_left(ordered, own)  # where own pace sat
+        count = len(ordered) - (own is not None)
+        if count < MIN_USUAL_RUNS:
+            return None
+
+        def nth(i):  # the i-th of the other paces, in order
+            return ordered[i] if i < gap else ordered[i + 1]
+
+        middle = count // 2
+        return nth(middle) if count % 2 else (nth(middle - 1) + nth(middle)) / 2
+
+
 def usual_pace(user_id, exclude=None, paces=None):
     """The runner's usual pace in s/km: the median over their runs other than ``exclude``.
 
     ``None`` until there are :data:`MIN_USUAL_RUNS` of them. ``paces`` (from
-    :func:`_paces`) saves a query when typing many runs at once.
+    :func:`_paces`) saves a query; for many runs, use :class:`UsualPaces`.
     """
-    paces = _paces(user_id) if paces is None else paces
-    others = [pace for run_id, pace in paces.items() if run_id != exclude]
-    return median(others) if len(others) >= MIN_USUAL_RUNS else None
+    return UsualPaces(_paces(user_id) if paces is None else paces).excluding(exclude)
 
 
-def refresh_laps(run, series):
+LOOK_UP = object()  # "work the usual pace out", where None means "not known yet"
+
+
+def refresh_laps(run, series, usual=LOOK_UP):
     """Work out ``run``'s laps and type again, keeping whatever the runner set by hand.
 
     A failure is logged and leaves the laps as they were, so it can never stop
     a sync or an import.
 
+    Args:
+        run: The :class:`Run`.
+        series: Its samples.
+        usual: The runner's usual pace without this run (:func:`usual_pace`), when
+            already worked out; refreshing many runs, :class:`UsualPaces` saves a
+            query for each.
+
     Returns:
         The run's laps as :class:`Lap` objects.
     """
-    usual = usual_pace(run.user_id, exclude=run.id)
+    if usual is LOOK_UP:
+        usual = usual_pace(run.user_id, exclude=run.id)
     if run.laps_source != "manual" and len(series):
         try:
             laps, source = find_laps(series, usual)
@@ -596,13 +643,13 @@ def retype_runs(user_id):
     Done after every sync and import, so runs stored before there was a usual
     pace to judge them by get one.
     """
-    paces = _paces(user_id)
+    paces = UsualPaces.for_runner(user_id)
     runs = Run.query.options(selectinload(Run.laps)).filter_by(
         user_id=user_id, run_type_manual=False
     )
     for run in runs:
         run.run_type = run_type(
-            laps_of(run), run.duration or 0, run.distance or 0, usual_pace(user_id, run.id, paces)
+            laps_of(run), run.duration or 0, run.distance or 0, paces.excluding(run.id)
         )
 
 

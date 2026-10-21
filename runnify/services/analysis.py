@@ -11,7 +11,7 @@ from sqlalchemy import delete
 
 from runnify.extensions import db
 from runnify.models import Run, RunSongAnalysis, Song, UserSongHistory
-from runnify.services.laps import kinds_by_second, refresh_laps
+from runnify.services.laps import LOOK_UP, UsualPaces, kinds_by_second, refresh_laps
 from runnify.services.scoring import METHOD_VERSION, song_effect
 from runnify.services.streams import load_series
 
@@ -37,14 +37,17 @@ def song_segments(run, series):
     return segments
 
 
-def rescore_run(run, series=None):
+def rescore_run(run, series=None, usual=LOOK_UP):
     """Work out the run's laps again (unless set by hand), then the effect of every song.
+
+    ``usual`` is the runner's usual pace without this run, when already worked
+    out (see :func:`runnify.services.laps.refresh_laps`).
 
     Returns:
         How many song plays received a score.
     """
     series = series if series is not None else load_series(run)
-    laps = refresh_laps(run, series)
+    laps = refresh_laps(run, series, usual)
     kinds = kinds_by_second(laps, len(series)) if laps else None
     db.session.execute(delete(RunSongAnalysis).where(RunSongAnalysis.run_id == run.id))
     scored = 0
@@ -73,7 +76,9 @@ def rescore_run(run, series=None):
 
 def rescore_runs(run_ids):
     """Rescore several runs; returns the total number of scored song plays."""
-    total = 0
+    total, paces = 0, {}
     for run in Run.query.filter(Run.id.in_(list(run_ids))).all():
-        total += rescore_run(run)
+        if run.user_id not in paces:
+            paces[run.user_id] = UsualPaces.for_runner(run.user_id)
+        total += rescore_run(run, usual=paces[run.user_id].excluding(run.id))
     return total
