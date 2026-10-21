@@ -15,6 +15,12 @@ watch's file. The values are exactly fitparse's. Anything the reader doesn't
 expect (old devices' compressed speed and distance, arrays, relative times, a
 broken file) goes to fitparse, which reads every corner of the format. The
 file's own CRC isn't checked: Garmin's download is a zip, whose CRC-32 is.
+
+Two things differ from fitparse on purpose. Developer (Connect IQ) fields are
+never read, so one named like the watch's own (``heart_rate``, say) can't
+replace the watch's value, as it could with fitparse. And fields Runnify
+doesn't use are stepped over whatever their size, so a file fitparse refused
+for an oddly sized one of those still gives its samples.
 """
 
 import io

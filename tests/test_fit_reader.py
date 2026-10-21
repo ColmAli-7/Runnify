@@ -164,3 +164,16 @@ def test_broken_files_fail_as_they_did():
     data = build_fit([(START + timedelta(seconds=i), 150, 3.0 * i, 3.0) for i in range(60)])
     with pytest.raises(FitParseError):
         fit.parse_fit(data[: len(data) // 2])
+
+
+def test_a_connect_iq_field_named_like_the_watchs_own_never_replaces_it():
+    writer = FitWriter()
+    writer.define(3, 207, [(1, 16, 0x0D), (3, 1, 0x02)])  # developer_data_id
+    writer.data(3, tuple(range(16)), 0)
+    writer.define(4, 206, [(0, 1, 0x02), (1, 1, 0x02), (2, 1, 0x02), (3, 16, 0x07)])
+    writer.data(4, 0, 0, 0x02, b"heart_rate")  # a data field that calls itself heart_rate
+    writer.define(0, 20, [TIME, HEART], developer=[(0, 1, 0)])
+    writer.data(0, _at(0), 150)  # its value is written as 0
+    data = writer.bytes()
+    assert fit._read_messages(data)[0][0]["heart_rate"] == 150  # the watch's own
+    assert fit._fitparse_messages(data)[0][0]["heart_rate"] == 0  # fitparse let it win

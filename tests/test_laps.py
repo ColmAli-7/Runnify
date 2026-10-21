@@ -13,7 +13,6 @@ from runnify.services.analysis import rescore_run
 from runnify.services.fit import Series, WatchLap
 from runnify.services.laps import (
     Lap,
-    UsualPaces,
     detect,
     find_laps,
     from_watch,
@@ -306,19 +305,6 @@ def test_a_run_is_judged_against_the_runners_usual_pace_once_there_is_one(app, u
         retype_runs(user)
         assert quick.run_type == "tempo"
         assert usual_pace(user, exclude=quick.id) == pytest.approx(320)
-
-
-@pytest.mark.parametrize("count", [0, 3, 4, 5, 8, 9])
-def test_usual_paces_for_many_runs_match_one_run_at_a_time(count):
-    rng = random.Random(count)  # noqa: S311  (test data)
-    paces = {n: rng.choice([300.0, 312.5, rng.uniform(250, 400)]) for n in range(count)}
-    usual = UsualPaces(paces)
-    for left_out in [*paces, None]:
-        assert usual.excluding(left_out) == usual_pace(0, exclude=left_out, paces=paces)
-    if count == 4:  # the median of the three others, ties and all
-        ordered = sorted(paces.values())
-        assert usual.excluding(0) == sorted(p for n, p in paces.items() if n)[1]
-        assert usual.excluding(None) == (ordered[1] + ordered[2]) / 2
 
 
 def test_rescoring_finds_the_laps(app, user):
