@@ -72,7 +72,7 @@
           <p>Matched songs appear on your runs as soon as it finishes. You can leave this page.</p>
         </div>
       {% elif state == "interrupted" %}
-        <p class="upload__status upload__status--failed">The last import stopped before it finished, most likely because Runnify restarted. Upload the file again: nothing already matched is added twice.</p>
+        <p class="upload__status upload__status--failed">The last import stopped before it finished, most likely because Runnify restarted. Upload the file again to finish it: nothing already matched is added twice.</p>
       {% elif history_job.message %}
         <p class="upload__status{% if state == 'failed' %} upload__status--failed{% endif %}">{{ history_job.message }}{% if current_user.history_imported_at %} <span class="muted">({{ current_user.history_imported_at|ago }})</span>{% endif %}</p>
       {% endif %}

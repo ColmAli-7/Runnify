@@ -71,6 +71,7 @@ def rescore_run(run, series=None, usual=LOOK_UP):
             )
         )
         scored += 1
+    run.scoring_due = False
     return scored
 
 

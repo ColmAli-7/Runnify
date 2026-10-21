@@ -55,7 +55,7 @@ erDiagram
 | Table | Holds |
 |---|---|
 | `users` | Name, email, Argon2id password hash, encrypted Garmin and Spotify tokens, sync and import status with the progress of a running one, consent timestamps and policy version, lockout counters, the session token, the encrypted two-step secret |
-| `runs` | One Garmin run: start (UTC) and the runner's UTC offset at the time, distance in metres, duration in seconds, average heart rate and pace, its kind of run (and whether the runner chose it), where its laps came from, and a typed workout as Runnify read it |
+| `runs` | One Garmin run: start (UTC) and the runner's UTC offset at the time, distance in metres, duration in seconds, average heart rate and pace, its kind of run (and whether the runner chose it), where its laps came from, a typed workout as Runnify read it, and whether its songs wait to be scored |
 | `run_streams` | The run's samples, one a second (offsets, pace to 0.1 s/km, heart rate, and cadence and distance when recorded), and the watch's own laps; zlib-compressed JSON, about 15 KB for an hour |
 | `run_laps` | The run's laps in order: start and end second, kind (warm-up, hard, steady, jog, walk or cool-down), distance, moving time and average heart rate |
 | `songs` | Spotify track id, name, artist and a learned track length; only songs that played during someone's run, and those no play or playlist uses are removed |
@@ -129,8 +129,11 @@ and evolve the schema; a test fails if the models and migrations ever drift apar
    written in batches, so the database is never held while the file is read.
    Only songs that played during a run join `songs`; complete plays, during a
    run or not, teach a song its length.
-3. **Scoring.** Every run that gained plays is re-scored, a run at a time and
-   committed as it goes (`services/analysis.rescore_run`): its laps are worked
+3. **Scoring.** Every run whose songs wait to be scored is re-scored, a run at
+   a time and committed as it goes (`services/analysis.rescore_run`). A run
+   waits (`Run.scoring_due`) from the moment plays are added to it, in the same
+   transaction, so this includes any run an interrupted import left unscored,
+   and one whose scoring fails waits for the next import. Its laps are worked
    out again first, unless the runner set them, and each song is measured
    against the same kind of lap, the run prepared once for all of its songs
    (`services/scoring.RunScorer`). Every run's kind is then worked out again,

@@ -4,14 +4,20 @@ import io
 import json
 import pathlib
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
 from runnify.extensions import db
-from runnify.models import Run, User, UserSongHistory
+from runnify.models import Run, RunSongAnalysis, Song, User, UserSongHistory
 from runnify.services import imports
-from runnify.services.history_import import HistoryArchiveError, inspect_archive
+from runnify.services.fit import Series
+from runnify.services.history_import import (
+    HistoryArchiveError,
+    import_history_zip_overlapping_runs,
+    inspect_archive,
+)
+from runnify.services.streams import save_stream
 
 LIMITS = {"max_entries": 10, "max_uncompressed_bytes": 10_000_000, "max_ratio": 100}
 
@@ -143,3 +149,72 @@ def test_the_import_reports_how_far_it_has_got(app, auth_client, user, inline_th
     assert reports[-1] == "Scoring the songs on your runs: 1 of 1"
     with app.app_context():
         assert imports.jobs.job(db.session.get(User, user), "history").state == "ok"
+
+
+START = datetime(2026, 10, 1, 7)
+
+
+def _recorded_run(app, user_id):
+    """A 20-minute run at 5:00/km with its samples (and no songs yet); returns its id."""
+    with app.app_context():
+        run = Run(user_id=user_id, activity_id="9", date_time=START, duration=1200, distance=4000)
+        db.session.add(run)
+        db.session.flush()
+        save_stream(
+            run,
+            Series(
+                timestamps=[START + timedelta(seconds=s) for s in range(1200)],
+                heart_rates=[150] * 1200,
+                paces=[300.0] * 1200,
+            ),
+        )
+        db.session.commit()
+        return run.id
+
+
+def _song_during_the_run():
+    """A three-minute song eight minutes into the run."""
+    return _zip({"Streaming_History_Audio_2026.json": _history(ts="2026-10-01T07:11:20Z")})
+
+
+def test_uploading_again_scores_the_runs_an_interrupted_import_left(
+    app, auth_client, user, inline_threads
+):
+    run_id = _recorded_run(app, user)
+    with app.app_context():  # an import stored the plays, then Runnify restarted before scoring
+        import_history_zip_overlapping_runs(
+            zip_file=_song_during_the_run(),
+            user_id=user,
+            db=db,
+            RunModel=Run,
+            SongModel=Song,
+            UserSongHistoryModel=UserSongHistory,
+        )
+        assert db.session.get(Run, run_id).scoring_due and RunSongAnalysis.query.count() == 0
+    _upload(auth_client, _song_during_the_run())
+    with app.app_context():
+        message = db.session.get(User, user).history_import_message
+        assert message == "Matched 0 song plays to your runs and scored 1."
+        assert not db.session.get(Run, run_id).scoring_due
+        assert RunSongAnalysis.query.count() == 1
+
+
+def test_a_run_that_fails_to_score_waits_for_the_next_import(
+    app, auth_client, user, inline_threads, monkeypatch
+):
+    run_id = _recorded_run(app, user)
+    rescore = imports.rescore_run
+
+    def broken(run, *args, **kwargs):
+        raise RuntimeError("a bug in scoring")
+
+    monkeypatch.setattr(imports, "rescore_run", broken)
+    _upload(auth_client, _song_during_the_run())
+    with app.app_context():
+        account = db.session.get(User, user)
+        assert account.history_import_state == "ok"  # the import itself went through
+        assert db.session.get(Run, run_id).scoring_due
+    monkeypatch.setattr(imports, "rescore_run", rescore)
+    _upload(auth_client, _song_during_the_run())
+    with app.app_context():
+        assert RunSongAnalysis.query.count() == 1 and not db.session.get(Run, run_id).scoring_due

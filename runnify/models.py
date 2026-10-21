@@ -164,7 +164,9 @@ class Run(db.Model):
     from the laps unless the runner chose it (``run_type_manual``).
     ``laps_source`` says where the laps came from: "watch", "detected" or
     "manual" (``None`` until they are first worked out). ``workout`` is a
-    workout the runner typed, as Runnify read it.
+    workout the runner typed, as Runnify read it. ``scoring_due`` says plays were
+    added since its songs were last scored, so an import that stopped halfway is
+    finished by the next one.
     """
 
     __tablename__ = "runs"
@@ -184,6 +186,8 @@ class Run(db.Model):
     run_type_manual = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
     laps_source = db.Column(db.String(12))
     workout = db.Column(db.String(300))
+    # plays were added since its songs were last scored (see runnify.services.imports)
+    scoring_due = db.Column(db.Boolean, nullable=False, default=False, server_default=false())
 
     user = db.relationship("User", back_populates="runs")  # link run to user
     analysis = db.relationship("RunSongAnalysis", back_populates="run")  # link run to analysis

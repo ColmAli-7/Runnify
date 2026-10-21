@@ -102,7 +102,7 @@
           {% if history_job.running %}
             <dt>Status</dt><dd>{{ job_progress(history_job) }}</dd>
           {% elif history_job.state == "interrupted" %}
-            <dt>Result</dt><dd class="service__failed">The last import stopped before it finished. Upload the file again: nothing already matched is added twice.</dd>
+            <dt>Result</dt><dd class="service__failed">The last import stopped before it finished. Upload the file again to finish it: nothing already matched is added twice.</dd>
           {% elif history_job.message %}
             <dt>Result</dt><dd{% if history_job.state == "failed" %} class="service__failed"{% endif %}>{{ history_job.message }}</dd>
           {% endif %}

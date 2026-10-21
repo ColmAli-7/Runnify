@@ -10,7 +10,8 @@ trying every run. Each overlap becomes a ``UserSongHistory`` row, noting
 whether the track was skipped, unless the runner already has it.
 
 Everything is read and matched before anything is written, then written in
-batches, so the database is never held for long. Only songs that played
+batches, so the database is never held for long; each batch marks the runs
+it adds plays to as due for scoring (``Run.scoring_due``). Only songs that played
 during a run join the song catalogue; plays that ran to the end, during a run
 or not, teach it each track's length. Scoring happens afterwards, in
 :mod:`runnify.services.analysis`.
@@ -336,6 +337,13 @@ def import_history_zip_overlapping_runs(
                     db, SongModel, {play["song_id"]: names[play["song_id"]] for play in batch}
                 )
                 db.session.execute(insert(History), batch)
+                runs_due = sorted({play["run_id"] for play in batch})  # their songs await scoring
+                db.session.execute(
+                    update(RunModel)
+                    .where(RunModel.id.in_(runs_due))
+                    .values(scoring_due=True)
+                    .execution_options(synchronize_session=False)
+                )
                 db.session.commit()
                 break
             except IntegrityError:  # another runner's import added one of the songs just now

@@ -71,20 +71,32 @@ def discard(path):
     Path(path).unlink(missing_ok=True)
 
 
-def _rescore(user_id, run_ids, progress):
-    """Score the songs on each run that gained plays, committing a run at a time.
+def _rescore(user_id, progress):
+    """Score the songs on each of the runner's runs that has plays waiting, a run at a time.
+
+    That is every run this import added plays to, and any an earlier import
+    stored plays for but stopped before scoring (a restart, say), so uploading
+    the file again finishes the job. A run whose scoring fails stays due for
+    the next import, and the rest are scored all the same.
 
     Returns:
         How many song plays received a score.
     """
-    paces, run_ids = UsualPaces.for_runner(user_id), sorted(run_ids)
-    scored = 0
-    for done, run_id in enumerate(run_ids, 1):
-        scored += rescore_run(db.session.get(Run, run_id), usual=paces.excluding(run_id))
-        db.session.commit()
-        progress.report(
-            f"Scoring the songs on your runs: {done:,} of {len(run_ids):,}", done, len(run_ids)
-        )
+    due = [
+        run_id
+        for (run_id,) in db.session.query(Run.id)
+        .filter(Run.user_id == user_id, Run.scoring_due.is_(True))
+        .order_by(Run.id)
+    ]
+    paces, scored = UsualPaces.for_runner(user_id), 0
+    for done, run_id in enumerate(due, 1):
+        try:
+            scored += rescore_run(db.session.get(Run, run_id), usual=paces.excluding(run_id))
+            db.session.commit()
+        except Exception:
+            logger.exception("Couldn't score the songs of run %s", run_id)
+            db.session.rollback()
+        progress.report(f"Scoring the songs on your runs: {done:,} of {len(due):,}", done, len(due))
     return scored
 
 
@@ -108,7 +120,7 @@ def run_import(user_id, path):
                 max(size // 1024, 1),
             ),
         )
-        scored = _rescore(user_id, stats["run_ids"], progress)
+        scored = _rescore(user_id, progress)
         retype_runs(user_id)
         db.session.commit()
     except HistoryArchiveError as error:
