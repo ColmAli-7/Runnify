@@ -83,7 +83,8 @@ proxy. Sessions and the remember-me cookie are `Secure`, `HttpOnly` and
   sync carries on where it stopped, and an upload adds only what is new. A job
   queue is the next step if usage grows.
 - **How long jobs take.** On a laptop, a history of 150,000 plays against
-  1,000 runs imports in about a minute and a half. A first Garmin sync spends
+  1,000 runs imports in about a minute (it took seven before), and uploading
+  the same file again takes seconds. A first Garmin sync spends
   nearly all its time waiting on Garmin, three downloads at once: with Garmin
   taking 0.8 s a file, about a third of a second a run.
 - **Uploads** are written to `runnify/instance/uploads/` (override with
