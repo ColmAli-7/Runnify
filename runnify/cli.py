@@ -47,8 +47,14 @@ laps_cli = AppGroup("laps", help="Manage runs' laps.")
 
 @laps_cli.command("refetch")
 @click.option("--user", "user_id", type=int, help="Only this user's runs.")
-@click.option("--pause", default=1.0, show_default=True, help="Seconds between downloads.")
-def refetch_laps(user_id, pause):
+@click.option(
+    "--workers",
+    default=3,
+    show_default=True,
+    type=click.IntRange(1, 5),
+    help="FIT files to download at once (it slows down by itself if Garmin asks).",
+)
+def refetch_laps(user_id, workers):
     """Download old runs' FIT files from Garmin again, for the watch's laps and cadence."""
     from runnify.models import User
     from runnify.services.garmin import GarminError, refetch_runs
@@ -59,7 +65,7 @@ def refetch_laps(user_id, pause):
     total = 0
     for user in users.all():
         try:
-            total += refetch_runs(user, pause=pause)
+            total += refetch_runs(user, workers=workers)
         except GarminError as error:
             click.echo(f"Skipped user {user.id}: {error}")
     click.echo(f"Refreshed {total} run{'s' if total != 1 else ''} from Garmin.")

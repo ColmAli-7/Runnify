@@ -548,6 +548,13 @@ def store_laps(run, series, laps, source):
     run.laps_source = source if rows else None
 
 
+def pace_of(seconds, metres):
+    """A run's pace in s/km, or ``None`` when it is too short to judge a pace by."""
+    if seconds and seconds > 0 and metres and metres >= 1000:
+        return seconds / (metres / 1000)
+    return None
+
+
 def _paces(user_id):
     """``{run id: pace in s/km}`` for the runner's runs long enough to judge a pace by."""
     rows = db.session.query(Run.id, Run.duration, Run.distance).filter(

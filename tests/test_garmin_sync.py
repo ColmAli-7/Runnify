@@ -6,6 +6,7 @@ import pathlib
 import zipfile
 import zlib
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -110,11 +111,9 @@ def _set(app, user_id, **fields):
 def test_sync_from_tokens_saves_runs_and_their_streams(app, user):
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     with app.app_context():
-        added = garmin_service.fetch_and_store_garmin_activities(
-            db.session.get(User, user), pause=0
-        )
+        synced = garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user))
         run = Run.query.one()  # the swim is skipped
-        assert added == 1
+        assert synced == garmin_service.Synced(added=1)
         assert FakeGarmin.instances[0].tokenstore == TOKENS
         assert db.session.get(RunStream, run.id).sample_count == 60
         assert run.fit_file_path is None  # no FIT file is kept
@@ -126,7 +125,7 @@ def test_sync_from_tokens_saves_runs_and_their_streams(app, user):
 def test_legacy_password_is_swapped_for_tokens(app, user):
     _set(app, user, garmin_username="g@example.com", garmin_password="garmin-secret")
     with app.app_context():
-        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
+        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user))
         account = db.session.get(User, user)
         assert account.garmin_password is None
         assert account.garmin_tokens == TOKENS
@@ -136,8 +135,8 @@ def test_sync_skips_runs_already_stored(app, user):
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     with app.app_context():
         account = db.session.get(User, user)
-        garmin_service.fetch_and_store_garmin_activities(account, pause=0)
-        assert garmin_service.fetch_and_store_garmin_activities(account, pause=0) == 0
+        garmin_service.fetch_and_store_garmin_activities(account)
+        assert garmin_service.fetch_and_store_garmin_activities(account).added == 0
         assert Run.query.count() == 1
 
 
@@ -147,7 +146,7 @@ def test_downloads_are_never_written_to_disk(app, user, monkeypatch, tmp_path):
     )
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     with app.app_context():
-        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
+        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user))
         assert db.session.get(RunStream, Run.query.one().id) is not None
     assert not list(pathlib.Path(tmp_path).rglob("*.fit"))
 
@@ -158,7 +157,7 @@ def test_unreadable_fit_data_still_saves_the_run(app, user, monkeypatch):
     )
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     with app.app_context():
-        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
+        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user))
         assert db.session.get(RunStream, Run.query.one().id) is None
 
 
@@ -228,8 +227,8 @@ def test_background_sync_records_the_outcome(app, user, monkeypatch):
         def start(self):
             self.target()
 
-    monkeypatch.setattr(garmin_service.threading, "Thread", InlineThread)
-    monkeypatch.setattr(garmin_service.time, "sleep", lambda seconds: None)
+    # only the sync's own thread runs inline: the download pool keeps real threads
+    monkeypatch.setattr(garmin_service, "threading", SimpleNamespace(Thread=InlineThread))
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     garmin_service.start_background_sync(app, user)
     with app.app_context():
@@ -258,7 +257,7 @@ def test_sync_fills_in_local_time_for_runs_stored_without_it(app, user):
     with app.app_context():
         db.session.add(Run(user_id=user, activity_id="123", date_time=datetime(2026, 10, 1, 7, 0)))
         db.session.commit()
-        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user), pause=0)
+        garmin_service.fetch_and_store_garmin_activities(db.session.get(User, user))
         assert Run.query.one().utc_offset == 60
 
 
@@ -300,13 +299,13 @@ def test_refetching_old_runs_keeps_the_watchs_laps(app, user, monkeypatch):
     _set(app, user, garmin_username="g@example.com", garmin_tokens=TOKENS)
     _old_run(app, user)
     with app.app_context():
-        assert garmin_service.refetch_runs(db.session.get(User, user), pause=0) == 1
+        assert garmin_service.refetch_runs(db.session.get(User, user)) == 1
         run = Run.query.one()
         assert run.laps_source == "watch"
         assert [lap.kind for lap in run.laps] == ["warmup", "steady", "cooldown"]
         assert db.session.get(RunStream, run.id).sample_count == 1800
         # already current: nothing to fetch the second time
-        assert garmin_service.refetch_runs(db.session.get(User, user), pause=0) == 0
+        assert garmin_service.refetch_runs(db.session.get(User, user)) == 0
 
 
 def test_the_refetch_command_skips_runners_without_garmin(app, user, monkeypatch):
@@ -321,6 +320,6 @@ def test_the_refetch_command_skips_runners_without_garmin(app, user, monkeypatch
         db.session.add(unlinked)
         db.session.commit()
         unlinked_id = unlinked.id
-    result = app.test_cli_runner().invoke(args=["laps", "refetch", "--pause", "0"])
+    result = app.test_cli_runner().invoke(args=["laps", "refetch"])
     assert f"Skipped user {unlinked_id}: Garmin isn't connected." in result.output
     assert "Refreshed 1 run from Garmin." in result.output
