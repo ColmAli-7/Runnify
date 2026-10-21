@@ -93,3 +93,71 @@ def build_fit(samples, laps=()):
     header += struct.pack("<H", _crc(header))
     body = header + records
     return body + struct.pack("<H", _crc(body))
+
+
+# struct codes and "invalid" values of the FIT base types FitWriter writes
+_CODES = {0x00: "B", 0x01: "b", 0x02: "B", 0x83: "h", 0x84: "H", 0x85: "i", 0x86: "I", 0x07: "s"}
+_CODES.update({0x0A: "B", 0x8B: "H", 0x8C: "I", 0x0D: "B"})
+_INVALID = {0x00: 0xFF, 0x01: 0x7F, 0x02: 0xFF, 0x83: 0x7FFF, 0x84: 0xFFFF, 0x85: 0x7FFFFFFF}
+_INVALID.update({0x86: 0xFFFFFFFF, 0x0A: 0, 0x8B: 0, 0x8C: 0, 0x0D: 0xFF})
+
+
+class FitWriter:
+    """Writes FIT messages field by field, for files a watch could write but build_fit can't.
+
+    Definitions can be big-endian or carry developer fields, data messages can
+    use compressed timestamp headers, and :meth:`chain` starts another FIT file
+    in the same bytes.
+    """
+
+    def __init__(self):
+        self.files, self.body, self.definitions = [], bytearray(), {}
+
+    def define(self, local, number, fields, big_endian=False, developer=()):
+        """Define ``local`` as message ``number`` with ``(field, size, base type)`` fields.
+
+        ``developer`` fields are ``(number, size, developer data index)``.
+        """
+        endian = ">" if big_endian else "<"
+        self.body += struct.pack("<BBB", 0x40 | local | (0x20 if developer else 0), 0, big_endian)
+        self.body += struct.pack(endian + "HB", number, len(fields))
+        self.body += b"".join(bytes(field) for field in fields)
+        if developer:
+            self.body += bytes([len(developer)]) + b"".join(bytes(field) for field in developer)
+        self.definitions[local] = (endian, fields, developer)
+
+    def data(self, local, *values, time_offset=None):
+        """A data message: a raw value per field (``None`` writes it invalid, a tuple an array)."""
+        endian, fields, developer = self.definitions[local]
+        compressed = 0x80 | (local << 5) | time_offset if time_offset is not None else local
+        self.body.append(compressed)
+        for (_number, size, base), value in zip(fields, values, strict=True):
+            code = _CODES[base]
+            if code == "s":
+                self.body += (value or b"").ljust(size, b"\0")
+                continue
+            count = size // struct.calcsize(code)
+            value = _INVALID[base] if value is None else value
+            items = value if isinstance(value, tuple) else (value,) * count
+            self.body += struct.pack(endian + code * count, *items)
+        self.body += bytes(sum(size for _number, size, _index in developer))
+
+    def chain(self):
+        """Finish this FIT file; what follows goes in the next one."""
+        self.files.append(bytes(self.body))
+        self.body, self.definitions = bytearray(), {}
+
+    def bytes(self):
+        """The FIT files written, one after another, with headers and CRCs."""
+        out = b""
+        for records in [*self.files, bytes(self.body)]:
+            header = struct.pack("<BBHI4s", 14, 0x20, 2132, len(records), b".FIT")
+            header += struct.pack("<H", _crc(header))
+            body = header + records
+            out += body + struct.pack("<H", _crc(body))
+        return out
+
+
+def fit_time(when):
+    """A naive UTC datetime as a FIT timestamp."""
+    return _fit_time(when)
