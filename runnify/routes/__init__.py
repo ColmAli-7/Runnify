@@ -11,6 +11,7 @@ from . import (
     friends,
     imports,
     insights,
+    jobs,
     legal,
     main,
     playlists,
@@ -32,6 +33,7 @@ def register_blueprints(app):
     app.register_blueprint(spotify.bp, url_prefix="/spotify")
     app.register_blueprint(connections.bp)  # garmin and spotify connections
     app.register_blueprint(imports.bp)  # spotify history import
+    app.register_blueprint(jobs.bp)  # progress of syncs and imports
     app.register_blueprint(runs.bp)  # run list and per-run analysis
     app.register_blueprint(settings.bp)  # account management
     app.register_blueprint(dashboard.bp)  # dashboard

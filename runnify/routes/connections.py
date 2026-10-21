@@ -13,6 +13,7 @@ from runnify.forms import GarminCodeForm, GarminConnectForm, first_error
 from runnify.security import audit
 from runnify.security.rate_limits import limit_from_config, user_or_ip
 from runnify.services import garmin as garmin_service
+from runnify.services import jobs
 from runnify.services import spotify as spotify_service
 
 bp = Blueprint("connections", __name__)
@@ -92,7 +93,7 @@ def sync_garmin():
     """Start a fresh sync of new Garmin runs."""
     if not (current_user.garmin_tokens or current_user.garmin_password):
         flash("Connect Garmin first.", "error")
-    elif current_user.garmin_sync_state == "syncing":
+    elif jobs.job(current_user, "garmin").running:
         flash("A sync is already running.", "info")
     else:
         garmin_service.start_background_sync(current_app._get_current_object(), current_user.id)

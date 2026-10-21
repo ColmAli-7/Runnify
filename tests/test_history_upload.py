@@ -125,3 +125,21 @@ def test_bad_archives_are_deleted_and_reported(app, auth_client, user):
     response = _upload(auth_client, _zip({"bomb.json": "0" * 5_000_000}))
     assert b"look like a Spotify export" in response.data
     assert list(pathlib.Path(app.config["UPLOAD_TMP_DIR"]).iterdir()) == []
+
+
+def test_the_import_reports_how_far_it_has_got(app, auth_client, user, inline_threads, monkeypatch):
+    reports = []
+    report = imports.jobs.Progress.report
+
+    def spy(self, message, done=None, total=None, force=False):
+        reports.append(message)
+        return report(self, message, done, total, force=True)
+
+    monkeypatch.setattr(imports.jobs.Progress, "report", spy)
+    _add_run(app, user)
+    _upload(auth_client, _zip({"Streaming_History_Audio_2026.json": _history()}))
+    assert reports[0] == "Reading your listening history"
+    assert "Reading your listening history: 100%" in reports
+    assert reports[-1] == "Scoring the songs on your runs: 1 of 1"
+    with app.app_context():
+        assert imports.jobs.job(db.session.get(User, user), "history").state == "ok"

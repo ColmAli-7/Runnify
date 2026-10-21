@@ -174,6 +174,18 @@ def _chunks(items, size=LOOKUP_CHUNK):
         yield items[i : i + size]
 
 
+class _Counted:
+    """A file that tells ``report`` how many bytes each read took, for progress."""
+
+    def __init__(self, raw, report):
+        self.raw, self.report = raw, report
+
+    def read(self, size=-1):
+        data = self.raw.read(size)
+        self.report(len(data))
+        return data
+
+
 def _iter_json_rows(file_like):
     """Stream the dict items of a top-level JSON array, stopping quietly on bad JSON."""
     try:
@@ -214,6 +226,7 @@ def import_history_zip_overlapping_runs(
     UserSongHistoryModel,
     batch_size: int = 500,
     min_overlap_seconds: int = 1,
+    progress=None,
 ):
     """Import a Spotify history zip and link each music play to the runs it overlapped.
 
@@ -228,6 +241,8 @@ def import_history_zip_overlapping_runs(
         RunModel, SongModel, UserSongHistoryModel: The model classes to use.
         batch_size: How many plays to add before each commit.
         min_overlap_seconds: Plays overlapping a run by less than this are ignored.
+        progress: Called as the files are read with ``(bytes read, bytes in all)``
+            of the JSON files, unpacked.
 
     Returns:
         A stats dict: ``files``, ``json_files``, ``rows``, ``saved`` (plays linked to
@@ -262,12 +277,19 @@ def import_history_zip_overlapping_runs(
 
     with zipfile.ZipFile(zip_file) as zf:
         stats["files"] = len(zf.namelist())
-        for entry in zf.infolist():
-            if not entry.filename.lower().endswith(".json"):
-                continue
+        entries = [e for e in zf.infolist() if e.filename.lower().endswith(".json")]
+        size, read = sum(e.file_size for e in entries), 0
+
+        def counted(length):
+            nonlocal read
+            read += length
+            if progress:
+                progress(read, size)
+
+        for entry in entries:
             stats["json_files"] += 1
             with zf.open(entry, "r") as f:
-                for row in _iter_json_rows(f):
+                for row in _iter_json_rows(_Counted(f, counted)):
                     stats["rows"] += 1
                     track_id = None if _is_podcast_or_video(row) else _spotify_track_id(row)
                     interval = _row_interval(row) if track_id else None

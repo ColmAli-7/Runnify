@@ -30,6 +30,7 @@ from garminconnect import (
 
 from runnify.extensions import db
 from runnify.models import Run, User, utcnow
+from runnify.services import jobs
 from runnify.services.analysis import rescore_run
 from runnify.services.fit import parse_fit
 from runnify.services.laps import refresh_laps, retype_runs
@@ -203,7 +204,7 @@ def _utc_offset(local_text, started_utc):
     return minutes if abs(minutes) <= 14 * 60 else None
 
 
-def fetch_and_store_garmin_activities(user, pause=1.0):
+def fetch_and_store_garmin_activities(user, pause=1.0, progress=None):
     """Download all new running activities for ``user`` and save them as ``Run`` rows.
 
     Pages through the user's Garmin activities, skips ones already stored and
@@ -216,6 +217,7 @@ def fetch_and_store_garmin_activities(user, pause=1.0):
     Args:
         user: The ``User`` to sync.
         pause: Seconds to wait between FIT downloads, to be gentle with Garmin.
+        progress: A :class:`runnify.services.jobs.Progress` to report to.
 
     Returns:
         The number of runs added.
@@ -257,6 +259,8 @@ def fetch_and_store_garmin_activities(user, pause=1.0):
                 save_stream(run, series)
                 refresh_laps(run, series)
             added += 1
+            if progress:
+                progress.report(f"Bringing in your runs: {added:,} new so far")
             time.sleep(pause)
         db.session.commit()
         start += PAGE_SIZE
@@ -305,26 +309,33 @@ def refetch_runs(user, pause=1.0):
 def start_background_sync(app, user_id):
     """Sync ``user_id``'s Garmin activities on a background thread, recording the outcome."""
     with app.app_context():
-        user = db.session.get(User, user_id)
-        user.garmin_sync_state, user.garmin_sync_message = "syncing", None
+        jobs.begin(db.session.get(User, user_id), "garmin", "Starting the sync")
         db.session.commit()
 
     def run():
         with app.app_context():
             user = db.session.get(User, user_id)
             try:
-                added = fetch_and_store_garmin_activities(user)
+                added = fetch_and_store_garmin_activities(
+                    user, progress=jobs.Progress(user_id, "garmin")
+                )
             except GarminError as error:
-                user.garmin_sync_state, user.garmin_sync_message = "failed", str(error)
+                db.session.rollback()
+                jobs.end(db.session.get(User, user_id), "garmin", "failed", str(error))
             except Exception:
                 logger.exception("Garmin sync failed for user %s", user_id)
                 db.session.rollback()
-                user = db.session.get(User, user_id)
-                user.garmin_sync_state = "failed"
-                user.garmin_sync_message = "Something went wrong while syncing. Please try again."
+                jobs.end(
+                    db.session.get(User, user_id),
+                    "garmin",
+                    "failed",
+                    "Something went wrong while syncing. Please try again.",
+                )
             else:
-                user.garmin_sync_state = "ok"
-                user.garmin_sync_message = f"{added} new run{'s' if added != 1 else ''} imported."
+                user = db.session.get(User, user_id)
+                jobs.end(
+                    user, "garmin", "ok", f"{added} new run{'s' if added != 1 else ''} imported."
+                )
                 user.garmin_last_synced_at = utcnow()
             db.session.commit()
 

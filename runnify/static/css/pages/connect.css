@@ -82,6 +82,8 @@
   }
 
   .upload__status {
+    display: grid;
+    gap: var(--s-3);
     padding: var(--s-3) var(--s-4);
     border-radius: var(--r-md);
     background: var(--pace-soft);

@@ -55,13 +55,20 @@ class User(db.Model, UserMixin):
     garmin_tokens = db.Column(EncryptedString)  # Garmin session tokens (never a password)
     garmin_password = db.Column(EncryptedString)  # legacy: erased by the next sync
     garmin_sync_state = db.Column(db.String(16))  # "syncing", "ok" or "failed"
-    garmin_sync_message = db.Column(db.String(200))
+    garmin_sync_message = db.Column(db.String(200))  # the outcome, or what a running sync is doing
     garmin_last_synced_at = db.Column(db.DateTime)
+    # a running sync's progress and when it last reported (see runnify.services.jobs)
+    garmin_sync_done = db.Column(db.Integer)
+    garmin_sync_total = db.Column(db.Integer)
+    garmin_sync_updated_at = db.Column(db.DateTime)
 
     # Spotify history import progress: "importing", "ok" or "failed"
     history_import_state = db.Column(db.String(16))
     history_import_message = db.Column(db.String(200))
     history_imported_at = db.Column(db.DateTime)
+    history_import_done = db.Column(db.Integer)
+    history_import_total = db.Column(db.Integer)
+    history_import_updated_at = db.Column(db.DateTime)
 
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime)

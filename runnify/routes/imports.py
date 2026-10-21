@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from runnify.extensions import limiter
 from runnify.models import Run
 from runnify.security.rate_limits import limit_from_config, user_or_ip
-from runnify.services import imports
+from runnify.services import imports, jobs
 from runnify.services.history_import import HistoryArchiveError
 
 bp = Blueprint("imports", __name__)
@@ -28,7 +28,7 @@ def index():
     if not has_runs:
         flash("Sync your runs from Garmin first; songs are matched to runs.", "info")
         return redirect(url_for("imports.index"))
-    if current_user.history_import_state == "importing":
+    if jobs.job(current_user, "history").running:
         flash("An import is already running. It will finish shortly.", "info")
         return redirect(url_for("imports.index"))
 

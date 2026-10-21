@@ -1396,6 +1396,56 @@
     stroke-width: 1.5px;
   }
 
+  /* a background job's progress: what it is doing over a bar that fills */
+  .job {
+    display: grid;
+    gap: var(--s-2);
+    min-width: min(100%, 16rem);
+  }
+
+  .job__bar {
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 8px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--surface-3);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .job__bar::-webkit-progress-bar {
+    background: var(--surface-3);
+  }
+
+  .job__bar::-webkit-progress-value {
+    border-radius: var(--r-pill);
+    background: var(--text);
+  }
+
+  .job__bar::-moz-progress-bar {
+    border-radius: var(--r-pill);
+    background: var(--text);
+  }
+
+  /* how far isn't known yet: a still, hatched track rather than a moving one */
+  .job__bar:indeterminate {
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--surface-3) 0 6px,
+      var(--line-strong) 6px 12px
+    );
+  }
+
+  .job__bar:indeterminate::-webkit-progress-bar {
+    background: transparent;
+  }
+
+  .job__bar:indeterminate::-moz-progress-bar {
+    background: transparent;
+  }
+
   /* a single horizontal bar */
   .meter {
     display: block;

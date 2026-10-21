@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% from "macros/ui.html" import icon, field, csrf %}
+{% from "macros/ui.html" import icon, field, csrf, job_progress %}
 
 {% block title %}Connections | Runnify{% endblock %}
 
@@ -9,6 +9,7 @@
 
 {% set garmin_linked = current_user.garmin_tokens or current_user.garmin_password %}
 {% set spotify_linked = current_user.spotify_refresh_token %}
+{% set garmin_job, history_job = jobs.garmin, jobs.history %}
 
 {% block content %}
 <header class="page-head">
@@ -36,16 +37,18 @@
         <dl class="facts">
           <dt>Account</dt><dd>{{ current_user.garmin_username }}</dd>
           <dt>Last sync</dt><dd>{{ current_user.garmin_last_synced_at|ago }}</dd>
-          {% if current_user.garmin_sync_state == "syncing" %}
-            <dt>Status</dt><dd>Syncing your runs now</dd>
-          {% elif current_user.garmin_sync_message %}
-            <dt>Status</dt><dd{% if current_user.garmin_sync_state == "failed" %} class="service__failed"{% endif %}>{{ current_user.garmin_sync_message }}</dd>
+          {% if garmin_job.running %}
+            <dt>Status</dt><dd>{{ job_progress(garmin_job) }}</dd>
+          {% elif garmin_job.state == "interrupted" %}
+            <dt>Status</dt><dd class="service__failed">The last sync stopped before it finished. Sync again to carry on from there.</dd>
+          {% elif garmin_job.message %}
+            <dt>Status</dt><dd{% if garmin_job.state == "failed" %} class="service__failed"{% endif %}>{{ garmin_job.message }}</dd>
           {% endif %}
         </dl>
         <div class="cluster">
           <form method="post" action="{{ url_for('connections.sync_garmin') }}" class="inline-form">
             {{ csrf() }}
-            <button class="btn btn--primary" type="submit"{% if current_user.garmin_sync_state == "syncing" %} aria-disabled="true" disabled{% endif %}>{{ icon("sync") }}Sync now</button>
+            <button class="btn btn--primary" type="submit"{% if garmin_job.running %} aria-disabled="true" disabled{% endif %}>{{ icon("sync") }}Sync now</button>
           </form>
           <form method="post" action="{{ url_for('connections.disconnect_garmin') }}" class="inline-form" data-confirm="Disconnect Garmin? Runs you have already imported are kept.">
             {{ csrf() }}
@@ -86,21 +89,28 @@
   <section class="card service" aria-labelledby="history-title">
     <header class="card__head">
       <h2 class="card__title" id="history-title">{{ icon("music") }}Listening history</h2>
-      {% if current_user.history_import_state == "ok" %}<span class="tag tag--go">Imported</span>
-      {% elif current_user.history_import_state == "importing" %}<span class="tag">Importing</span>
-      {% elif current_user.history_import_state == "failed" %}<span class="tag tag--pen">Failed</span>
+      {% if history_job.state == "ok" %}<span class="tag tag--go">Imported</span>
+      {% elif history_job.running %}<span class="tag">Importing</span>
+      {% elif history_job.state == "failed" %}<span class="tag tag--pen">Failed</span>
+      {% elif history_job.state == "interrupted" %}<span class="tag tag--pen">Interrupted</span>
       {% else %}<span class="tag">Not uploaded</span>{% endif %}
     </header>
     <div class="card__body service__body">
-      {% if current_user.history_import_state %}
+      {% if history_job.state %}
         <dl class="facts">
           {% if current_user.history_imported_at %}<dt>Last upload</dt><dd>{{ current_user.history_imported_at|ago }}</dd>{% endif %}
-          {% if current_user.history_import_message %}<dt>Result</dt><dd{% if current_user.history_import_state == "failed" %} class="service__failed"{% endif %}>{{ current_user.history_import_message }}</dd>{% endif %}
+          {% if history_job.running %}
+            <dt>Status</dt><dd>{{ job_progress(history_job) }}</dd>
+          {% elif history_job.state == "interrupted" %}
+            <dt>Result</dt><dd class="service__failed">The last import stopped before it finished. Upload the file again: nothing already matched is added twice.</dd>
+          {% elif history_job.message %}
+            <dt>Result</dt><dd{% if history_job.state == "failed" %} class="service__failed"{% endif %}>{{ history_job.message }}</dd>
+          {% endif %}
         </dl>
       {% else %}
         <p>Spotify's extended streaming history tells Runnify which songs played during your runs.</p>
       {% endif %}
-      <p><a class="btn" href="{{ url_for('imports.index') }}">{{ icon("upload") }}{{ "Upload newer history" if current_user.history_import_state == "ok" else "Upload your history" }}</a></p>
+      <p><a class="btn" href="{{ url_for('imports.index') }}">{{ icon("upload") }}{{ "Upload newer history" if history_job.state == "ok" else "Upload your history" }}</a></p>
     </div>
   </section>
 </div>

@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% from "macros/ui.html" import icon, csrf %}
+{% from "macros/ui.html" import icon, csrf, job_progress %}
 
 {% block title %}Import Spotify history | Runnify{% endblock %}
 
@@ -11,7 +11,8 @@
   <script type="module" src="{{ url_for('static', filename='js/pages/upload.js') }}"></script>
 {% endblock %}
 
-{% set state = current_user.history_import_state %}
+{% set history_job = jobs.history %}
+{% set state = history_job.state %}
 
 {% block content %}
 <header class="page-head">
@@ -62,13 +63,18 @@
   <section class="card upload" aria-labelledby="upload-title">
     <header class="card__head">
       <h2 class="card__title" id="upload-title">Upload the zip</h2>
-      {% if state == "ok" %}<span class="tag tag--go">Imported</span>{% elif state == "importing" %}<span class="tag">Importing</span>{% elif state == "failed" %}<span class="tag tag--pen">Failed</span>{% endif %}
+      {% if state == "ok" %}<span class="tag tag--go">Imported</span>{% elif state == "running" %}<span class="tag">Importing</span>{% elif state == "failed" %}<span class="tag tag--pen">Failed</span>{% elif state == "interrupted" %}<span class="tag tag--pen">Interrupted</span>{% endif %}
     </header>
     <div class="card__body">
-      {% if state == "importing" %}
-        <p class="upload__status" role="status">Importing your history now. Matched songs appear on your runs as soon as it finishes. You can leave this page.</p>
-      {% elif current_user.history_import_message %}
-        <p class="upload__status{% if state == 'failed' %} upload__status--failed{% endif %}">{{ current_user.history_import_message }}{% if current_user.history_imported_at %} <span class="muted">({{ current_user.history_imported_at|ago }})</span>{% endif %}</p>
+      {% if state == "running" %}
+        <div class="upload__status" role="status">
+          {{ job_progress(history_job) }}
+          <p>Matched songs appear on your runs as soon as it finishes. You can leave this page.</p>
+        </div>
+      {% elif state == "interrupted" %}
+        <p class="upload__status upload__status--failed">The last import stopped before it finished, most likely because Runnify restarted. Upload the file again: nothing already matched is added twice.</p>
+      {% elif history_job.message %}
+        <p class="upload__status{% if state == 'failed' %} upload__status--failed{% endif %}">{{ history_job.message }}{% if current_user.history_imported_at %} <span class="muted">({{ current_user.history_imported_at|ago }})</span>{% endif %}</p>
       {% endif %}
 
       {% if not has_runs %}
@@ -86,7 +92,7 @@
             <span class="dropzone__title" data-file-name>Choose the .zip file</span>
             <span class="dropzone__hint">or drop it here. Up to {{ config.MAX_CONTENT_LENGTH // (1024 * 1024) }} MB.</span>
           </label>
-          <p><button class="btn btn--primary btn--lg" type="submit"{% if state == "importing" %} disabled{% endif %}>Upload and import</button></p>
+          <p><button class="btn btn--primary btn--lg" type="submit"{% if state == "running" %} disabled{% endif %}>Upload and import</button></p>
         </form>
       {% endif %}
 

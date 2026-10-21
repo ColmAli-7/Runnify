@@ -102,6 +102,15 @@
 </li>
 {%- endmacro %}
 
+{#- A running background job (services.jobs.Job): what it is doing, and a bar that fills
+    once how far it has got is known. js/jobs.js keeps both up to date. -#}
+{% macro job_progress(job) -%}
+<span class="job" data-job="{{ job.kind }}">
+  <span class="job__message" data-job-message>{{ job.message or "Getting started" }}</span>
+  <progress class="job__bar" max="100" data-job-bar{% if job.percent is not none %} value="{{ job.percent }}"{% endif %} aria-label="{{ job.message or 'Getting started' }}">{% if job.percent is not none %}{{ job.percent }}%{% endif %}</progress>
+</span>
+{%- endmacro %}
+
 {#- A ring that fills as set-up steps are done. -#}
 {% macro progress_ring(done, total, label) -%}
 {%- set length = 125.66 -%}
