@@ -34,7 +34,7 @@ hand are never worked out again.
 """
 
 import logging
-from bisect import bisect_left
+from bisect import bisect_left, insort
 from dataclasses import dataclass
 from statistics import median, pstdev
 
@@ -100,13 +100,29 @@ def steady(series):
 
 
 def _rolling_median(values, half=HALF_WINDOW, minimum=10):
-    """Each second's median over the window around it, ignoring gaps (``None`` if too few)."""
-    present = [i for i, value in enumerate(values) if value is not None]
-    smoothed = []
-    for i in range(len(values)):
-        low, high = bisect_left(present, i - half), bisect_left(present, i + half + 1)
-        window = [values[j] for j in present[low:high]]
-        smoothed.append(median(window) if len(window) >= minimum else None)
+    """Each second's median over the window around it, ignoring gaps (``None`` if too few).
+
+    The window slides one second at a time and stays sorted, so each step adds
+    and removes a value instead of sorting the whole window again. The middle
+    is taken exactly as :func:`statistics.median` takes it.
+    """
+    length = len(values)
+    window, smoothed = [], []
+    for value in values[: min(half, length)]:
+        if value is not None:
+            insort(window, value)
+    for i in range(length):
+        if i + half < length and values[i + half] is not None:
+            insort(window, values[i + half])
+        count = len(window)
+        if count < minimum or not count:
+            smoothed.append(None)
+        elif count % 2:
+            smoothed.append(window[count // 2])
+        else:
+            smoothed.append((window[count // 2 - 1] + window[count // 2]) / 2)
+        if i - half >= 0 and values[i - half] is not None:
+            del window[bisect_left(window, values[i - half])]
     return smoothed
 
 
@@ -120,6 +136,11 @@ def _cadences(series):
     if not series.cadences:
         return [None] * len(series)
     return _rolling_median(series.cadences)
+
+
+def _smoothed(series):
+    """``(speeds, cadences)``: the run's rolling-median speed and cadence each second."""
+    return smoothed_speeds(series), _cadences(series)
 
 
 def _state(speed, cadence):
@@ -284,13 +305,15 @@ def _walk_or(kind, speeds, cadences, start, end):
     return "walk" if states.count("run") < len(states) / 2 else kind
 
 
-def detect(series, usual_pace=None):
+def detect(series, usual_pace=None, smoothed=None):
     """Laps read from the run's own pace, heart rate and cadence (see the module docstring).
 
     Args:
         series: The run's :class:`~runnify.services.fit.Series`, one sample a second.
         usual_pace: The runner's usual pace in s/km, if known. Running between
             walks counts as hard only when it is clearly quicker than this.
+        smoothed: The run's ``(speeds, cadences)`` from :func:`_smoothed`, when
+            already worked out.
 
     Returns:
         :class:`Lap` objects covering the whole run in order.
@@ -298,7 +321,7 @@ def detect(series, usual_pace=None):
     length = len(series)
     if length < 2 * MIN_LAP:
         return steady(series)
-    speeds, cadences = smoothed_speeds(series), _cadences(series)
+    speeds, cadences = smoothed or _smoothed(series)
     stretches = _merge(_runs_of([_state(s, c) for s, c in zip(speeds, cadences, strict=True)]))
     running = [(s, e) for s, e, state in stretches if state == "run"]
     parts = _fast_and_slow(speeds, running)
@@ -346,12 +369,16 @@ def _tidy(watch_laps, length):
     return tidy
 
 
-def from_watch(series, usual_pace=None):
-    """Laps from the watch, when they describe the session; ``None`` when they don't."""
+def from_watch(series, usual_pace=None, smoothed=None):
+    """Laps from the watch, when they describe the session; ``None`` when they don't.
+
+    ``smoothed`` is the run's ``(speeds, cadences)`` from :func:`_smoothed`, when
+    already worked out.
+    """
     tidy = _tidy(series.laps, len(series))
     if len(tidy) < 2:
         return None
-    speeds, cadences = smoothed_speeds(series), _cadences(series)
+    speeds, cadences = smoothed or _smoothed(series)
     workout = any(
         lap.intensity in STRUCTURED_INTENSITIES or lap.step is not None for _, _, lap in tidy
     )
@@ -433,10 +460,11 @@ def _button_laps(series, tidy, speeds, cadences):
 
 def find_laps(series, usual_pace=None):
     """The run's laps and where they came from: ``(laps, "watch" | "detected")``."""
-    watch = from_watch(series, usual_pace)
+    smoothed = _smoothed(series)  # once, for both readings of the run
+    watch = from_watch(series, usual_pace, smoothed)
     if watch:
         return watch, "watch"
-    return detect(series, usual_pace), "detected"
+    return detect(series, usual_pace, smoothed), "detected"
 
 
 def run_type(laps, seconds, metres, usual_pace=None):
