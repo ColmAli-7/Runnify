@@ -327,44 +327,48 @@ def import_history_zip_overlapping_runs(
                         stats["skipped_during_runs"] += bool(skipped)
                         stats["run_ids"].add(run_id)
 
-    # only songs that played during a run join the catalogue, before the plays that need them
-    _add_songs(db, SongModel, {play["song_id"]: names[play["song_id"]] for play in plays})
     for batch in _chunks(plays, batch_size):
-        try:
-            db.session.execute(insert(History), batch)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            stats["errors"] += 1
+        # only songs that played during a run join the catalogue, each committed with the
+        # plays that use it, so a clean-up of unused songs can never see it unused
+        for attempt in (1, 2):
+            try:
+                _add_songs(
+                    db, SongModel, {play["song_id"]: names[play["song_id"]] for play in batch}
+                )
+                db.session.execute(insert(History), batch)
+                db.session.commit()
+                break
+            except IntegrityError:  # another runner's import added one of the songs just now
+                db.session.rollback()
+                stats["errors"] += attempt == 2
+            except Exception:
+                db.session.rollback()
+                stats["errors"] += 1
+                break
     _learn_lengths(db, SongModel, lengths)
     return stats
 
 
 def _add_songs(db, SongModel, names):
-    """Add the tracks in ``names`` (``{track id: (track, artist)}``) the catalogue lacks."""
-    for attempt in (1, 2):
-        existing = set()
-        for chunk in _chunks(names):
-            existing.update(db.session.scalars(select(SongModel.id).where(SongModel.id.in_(chunk))))
-        missing = [
-            {
-                "id": track_id,
-                "name": track,
-                "artist": artist,
-                "spotify_url": f"https://open.spotify.com/track/{track_id}",
-            }
-            for track_id, (track, artist) in names.items()
-            if track_id not in existing
-        ]
-        try:
-            for chunk in _chunks(missing):
-                db.session.execute(insert(SongModel), chunk)
-            db.session.commit()
-            return
-        except IntegrityError:  # another runner's import added one of them just now
-            db.session.rollback()
-            if attempt == 2:
-                raise
+    """Add the tracks in ``names`` (``{track id: (track, artist)}``) the catalogue lacks.
+
+    The caller commits, together with the plays that use them.
+    """
+    existing = set()
+    for chunk in _chunks(names):
+        existing.update(db.session.scalars(select(SongModel.id).where(SongModel.id.in_(chunk))))
+    missing = [
+        {
+            "id": track_id,
+            "name": track,
+            "artist": artist,
+            "spotify_url": f"https://open.spotify.com/track/{track_id}",
+        }
+        for track_id, (track, artist) in names.items()
+        if track_id not in existing
+    ]
+    for chunk in _chunks(missing):
+        db.session.execute(insert(SongModel), chunk)
 
 
 def _learn_lengths(db, SongModel, lengths):

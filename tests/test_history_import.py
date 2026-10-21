@@ -185,3 +185,19 @@ def test_a_play_is_linked_to_every_recording_of_the_run_it_overlapped(app):
             (first, datetime(2026, 10, 1, 7, 1, 40), 200),
             (second, datetime(2026, 10, 1, 7, 2), 180),  # the part after the second watch started
         ]
+
+
+def test_a_batch_that_fails_leaves_none_of_its_songs_behind(app, monkeypatch):
+    rows = [_row("2026-10-01T07:05:00Z", 200_000, "spotify:track:lost")]
+    with app.app_context():
+        execute = db.session.execute
+
+        def failing(statement, *args, **kwargs):
+            if str(statement).startswith("INSERT INTO user_song_history"):
+                raise RuntimeError("the database went away")
+            return execute(statement, *args, **kwargs)
+
+        monkeypatch.setattr(db.session, "execute", failing)
+        stats = _import(rows, [(datetime(2026, 10, 1, 7), 1800)])
+        assert stats["errors"] == 1
+        assert Song.query.count() == 0  # committed only with the plays that use it
