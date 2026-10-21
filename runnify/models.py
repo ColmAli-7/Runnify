@@ -238,7 +238,7 @@ class UserSongHistory(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
-    song_id = db.Column(db.String, db.ForeignKey("songs.id"))
+    song_id = db.Column(db.String, db.ForeignKey("songs.id"), index=True)
     played_at = db.Column(db.DateTime)
     time_played = db.Column(db.Integer)
     run_id = db.Column(db.Integer, db.ForeignKey("runs.id"), index=True)

@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 
 from flask import current_app
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, exists, or_
 
 from runnify.extensions import db
 from runnify.models import (
@@ -209,6 +209,18 @@ def _remove_fit_files(user):
 def delete_account(user):
     """Permanently delete ``user`` and all of their personal data (the caller commits)."""
     _remove_fit_files(user)
+    playlist_ids = db.session.query(Playlist.id).filter(Playlist.user_id == user.id)
+    songs = {  # theirs, to see which no one else uses once they are gone
+        song_id
+        for (song_id,) in db.session.query(UserSongHistory.song_id)
+        .filter(UserSongHistory.user_id == user.id)
+        .union(
+            db.session.query(PlaylistTrack.song_id).filter(
+                PlaylistTrack.playlist_id.in_(playlist_ids)
+            )
+        )
+        if song_id is not None
+    }
     run_ids = db.session.query(Run.id).filter(Run.user_id == user.id)
     db.session.execute(
         delete(RunSongAnalysis).where(
@@ -227,17 +239,26 @@ def delete_account(user):
     db.session.execute(
         delete(friends).where(or_(friends.c.user_id == user.id, friends.c.friend_id == user.id))
     )
-    playlist_ids = db.session.query(Playlist.id).filter(Playlist.user_id == user.id)
     db.session.execute(delete(PlaylistTrack).where(PlaylistTrack.playlist_id.in_(playlist_ids)))
     db.session.execute(delete(Playlist).where(Playlist.user_id == user.id))
     db.session.execute(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
     db.session.execute(delete(SecurityEvent).where(SecurityEvent.user_id == user.id))
-    remove_unused_songs()
+    remove_unused_songs(songs)
     db.session.delete(user)
 
 
-def remove_unused_songs():
-    """Delete catalogue songs that no play and no playlist uses any more (the caller commits)."""
-    played = select(UserSongHistory.song_id).where(UserSongHistory.song_id.isnot(None))
-    listed = select(PlaylistTrack.song_id)
-    db.session.execute(delete(Song).where(Song.id.not_in(played), Song.id.not_in(listed)))
+def remove_unused_songs(song_ids):
+    """Delete those of ``song_ids`` that no play and no playlist uses any more (the caller commits).
+
+    Each song is looked up through the plays' index on their song, so this
+    stays quick however many plays there are.
+    """
+    song_ids = sorted(song_ids)
+    for start in range(0, len(song_ids), 500):
+        db.session.execute(
+            delete(Song).where(
+                Song.id.in_(song_ids[start : start + 500]),
+                ~exists().where(UserSongHistory.song_id == Song.id),
+                ~exists().where(PlaylistTrack.song_id == Song.id),
+            )
+        )
