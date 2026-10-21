@@ -58,7 +58,7 @@ class BusyGarmin:
             started = NEWEST - timedelta(days=3 * n)
             found.append(
                 {
-                    "activityId": 1000 + n,
+                    "activityId": BusyGarmin.first + n,
                     "activityType": {"typeKey": "running"},
                     "startTimeGMT": started.strftime("%Y-%m-%d %H:%M:%S"),
                     "startTimeLocal": (started + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S"),
@@ -75,7 +75,7 @@ class BusyGarmin:
                         "activityType": {"typeKey": "lap_swimming"},
                     }
                 )
-        return found
+        return BusyGarmin.late[:1] + found if BusyGarmin.late else found
 
     def get_activities(self, start, limit):
         BusyGarmin.listed.append(start)
@@ -97,7 +97,11 @@ class BusyGarmin:
             if activity_id in BusyGarmin.missing:
                 raise garmin_service.GarminConnectNotFoundError("404")
             if activity_id in BusyGarmin.broken:
-                raise garmin_service.GarminConnectConnectionError("500")
+                raise garmin_service.GarminConnectConnectionError("API Error 503")
+            if activity_id in BusyGarmin.forbidden:
+                raise garmin_service.GarminConnectConnectionError(
+                    "Download client error (403): 403 Client Error: Forbidden"
+                )
             if activity_id in BusyGarmin.rejected:
                 raise garmin_service.GarminConnectAuthenticationError("401")
             return _fit_zip()
@@ -108,7 +112,8 @@ class BusyGarmin:
 
 @pytest.fixture(autouse=True)
 def busy_garmin(monkeypatch):
-    BusyGarmin.runs, BusyGarmin.sign_in = 12, None
+    BusyGarmin.runs, BusyGarmin.sign_in, BusyGarmin.first, BusyGarmin.late = 12, None, 1000, []
+    BusyGarmin.forbidden = set()
     BusyGarmin.stall, BusyGarmin.missing, BusyGarmin.broken, BusyGarmin.rejected = (
         set(),
         set(),
@@ -225,6 +230,14 @@ def test_garmin_refusing_again_and_again_stops_the_sync_for_now(app, linked):
             garmin_service.Synced(0, 2, "unreachable"),
             ("failed", "Garmin couldn't send your 2 new runs just now. Please sync again later."),
         ),
+        (
+            garmin_service.Synced(0, 1),
+            (
+                "ok",
+                "No new runs imported. 1 couldn't be downloaded just now "
+                "and will be tried again on your next sync.",
+            ),
+        ),
     ],
 )
 def test_what_a_sync_tells_the_runner(synced, outcome):
@@ -246,6 +259,14 @@ def test_failed_downloads_wait_for_the_next_sync(app, linked):
     assert "2 couldn't be downloaded just now" in garmin_service._summary(synced)[1]
 
 
+def test_an_activity_garmin_refuses_outright_is_kept_without_samples(app, linked):
+    BusyGarmin.forbidden = {1006}  # asking again next time wouldn't change a 403
+    assert _sync(app, linked) == garmin_service.Synced(added=12)
+    with app.app_context():
+        run = Run.query.filter_by(activity_id="1006").one()
+        assert db.session.get(RunStream, run.id) is None
+
+
 def test_a_garmin_failing_every_download_stops_the_sync_for_now(app, linked):
     BusyGarmin.broken = {1000 + n for n in range(12)}
     synced = _sync(app, linked)
@@ -265,20 +286,31 @@ def test_a_session_garmin_stops_accepting_fails_the_sync(app, linked):
     assert len(_stored(app)) >= 5  # what came in before stays
 
 
-def test_later_syncs_only_list_back_a_fortnight_before_the_last_full_one(app, linked, monkeypatch):
+def test_every_sync_lists_every_activity_so_a_late_upload_is_found(app, linked, monkeypatch):
     monkeypatch.setattr(garmin_service, "PAGE_SIZE", 5)
-    BusyGarmin.runs = 30  # three months of runs
-    _sync(app, linked)
-    assert BusyGarmin.listed[-1] >= 30  # the first sync lists everything
-    with app.app_context():
-        db.session.get(User, linked).garmin_last_synced_at = NEWEST + timedelta(days=1)
-        db.session.commit()
+    BusyGarmin.runs = 30  # three months of runs, and a swim after every third
+    assert _sync(app, linked).added == 30
+    assert BusyGarmin.listed == list(range(0, 41, 5))  # 40 activities, five to a page
     BusyGarmin.listed = []
-    assert _sync(app, linked).added == 0
-    assert BusyGarmin.listed == [0, 5]  # two pages reach back past the fortnight
+    # the watch uploads a run from two months ago only now
+    late = BusyGarmin.activities()[25]
+    BusyGarmin.late = [{**late, "activityId": 4242}]
+    assert _sync(app, linked).added == 1
+    assert BusyGarmin.listed == [*range(0, 41, 5), 41]  # and the one-run last page
 
 
-def test_a_partial_sync_keeps_the_last_full_sync_time(app, linked, monkeypatch):
+def test_a_newly_linked_account_brings_in_all_of_its_runs(app, linked):
+    assert _sync(app, linked).added == 12
+    with app.app_context():
+        account = db.session.get(User, linked)
+        garmin_service.unlink(account)
+        account.garmin_username, account.garmin_tokens = "other@example.com", TOKENS
+        db.session.commit()
+    BusyGarmin.first, BusyGarmin.runs = 3000, 30  # the other account's runs
+    assert _sync(app, linked) == garmin_service.Synced(added=30)
+
+
+def test_a_sync_that_leaves_runs_for_next_time_still_counts_as_a_sync(app, linked, monkeypatch):
     class Inline:
         def __init__(self, target, **kwargs):
             self.target = target
@@ -291,11 +323,28 @@ def test_a_partial_sync_keeps_the_last_full_sync_time(app, linked, monkeypatch):
     garmin_service.start_background_sync(app, linked)
     with app.app_context():
         account = db.session.get(User, linked)
-        assert account.garmin_sync_state == "ok" and account.garmin_last_synced_at is None
-        assert account.garmin_sync_message.startswith("11 new runs imported. 1 couldn't")
+        assert account.garmin_sync_state == "ok" and account.garmin_last_synced_at is not None
+        assert account.garmin_sync_message == (
+            "11 new runs imported. 1 couldn't be downloaded just now "
+            "and will be tried again on your next sync."
+        )
     BusyGarmin.broken = set()
     garmin_service.start_background_sync(app, linked)
     with app.app_context():
+        assert db.session.get(User, linked).garmin_sync_message == "1 new run imported."
+
+
+def test_a_sync_that_brings_nothing_in_because_garmin_is_down_failed(app, linked, monkeypatch):
+    class Inline:
+        def __init__(self, target, **kwargs):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+    monkeypatch.setattr(garmin_service, "threading", type("T", (), {"Thread": Inline}))
+    BusyGarmin.broken = {1000 + n for n in range(12)}
+    garmin_service.start_background_sync(app, linked)
+    with app.app_context():
         account = db.session.get(User, linked)
-        assert account.garmin_sync_message == "1 new run imported."
-        assert account.garmin_last_synced_at is not None
+        assert account.garmin_sync_state == "failed" and account.garmin_last_synced_at is None

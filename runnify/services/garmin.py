@@ -14,6 +14,7 @@ sticky sessions).
 
 import io
 import logging
+import re
 import secrets
 import threading
 import time
@@ -21,7 +22,7 @@ import zipfile
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from garminconnect import (
     Garmin,
@@ -148,6 +149,7 @@ def unlink(user):
     """Forget the user's Garmin account (tokens, legacy password and sync status)."""
     user.garmin_username = user.garmin_tokens = user.garmin_password = None
     user.garmin_sync_state = user.garmin_sync_message = None
+    user.garmin_last_synced_at = None  # the next account linked starts afresh
 
 
 # --- syncing -----------------------------------------------------------------
@@ -157,7 +159,6 @@ CALL_TIMEOUT = 90  # seconds one call to Garmin may take (its own retries includ
 BEAT_EVERY = 5  # seconds between heartbeats while waiting on Garmin
 BACKOFF = (60, 120, 240)  # seconds to pause each time Garmin asks Runnify to slow down
 MAX_FAILURES = 5  # downloads failing in a row before a sync stops for now
-LATE_UPLOADS = timedelta(days=14)  # how long after a run a watch may still upload it
 RETRY_LATER = object()  # a download that stalled or failed, for the next sync
 
 
@@ -223,6 +224,18 @@ def _fetch(client, activity_id):
     except Exception as error:  # the file is Garmin's to vouch for: keep the run without samples
         logger.warning("Could not read FIT data for activity %s: %s", activity_id, error)
         return None
+
+
+_STATUS = re.compile(r"(?:error \(|Error |HTTP )([1-5]\d\d)\b")
+
+
+def _status(error):
+    """The HTTP status behind a garminconnect error, when it says (``None`` if not)."""
+    status = getattr(getattr(error, "response", None), "status_code", None)
+    if isinstance(status, int):
+        return status
+    match = _STATUS.search(str(error))
+    return int(match.group(1)) if match else None
 
 
 def _await(future, seconds, beat):
@@ -306,8 +319,12 @@ class _Garmin:
             except GarminConnectNotFoundError:  # nothing to download
                 series = None
             except GarminConnectConnectionError as error:
-                logger.warning("Could not download activity %s: %s", activity_id, error)
-                series = RETRY_LATER
+                if 400 <= (_status(error) or 0) < 500:  # refused for good: asking again won't help
+                    logger.warning("Garmin refused activity %s for good: %s", activity_id, error)
+                    series = None
+                else:  # Garmin's servers or the network: worth another try next time
+                    logger.warning("Could not download activity %s: %s", activity_id, error)
+                    series = RETRY_LATER
             if series is RETRY_LATER:
                 failures += 1
                 if failures >= MAX_FAILURES:
@@ -336,20 +353,17 @@ def _utc_offset(local_text, started_utc):
     return minutes if abs(minutes) <= 14 * 60 else None
 
 
-def _started(activity):
-    """When ``activity`` started (naive UTC), or ``None`` if Garmin didn't say."""
-    try:
-        return datetime.strptime(activity.get("startTimeGMT") or "", GARMIN_TIME)
-    except ValueError:
-        return None
-
-
 def _is_run(activity):
     return "running" in (activity.get("activityType") or {}).get("typeKey", "")
 
 
-def _list_runs(garmin, client, back_to, say):
-    """Every running activity Garmin lists, newest first, back to ``back_to`` when given."""
+def _list_runs(garmin, client, say):
+    """Every running activity Garmin lists, newest first.
+
+    Every sync lists them all, 100 to a request: it costs little next to the
+    downloads, and nothing waiting (a run uploaded late, one left for the next
+    sync, a newly linked account's) can be missed.
+    """
     runs, seen, start = [], set(), 0
     while page := garmin.call(client.get_activities, start, PAGE_SIZE):
         for activity in page:
@@ -359,9 +373,6 @@ def _list_runs(garmin, client, back_to, say):
                 runs.append(activity)
         start += len(page)
         say(f"Looking for new runs: {start:,} activities checked")
-        oldest = _started(page[-1])
-        if back_to and oldest and oldest < back_to:
-            break
     return runs
 
 
@@ -415,15 +426,15 @@ def _reporter(progress):
 def fetch_and_store_garmin_activities(user, progress=None, workers=DOWNLOAD_WORKERS):
     """Download the runner's new runs from Garmin and store each with its samples and laps.
 
-    Lists the runner's activities (back to a fortnight before the last full
-    sync, so a run a watch uploads late is still found), skips anything that
-    isn't a run or is already stored, then downloads the rest a few at a time
-    (see :class:`_Garmin`), storing and committing each run as it arrives,
-    newest first. A download that stalls or fails is left for the next sync
-    rather than stored without its samples. Each run's laps are judged against
-    the runner's usual pace over every run, new ones included. Afterwards every
-    run's type is worked out again, the (possibly refreshed) Garmin tokens are
-    saved and any legacy stored password is erased.
+    Lists all of the runner's activities, skips anything that isn't a run or is
+    already stored, then downloads the rest a few at a time (see
+    :class:`_Garmin`), storing and committing each run as it arrives, newest
+    first. A download that stalls, or fails on Garmin's side, is left for the
+    next sync rather than stored without its samples; one Garmin has no file
+    for, or refuses outright (a 4xx), is kept without them. Each run's laps are
+    judged against the runner's usual pace over every run, new ones included.
+    Afterwards every run's type is worked out again, the (possibly refreshed)
+    Garmin tokens are saved and any legacy stored password is erased.
 
     Args:
         user: The ``User`` to sync.
@@ -450,15 +461,9 @@ def fetch_and_store_garmin_activities(user, progress=None, workers=DOWNLOAD_WORK
                 Run.activity_id, Run.id, Run.date_time, Run.utc_offset, Run.duration, Run.distance
             ).filter(Run.user_id == user_id)
         }
-        # runs stored before local times were kept need the whole list, to fill theirs in
-        complete = user.garmin_last_synced_at
-        if complete and all(offset is not None for _, _, offset, _ in stored.values()):
-            back_to = complete - LATE_UPLOADS
-        else:
-            back_to = None
         say("Looking for new runs")
         new = {}
-        for activity in _list_runs(garmin, client, back_to, say):
+        for activity in _list_runs(garmin, client, say):
             activity_id = str(activity["activityId"])
             if activity_id not in stored:
                 new[activity_id] = activity
@@ -549,29 +554,31 @@ def refetch_runs(user, workers=DOWNLOAD_WORKERS, progress=None):
 
 
 def _summary(synced):
-    """What a finished sync tells the runner, and whether it went ``"ok"`` or ``"failed"``."""
+    """How a finished sync went (``"ok"`` or ``"failed"``) and what it tells the runner."""
     added, left = synced.added, synced.left
     imported = f"{added} new run{'s' if added != 1 else ''} imported."
     if not left:
         return "ok", imported
-    waiting = f"{left:,} new run{'s' if left != 1 else ''}"
-    if added and synced.why == "busy":
-        more = f"{left:,} more" if left != 1 else "1 more"
-        return (
-            "ok",
-            f"{imported} Garmin asked Runnify to slow down, so {more} will come in on your next sync.",
-        )
-    if added:
-        return (
-            "ok",
-            f"{imported} {left:,} couldn't be downloaded just now and will come in on your next sync.",
-        )
     if synced.why == "busy":
-        return (
-            "failed",
-            f"Garmin asked Runnify to slow down before any runs came in. Sync again in a while for your {waiting}.",
+        if not added:
+            return "failed", (
+                "Garmin asked Runnify to slow down before any runs came in. "
+                f"Sync again in a while for your {left:,} new run{'s' if left != 1 else ''}."
+            )
+        return "ok", (
+            f"{imported} Garmin asked Runnify to slow down, "
+            f"so {left:,} more will come in on your next sync."
         )
-    return "failed", f"Garmin couldn't send your {waiting} just now. Please sync again later."
+    if synced.why == "unreachable" and not added:
+        return "failed", (
+            f"Garmin couldn't send your {left:,} new run{'s' if left != 1 else ''} just now. "
+            "Please sync again later."
+        )
+    waiting = "1 couldn't" if left == 1 else f"{left:,} couldn't"
+    return "ok", (
+        f"{imported if added else 'No new runs imported.'} {waiting} be downloaded just now "
+        "and will be tried again on your next sync."
+    )
 
 
 def start_background_sync(app, user_id):
@@ -601,8 +608,9 @@ def start_background_sync(app, user_id):
                 )
             else:
                 user = db.session.get(User, user_id)
-                jobs.end(user, "garmin", *_summary(synced))
-                if not synced.left:  # a full sync: the next one needn't look as far back
+                state, message = _summary(synced)
+                jobs.end(user, "garmin", state, message)
+                if state == "ok":
                     user.garmin_last_synced_at = utcnow()
             db.session.commit()
 

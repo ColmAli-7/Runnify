@@ -76,10 +76,10 @@ and evolve the schema; a test fails if the models and migrations ever drift apar
    half-finished sign-in waits in memory for five minutes. Runnify stores the
    resulting session tokens, encrypted with Fernet, and never the password.
 2. **Syncing** runs on a background thread with its own app context
-   (`services/garmin.start_background_sync`). It lists the activities 100 at a
-   time (a later sync only back to a fortnight before the last full one, so a
-   run the watch uploads late is still found), skips anything that isn't a run
-   or is already stored, and downloads the rest three at a time on worker
+   (`services/garmin.start_background_sync`). It lists every activity, 100 to a
+   request (so a run the watch uploads late, or one left from a sync that
+   couldn't finish, is always found), skips anything that isn't a run or is
+   already stored, and downloads the rest three at a time on worker
    threads (`_Garmin.downloads`) while the job's own thread stores each run as
    it arrives, newest first: its FIT file read in memory, its stream, and its
    laps and kind (`services/laps.refresh_laps`), judged against the runner's
@@ -89,14 +89,15 @@ and evolve the schema; a test fails if the models and migrations ever drift apar
    `garmin_sync_message`; see [Background jobs](#background-jobs)).
    - **A stalling Garmin.** Every call (sign-in, listing, each download) may
      take 90 seconds at most, and the job keeps reporting while it waits. A
-     download that stalls or fails is left for the next sync rather than
-     stored without its samples; a run Garmin has no file for is kept without
-     one. Five failures in a row stop the sync for now.
+     download that stalls, or fails on Garmin's side (a 5xx) or the network's,
+     is left for the next sync rather than stored without its samples; a run
+     Garmin has no file for (404) or refuses outright (another 4xx) is kept
+     without one. Five failures in a row stop the sync for now.
    - **Slowing down.** When Garmin answers "too many requests" (429), the
      downloads pause for a minute, then two, then four, and carry on one at a
-     time; a fourth refusal stops the sync for now. The rest come in on the
-     next sync, and the last full sync time only moves on once nothing is
-     left.
+     time; a fourth refusal stops the sync for now, and the rest come in on
+     the next one. A sync that stops before bringing anything in counts as
+     failed.
 3. **Parsing** (`services/fit.py`). Runnify reads the `record` and `lap`
    messages itself, with one precompiled `struct` per message definition that
    reads the fields it uses and steps over the rest, giving exactly
