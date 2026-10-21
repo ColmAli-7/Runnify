@@ -89,22 +89,21 @@ def usable_kinds(kinds):
     return usable
 
 
-def _heart(series, indexes):
-    """Heart rate ``HR_LAG`` seconds after each of ``indexes``, leaving out cadence lock."""
+def _lagged_heart(series):
+    """Heart rate ``HR_LAG`` seconds after each sample (``None`` if missing or cadence lock)."""
     heart_rates, cadences = series.heart_rates, series.cadences
-    found = []
-    for i in indexes:
+    lagged = []
+    for i in range(len(series.timestamps)):
         j = i + HR_LAG
-        if j >= len(heart_rates) or heart_rates[j] is None:
-            continue
-        if (
-            cadences
+        missing = j >= len(heart_rates) or heart_rates[j] is None
+        locked = (
+            not missing
+            and cadences
             and cadences[j] is not None
             and abs(heart_rates[j] - cadences[j]) <= CADENCE_LOCK
-        ):
-            continue
-        found.append(heart_rates[j])
-    return found
+        )
+        lagged.append(None if missing or locked else heart_rates[j])
+    return lagged
 
 
 def effort_charge(pace_change, hr_delta, context_pace, context_hr):
@@ -123,11 +122,12 @@ def effort_charge(pace_change, hr_delta, context_pace, context_hr):
 class RunScorer:
     """One run's samples, prepared once for measuring any number of its songs.
 
-    The usable seconds of each kind of lap and the spread of their paces are
-    worked out once per run instead of once per song, and a song's seconds and
-    the minutes around it are found by bisecting the timestamps instead of
-    scanning the whole run, so a run with twenty songs scores as quickly as one
-    with a single song. The results are exactly those of :func:`song_effect`.
+    The usable seconds of each kind of lap, the spread of their paces and the
+    lagged heart rate are worked out once per run instead of once per song,
+    and a song's seconds and the minutes around it are found by bisecting the
+    timestamps instead of scanning the whole run, so a run with twenty songs
+    scores as quickly as one with a single song. The results are exactly those
+    of :func:`song_effect`.
 
     Args:
         series: The run's :class:`~runnify.services.fit.Series`.
@@ -140,6 +140,7 @@ class RunScorer:
         self.usable = usable_kinds(kinds) if kinds is not None else None
         timestamps = series.timestamps
         self._in_order = all(a <= b for a, b in pairwise(timestamps))
+        self._heart = _lagged_heart(series)
         self._alike = {}  # kind -> the indexes of its usable seconds
         self._spread = {}  # kind (None: the whole run) -> robust spread of its paces
 
@@ -233,7 +234,9 @@ class RunScorer:
         spread = self._spread_of(kind, alike)
         pace_change = median(context_paces) - median(song_paces)  # positive = faster during it
 
-        song_hr, context_hr = _heart(series, inside), _heart(series, near)
+        heart = self._heart
+        song_hr = [heart[i] for i in inside if heart[i] is not None]
+        context_hr = [heart[i] for i in near if heart[i] is not None]
         hr_delta = median(song_hr) - median(context_hr) if song_hr and context_hr else None
         charge = None
         if kind in CHARGED_KINDS:

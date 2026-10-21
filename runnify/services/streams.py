@@ -77,15 +77,18 @@ def decode(blob, started_at, spread=True):
     here, unless ``spread`` is false (the data export gives them as stored).
     """
     payload = json.loads(zlib.decompress(blob))
+    offsets = payload["t"]
     series = Series(
-        timestamps=[started_at + timedelta(seconds=s) for s in payload["t"]],
+        timestamps=[started_at + timedelta(seconds=s) for s in offsets],
         heart_rates=payload["h"],
         paces=payload["p"],
         cadences=payload.get("c", []),
         distances=_totals(payload.get("d", [])),
         laps=[WatchLap(*lap) for lap in payload.get("l", [])],
     )
-    return at_one_hertz(series) if spread else series
+    # already one a second (every stream stored since format 2): nothing to spread
+    each_second = not offsets or offsets == list(range(offsets[0], offsets[0] + len(offsets)))
+    return at_one_hertz(series) if spread and not each_second else series
 
 
 def save_stream(run, series):
