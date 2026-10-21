@@ -7,6 +7,7 @@
  */
 const EVERY = 2000; // ms between checks while a job runs
 const QUIET = 10000; // ms to wait after a check that failed (offline for a moment, say)
+const PATIENCE = 30; // checks in a row that may fail (five minutes) before giving up
 
 const watched = [...document.querySelectorAll("[data-job]")];
 const kinds = new Set(watched.map((element) => element.dataset.job));
@@ -16,6 +17,7 @@ const reloads = new Set(
   ),
 );
 const url = watched[0]?.dataset.jobsUrl;
+let failures = 0;
 
 // "Scoring the songs on your runs: 3 of 12" is at the stage "Scoring the songs on your runs"
 const stageOf = (message) => (message || "").split(":")[0];
@@ -85,10 +87,13 @@ async function check() {
   let jobs;
   try {
     const response = await fetch(url, { headers: { Accept: "application/json" } });
+    if (response.redirected) return; // signed out (or asked to agree to new terms): stop asking
     if (!response.ok) throw new Error(`status ${response.status}`);
     jobs = await response.json();
+    failures = 0;
   } catch {
-    window.setTimeout(check, QUIET);
+    failures += 1;
+    if (failures < PATIENCE) window.setTimeout(check, QUIET);
     return;
   }
   for (const kind of [...kinds]) {
