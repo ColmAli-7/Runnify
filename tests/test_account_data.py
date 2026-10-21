@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from runnify.extensions import db, mail
 from runnify.models import (
     FriendRequest,
+    Playlist,
+    PlaylistTrack,
     Run,
     RunLap,
     RunSongAnalysis,
@@ -153,6 +155,14 @@ def test_export_needs_the_password(auth_client):
 
 def test_deleting_removes_everything_personal(app, auth_client, user):
     other = _seed(app, user)
+    with app.app_context():  # a song the friend keeps in a playlist
+        playlist = Playlist(user_id=other, name="Theirs", session="easy", target_minutes=30)
+        db.session.add_all([playlist, Song(id="theirs", name="Kept", artist="Artist")])
+        db.session.flush()
+        db.session.add(
+            PlaylistTrack(playlist_id=playlist.id, position=0, song_id="theirs", seconds=200)
+        )
+        db.session.commit()
     with mail.record_messages() as outbox:
         response = auth_client.post("/settings/delete", data={"password": PASSWORD, "confirm": "y"})
     assert response.headers["Location"] == "/"
@@ -170,7 +180,8 @@ def test_deleting_removes_everything_personal(app, auth_client, user):
         ):
             assert model.query.count() == 0, model.__name__
         assert db.session.get(User, other) is not None  # the friend's account is untouched
-        assert db.session.get(Song, "trk") is not None  # the shared catalogue is kept
+        assert db.session.get(Song, "trk") is None  # nobody else's runs used it
+        assert db.session.get(Song, "theirs") is not None  # still in the friend's playlist
     assert not (pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user)).exists()
     assert auth_client.get("/dashboard").status_code == 302  # signed out
 

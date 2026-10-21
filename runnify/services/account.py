@@ -2,9 +2,10 @@
 
 The export never includes secrets (password hash, tokens, two-step secrets).
 Each run's samples are exported as they are stored, one list a channel.
-Deletion removes every personal row and the user's stored FIT files; the
-shared song catalogue (track names and artists) is not personal data and is
-kept.
+Deletion removes every personal row and the user's stored FIT files, then
+any song in the shared catalogue that no one's plays or playlists use any
+more, so the catalogue only ever holds songs that played during someone's
+runs.
 """
 
 import json
@@ -12,7 +13,7 @@ import shutil
 from pathlib import Path
 
 from flask import current_app
-from sqlalchemy import delete, or_
+from sqlalchemy import delete, or_, select
 
 from runnify.extensions import db
 from runnify.models import (
@@ -231,4 +232,12 @@ def delete_account(user):
     db.session.execute(delete(Playlist).where(Playlist.user_id == user.id))
     db.session.execute(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
     db.session.execute(delete(SecurityEvent).where(SecurityEvent.user_id == user.id))
+    remove_unused_songs()
     db.session.delete(user)
+
+
+def remove_unused_songs():
+    """Delete catalogue songs that no play and no playlist uses any more (the caller commits)."""
+    played = select(UserSongHistory.song_id).where(UserSongHistory.song_id.isnot(None))
+    listed = select(PlaylistTrack.song_id)
+    db.session.execute(delete(Song).where(Song.id.not_in(played), Song.id.not_in(listed)))
