@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% from "macros/ui.html" import icon, wordmark, notices, csrf, theme_switch %}
+{% from "macros/ui.html" import icon, wordmark, notices, csrf, theme_switch, job_notices %}
 
 {% set nav_items = [
   ("dashboard.index", "/dashboard", "Dashboard", "grid"),
@@ -50,9 +50,12 @@
 <main id="main" class="app-main">
   <div class="container">
     {{ notices() }}
+    {# the Import and Connections pages show their jobs in full #}
+    {{ job_notices(jobs, hide={"imports.index": ["history"], "connections.index": ["garmin", "history"]}.get(request.endpoint, [])) }}
     {% block content %}{% endblock %}
   </div>
 </main>
+<script type="module" src="{{ url_for('static', filename='js/jobs.js') }}"></script>
 {% endblock %}
 
 {% block footer %}

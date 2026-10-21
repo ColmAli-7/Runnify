@@ -95,6 +95,11 @@
     background: var(--drag-soft);
   }
 
+  .upload__error {
+    color: var(--drag);
+    font-weight: 500;
+  }
+
   .upload__blocked {
     padding: 0;
   }

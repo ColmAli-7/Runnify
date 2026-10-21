@@ -67,7 +67,7 @@
     </header>
     <div class="card__body">
       {% if state == "running" %}
-        <div class="upload__status" role="status">
+        <div class="upload__status" data-job-reload="history">
           {{ job_progress(history_job) }}
           <p>Matched songs appear on your runs as soon as it finishes. You can leave this page.</p>
         </div>
@@ -84,7 +84,7 @@
           <a class="btn btn--primary" href="{{ url_for('connections.index') }}">Connect Garmin</a>
         </div>
       {% else %}
-        <form class="form" method="post" enctype="multipart/form-data" data-upload>
+        <form class="form" method="post" enctype="multipart/form-data" data-upload data-max-bytes="{{ config.MAX_CONTENT_LENGTH }}">
           {{ csrf() }}
           <label class="dropzone" data-dropzone>
             <input class="dropzone__input" type="file" name="history_zip" accept=".zip,application/zip" required data-file>
@@ -93,6 +93,12 @@
             <span class="dropzone__hint">or drop it here. Up to {{ config.MAX_CONTENT_LENGTH // (1024 * 1024) }} MB.</span>
           </label>
           <p><button class="btn btn--primary btn--lg" type="submit"{% if state == "running" %} disabled{% endif %}>Upload and import</button></p>
+          <div class="job upload__sending" data-upload-progress hidden>
+            <span class="job__message" data-upload-message>Uploading</span>
+            <progress class="job__bar" max="100" data-upload-bar aria-label="Uploading"></progress>
+            <span class="visually-hidden" aria-live="polite" data-upload-announce></span>
+          </div>
+          <p class="upload__error" role="alert" data-upload-error hidden></p>
         </form>
       {% endif %}
 

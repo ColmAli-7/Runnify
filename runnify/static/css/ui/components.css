@@ -717,6 +717,27 @@
     color: var(--text);
   }
 
+  /* a background job running: its title, then what it is doing over a bar */
+  .notice__body {
+    display: grid;
+    gap: var(--s-2);
+    min-width: 0;
+    padding-top: 1px;
+  }
+
+  .notice__title {
+    font-weight: 600;
+  }
+
+  .notice--job > .icon {
+    color: var(--text-2);
+  }
+
+  .notice .job__message {
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+  }
+
   @keyframes notice-in {
     from {
       opacity: 0;

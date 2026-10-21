@@ -103,13 +103,38 @@
 {%- endmacro %}
 
 {#- A running background job (services.jobs.Job): what it is doing, and a bar that fills
-    once how far it has got is known. js/jobs.js keeps both up to date. -#}
+    once how far it has got is known. js/jobs.js keeps both moving, and announces a new
+    stage or the end in the hidden live region rather than every step. -#}
 {% macro job_progress(job) -%}
-<span class="job" data-job="{{ job.kind }}">
-  <span class="job__message" data-job-message>{{ job.message or "Getting started" }}</span>
-  <progress class="job__bar" max="100" data-job-bar{% if job.percent is not none %} value="{{ job.percent }}"{% endif %} aria-label="{{ job.message or 'Getting started' }}">{% if job.percent is not none %}{{ job.percent }}%{% endif %}</progress>
+{%- set doing = job.message or "Getting started" -%}
+<span class="job" data-job="{{ job.kind }}" data-jobs-url="{{ url_for('jobs.status') }}">
+  <span class="job__message" data-job-message>{{ doing }}</span>
+  <progress class="job__bar" max="100" data-job-bar{% if job.percent is not none %} value="{{ job.percent }}"{% endif %} aria-label="{{ doing }}">{% if job.percent is not none %}{{ job.percent }}%{% endif %}</progress>
+  <span class="visually-hidden" aria-live="polite" data-job-announce></span>
 </span>
 {%- endmacro %}
+
+{#- A notice on every signed-in page while a job runs, which says how it ended if it ends
+    while the page is open. Pages that show the job in full leave it out (``hide``). -#}
+{% macro job_notices(jobs, hide=()) %}
+  {% set running = jobs.values()|selectattr("running")|rejectattr("kind", "in", hide)|list %}
+  {% if running %}
+    <div class="notices">
+      {% for job in running %}
+        {% set garmin = job.kind == "garmin" %}
+        <div class="notice notice--job" data-job-notice="{{ job.kind }}" data-ended-failed="{{ 'The Garmin sync stopped before it finished.' if garmin else 'The import stopped before it finished.' }}">
+          {{ icon("sync" if garmin else "music") }}
+          <div class="notice__body">
+            <p class="notice__title" data-job-title>{{ "Syncing your runs from Garmin" if garmin else "Importing your Spotify history" }}</p>
+            {{ job_progress(job) }}
+            <p data-job-done hidden><a href="{{ url_for('runs.index') if garmin else url_for('insights.index') }}">{{ "See your runs" if garmin else "See your songs" }}</a></p>
+          </div>
+          <button type="button" class="notice__close" data-dismiss aria-label="Dismiss message">{{ icon("close") }}</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}
 
 {#- A ring that fills as set-up steps are done. -#}
 {% macro progress_ring(done, total, label) -%}

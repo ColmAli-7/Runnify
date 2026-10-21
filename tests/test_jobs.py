@@ -1,5 +1,6 @@
 """Background jobs: progress, interruptions and the JSON the pages poll."""
 
+import io
 import os
 import pathlib
 import time
@@ -128,3 +129,35 @@ def test_uploads_an_interrupted_import_left_behind_are_swept(app, tmp_path):
     os.utime(old, (long_ago, long_ago))
     imports._sweep(folder)
     assert not old.exists() and recent.exists()
+
+
+def test_a_running_job_has_a_notice_on_other_pages_only(app, auth_client, user):
+    with app.app_context():
+        jobs.Progress(user, "garmin").report("Bringing in your runs: 4 new so far")
+        jobs.Progress(user, "history").report("Reading your listening history: 10%", 10, 100)
+    dashboard = auth_client.get("/dashboard").get_data(as_text=True)
+    assert 'data-job-notice="garmin"' in dashboard and 'data-job-notice="history"' in dashboard
+    assert "Bringing in your runs: 4 new so far" in dashboard and "js/jobs.js" in dashboard
+    upload_page = auth_client.get("/import").get_data(as_text=True)
+    assert 'data-job-notice="garmin"' in upload_page
+    assert 'data-job-notice="history"' not in upload_page  # the page shows it in full
+    connections = auth_client.get("/connections").get_data(as_text=True)
+    assert (
+        "data-job-notice" not in connections and 'data-job-reload="garmin history"' in connections
+    )
+
+
+def test_no_notice_once_a_job_has_ended(app, auth_client, user):
+    _set(app, user, garmin_sync_state="ok", garmin_sync_message="2 new runs imported.")
+    assert b"data-job-notice" not in auth_client.get("/dashboard").data
+
+
+def test_scripted_uploads_learn_where_to_go(app, auth_client, user):
+    response = auth_client.post(
+        "/import",
+        data={"history_zip": (io.BytesIO(b"x"), "history.json")},
+        content_type="multipart/form-data",
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 200 and response.json == {"location": "/import"}
+    assert b"Choose the .zip file" in auth_client.get("/import").data  # the message waits there
