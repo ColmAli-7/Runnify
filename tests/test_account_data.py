@@ -4,6 +4,8 @@ import json
 import pathlib
 from datetime import datetime, timedelta
 
+import pytest
+
 from runnify.extensions import db, mail
 from runnify.models import (
     FriendRequest,
@@ -22,7 +24,7 @@ from runnify.security.passwords import hash_password
 from runnify.services import account
 from runnify.services.account import json_chunks, to_json
 from runnify.services.fit import Series, WatchLap
-from runnify.services.streams import save_stream
+from runnify.services.streams import decode, save_stream
 from tests.conftest import PASSWORD
 from tests.factories import START, make_scored_run
 
@@ -132,6 +134,64 @@ def test_export_gives_each_runs_recording_as_stored(app, auth_client, user):
     assert unrecorded["garmin_activity_id"] == "43"
     assert "samples" not in unrecorded and "watch_laps" not in unrecorded
     assert '"seconds": [0,2,4],' in response.get_data(as_text=True)  # a channel to a line
+
+
+def test_export_is_sent_as_it_is_written_a_run_at_a_time(app, auth_client, user, monkeypatch):
+    with app.app_context():
+        for day in range(3):
+            make_scored_run(user, start=START + timedelta(days=day), activity_id=f"run-{day}")
+    decoded = []
+
+    def counting_decode(*args, **kwargs):
+        decoded.append(args[1])
+        return decode(*args, **kwargs)
+
+    monkeypatch.setattr(account, "decode", counting_decode)
+    monkeypatch.setattr(account, "CHUNK_SIZE", 100)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    assert "Content-Length" not in response.headers  # streamed, not built first
+    seen, body = [], b""
+    for chunk in response.response:
+        seen.append(len(decoded))
+        body += chunk
+    assert sorted(set(seen)) == [0, 1, 2, 3]  # pieces went out before, between and after the runs
+    assert [run["garmin_activity_id"] for run in json.loads(body)["runs"]] == [
+        "run-0",
+        "run-1",
+        "run-2",
+    ]
+
+
+def test_each_download_is_logged_before_it_is_sent(app, auth_client, user):
+    first = auth_client.post("/settings/export", data={"password": PASSWORD})
+    with app.app_context():  # committed by the view: nothing streamed writes
+        assert SecurityEvent.query.filter_by(user_id=user, kind="data_exported").count() == 1
+    assert json.loads(first.data)["security_activity"] == []  # a download doesn't list itself
+    second = json.loads(auth_client.post("/settings/export", data={"password": PASSWORD}).data)
+    assert [event["event"] for event in second["security_activity"]] == ["Account data downloaded"]
+
+
+def test_a_download_failing_part_way_is_logged_and_never_valid_json(
+    app, auth_client, user, monkeypatch
+):
+    _seed(app, user)
+
+    def unreadable(*args, **kwargs):
+        raise ValueError("stored stream unreadable")
+
+    monkeypatch.setattr(account, "decode", unreadable)
+    monkeypatch.setattr(account, "CHUNK_SIZE", 100)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    assert response.status_code == 200  # on its way before the failure
+    received = []
+    with pytest.raises(ValueError, match="unreadable"):  # not swallowed: the server drops the line
+        for chunk in response.response:
+            received.append(chunk)
+    assert received
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(b"".join(received))
+    with app.app_context():
+        assert SecurityEvent.query.filter_by(user_id=user, kind="data_exported").count() == 1
 
 
 def test_export_reads_the_history_a_batch_at_a_time(app, user, monkeypatch):
