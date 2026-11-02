@@ -61,8 +61,13 @@ proxy. Sessions and the remember-me cookie are `Secure`, `HttpOnly` and
 - Sign up, connect Garmin and upload a Spotify history zip to check the
   background jobs, the email settings and the Spotify callback.
 - Rotating `FERNET_KEY`: set `FERNET_KEYS` to `new-key,old-key`; new values use
-  the first key and old values still decrypt. Remove the old key once every
-  user's tokens have been re-saved (each Garmin sync re-saves them).
+  the first key and old values still decrypt. Then re-save everything stored
+  under the old key with the Render shell:
+  `uv run flask --app runnify secrets reencrypt`. Syncs alone aren't enough:
+  they re-save only the Garmin tokens, and a two-step secret is saved once, at
+  set-up. Remove the old key only once the command finishes without naming any
+  value it couldn't decrypt; a value left under a removed key fails every page
+  that loads that runner.
 - After a scoring change, re-measure every run with the Render shell:
   `uv run flask --app runnify scores rebuild`. It also works out each run's
   laps again (keeping any the runner set).
