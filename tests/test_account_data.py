@@ -4,6 +4,8 @@ import json
 import pathlib
 from datetime import datetime, timedelta
 
+import pytest
+
 from runnify.extensions import db, mail
 from runnify.models import (
     FriendRequest,
@@ -20,10 +22,12 @@ from runnify.models import (
     UserSongHistory,
 )
 from runnify.security.passwords import hash_password
-from runnify.services.account import to_json
+from runnify.services import account
+from runnify.services.account import json_chunks, to_json
 from runnify.services.fit import Series, WatchLap
-from runnify.services.streams import save_stream
+from runnify.services.streams import decode, save_stream
 from tests.conftest import PASSWORD
+from tests.factories import START, make_scored_run
 
 CHROME = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -148,7 +152,9 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
         }
     ]
     assert data["song_plays_during_runs"][0]["track"] == "Song"
+    assert data["song_plays_during_runs"][0]["garmin_activity_id"] == "42"
     assert data["song_scores"][0]["score"] == 61.5
+    assert data["song_scores"][0]["garmin_activity_id"] == "42"
     text = response.get_data(as_text=True)
     with app.app_context():
         session_token = db.session.get(User, user).session_token
@@ -249,6 +255,80 @@ def test_export_gives_each_runs_recording_as_stored(app, auth_client, user):
     assert '"seconds": [0,2,4],' in response.get_data(as_text=True)  # a channel to a line
 
 
+def test_export_is_sent_as_it_is_written_a_run_at_a_time(app, auth_client, user, monkeypatch):
+    with app.app_context():
+        for day in range(3):
+            make_scored_run(user, start=START + timedelta(days=day), activity_id=f"run-{day}")
+    decoded = []
+
+    def counting_decode(*args, **kwargs):
+        decoded.append(args[1])
+        return decode(*args, **kwargs)
+
+    monkeypatch.setattr(account, "decode", counting_decode)
+    monkeypatch.setattr(account, "CHUNK_SIZE", 100)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    assert "Content-Length" not in response.headers  # streamed, not built first
+    seen, body = [], b""
+    for chunk in response.response:
+        seen.append(len(decoded))
+        body += chunk
+    assert sorted(set(seen)) == [0, 1, 2, 3]  # pieces went out before, between and after the runs
+    assert [run["garmin_activity_id"] for run in json.loads(body)["runs"]] == [
+        "run-0",
+        "run-1",
+        "run-2",
+    ]
+
+
+def test_each_download_is_logged_before_it_is_sent(app, auth_client, user):
+    first = auth_client.post("/settings/export", data={"password": PASSWORD})
+    with app.app_context():  # committed by the view: nothing streamed writes
+        assert SecurityEvent.query.filter_by(user_id=user, kind="data_exported").count() == 1
+    assert json.loads(first.data)["security_activity"] == []  # a download doesn't list itself
+    second = json.loads(auth_client.post("/settings/export", data={"password": PASSWORD}).data)
+    assert [event["event"] for event in second["security_activity"]] == ["Account data downloaded"]
+
+
+def test_a_download_failing_part_way_is_logged_and_never_valid_json(
+    app, auth_client, user, monkeypatch
+):
+    _seed(app, user)
+
+    def unreadable(*args, **kwargs):
+        raise ValueError("stored stream unreadable")
+
+    monkeypatch.setattr(account, "decode", unreadable)
+    monkeypatch.setattr(account, "CHUNK_SIZE", 100)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    assert response.status_code == 200  # on its way before the failure
+    received = []
+    with pytest.raises(ValueError, match="unreadable"):  # not swallowed: the server drops the line
+        for chunk in response.response:
+            received.append(chunk)
+    assert received
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(b"".join(received))
+    with app.app_context():
+        assert SecurityEvent.query.filter_by(user_id=user, kind="data_exported").count() == 1
+
+
+def test_export_reads_the_history_a_batch_at_a_time(app, user, monkeypatch):
+    monkeypatch.setattr(account, "RUN_BATCH", 2)
+    monkeypatch.setattr(account, "ROW_BATCH", 3)
+    names = [f"run-{day}" for day in range(5)]
+    with app.app_context():
+        for day, name in enumerate(names):
+            make_scored_run(user, start=START + timedelta(days=day), activity_id=name)
+        data = json.loads(to_json(account.export_data(db.session.get(User, user))))
+    assert [run["garmin_activity_id"] for run in data["runs"]] == names
+    assert all(len(run["samples"]["seconds"]) == 20 * 60 for run in data["runs"])
+    plays = [play["garmin_activity_id"] for play in data["song_plays_during_runs"]]
+    assert plays == [name for name in names for _ in range(4)]  # four songs a run
+    scores = [score["garmin_activity_id"] for score in data["song_scores"]]
+    assert scores == sorted(scores) and set(scores) == set(names)
+
+
 def test_to_json_puts_each_list_of_plain_values_on_one_line():
     value = {"runs": [{"seconds": [0, 1], "laps": [], "workout": None}], "friends": ["Ann"]}
     text = to_json(value)
@@ -265,6 +345,26 @@ def test_to_json_puts_each_list_of_plain_values_on_one_line():
         '  "friends": ["Ann"]\n'
         "}"
     )
+
+
+def test_json_chunks_add_up_to_to_json_reading_each_list_as_they_reach_it(monkeypatch):
+    monkeypatch.setattr(account, "CHUNK_SIZE", 16)
+    runs = [{"seconds": [0, 1], "laps": [], "workout": None}, {"samples": {"pace": [300.5, None]}}]
+    read = []
+
+    def runs_as_read():
+        for run in runs:
+            read.append(run)
+            yield run
+
+    value = {"exported_at": "2026-11-02T12:00:00Z", "runs": runs_as_read(), "ids": iter([1, 2])}
+    chunks = json_chunks(value)
+    first = next(chunks)
+    assert read == []  # the runs wait until the text reaches them
+    chunks = [first, *chunks]
+    assert "".join(chunks) == to_json({**value, "runs": runs, "ids": [1, 2]})
+    assert all(len(chunk) >= 16 for chunk in chunks[:-1])
+    assert to_json({"empty": iter([])}) == '{\n  "empty": []\n}'
 
 
 def test_export_needs_the_password(auth_client):

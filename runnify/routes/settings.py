@@ -1,6 +1,16 @@
 """Account management: name, password, two-step verification and signed-in devices."""
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    Response,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    stream_with_context,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 
 from runnify.extensions import db, limiter
@@ -168,7 +178,14 @@ def new_recovery_codes():
 @login_required
 @limiter.limit(limit_from_config("ACCOUNT_CHANGE"), key_func=user_or_ip)
 def export_data():
-    """Download everything Runnify holds about the user as JSON (password required)."""
+    """Download everything Runnify holds about the user as JSON (password required).
+
+    The file is streamed, written a run at a time as it is sent. The download
+    is logged and committed before anything is sent, so one cut short still
+    shows in the security activity. A failure part way can't change the status
+    any more: the connection is dropped, and the file so far, missing its
+    closing brackets, isn't valid JSON.
+    """
     form = PasswordConfirmForm()
     if (
         not form.validate_on_submit()
@@ -176,11 +193,11 @@ def export_data():
     ):
         flash("Your current password is incorrect.", "error")
         return redirect(url_for("settings.index"))
-    payload = account_service.export_data(current_user)
+    payload = account_service.export_data(current_user)  # the runs are read as they are sent
     audit.record(current_user, "data_exported")
     db.session.commit()
     return Response(
-        account_service.to_json(payload),
+        stream_with_context(account_service.json_chunks(payload)),
         mimetype="application/json",
         headers={"Content-Disposition": 'attachment; filename="runnify-data.json"'},
     )

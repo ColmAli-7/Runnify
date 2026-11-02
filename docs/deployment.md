@@ -87,6 +87,14 @@ proxy. Sessions and the remember-me cookie are `Secure`, `HttpOnly` and
   the same file again takes seconds. A first Garmin sync spends
   nearly all its time waiting on Garmin, three downloads at once: with Garmin
   taking 0.8 s a file, about a third of a second a run.
+- **The data download** (Settings, Download your data) is streamed, written
+  a run at a time as it is sent, so it takes about 4 MB of memory however long
+  the history; built whole, it took about 0.7 MB an hour of running, so 700 MB
+  for 1,000 hours. With all five channels the file is about 85 KB, and 6 ms of
+  work, an hour of running. A failure once it has started drops the
+  connection, so the browser normally reports a failed download; either way
+  the partial file, missing its closing brackets, isn't valid JSON. The
+  download keeps a database connection until it is sent.
 - **Uploads** are written to `runnify/instance/uploads/` (override with
   `UPLOAD_TMP_DIR`) and deleted as soon as they are read, so the ephemeral disk
   is fine for them. One an interrupted import left behind is deleted by the

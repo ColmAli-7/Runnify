@@ -55,7 +55,7 @@ signed-in users who haven't agreed to the current policies are asked to first
 | GET, POST | `/settings/two-factor` | `settings.two_factor` | Set up or manage two-step verification |
 | POST | `/settings/two-factor/disable` | `settings.disable_two_factor` | Turn it off (password plus a code) |
 | POST | `/settings/two-factor/recovery-codes` | `settings.new_recovery_codes` | Replace the recovery codes (password) |
-| POST | `/settings/export` | `settings.export_data` | Download your data as JSON (password) |
+| POST | `/settings/export` | `settings.export_data` | Download your data as JSON (password), streamed: written a run at a time as it is sent |
 | POST | `/settings/delete` | `settings.delete_account` | Delete your account and all of its data (password and confirmation) |
 
 ## Consent
