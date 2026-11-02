@@ -1,7 +1,10 @@
 """Account data rights: export everything we hold about a user, or delete it all.
 
 The export never includes secrets (password hash, tokens, two-step secrets).
-Each run's samples are exported as they are stored, one list a channel.
+Each run's samples are exported as they are stored, one list a channel. The
+runs, plays and scores are read from the database a batch at a time as the
+file is written, and each run's stream is decoded only when the file reaches
+that run, so writing it takes about the same memory however long the history.
 Deletion removes every personal row and the user's stored FIT files, then
 any song in the shared catalogue that no one's plays or playlists use any
 more, so the catalogue only ever holds songs that played during someone's
@@ -11,11 +14,11 @@ runs.
 import json
 import shutil
 from collections.abc import Iterator
-from itertools import chain
+from itertools import batched, chain
 from pathlib import Path
 
 from flask import current_app
-from sqlalchemy import delete, exists, or_
+from sqlalchemy import and_, delete, exists, or_
 
 from runnify.extensions import db
 from runnify.models import (
@@ -36,6 +39,8 @@ from runnify.models import (
 from runnify.security.audit import DESCRIPTIONS
 from runnify.services.streams import decode
 
+RUN_BATCH = 100  # runs whose laps and stored streams are read together
+ROW_BATCH = 1000  # plays or scores fetched from the database at a time
 CHUNK_SIZE = 64 * 1024  # characters in each piece of a streamed export (all ASCII, so bytes)
 
 _compact = json.JSONEncoder(separators=(",", ":")).encode
@@ -76,38 +81,99 @@ def _stream(stream):
     }
 
 
-def export_data(user):
-    """Return a JSON-ready dict of everything Runnify stores about ``user``."""
-    runs = Run.query.filter_by(user_id=user.id).order_by(Run.date_time).all()
-    activity_ids = {run.id: run.activity_id for run in runs}
-    laps = {}
-    for lap in RunLap.query.filter(RunLap.run_id.in_(activity_ids)).order_by(RunLap.position):
-        laps.setdefault(lap.run_id, []).append(
-            {
-                "kind": lap.kind,
-                "start_s": lap.start_second,
-                "end_s": lap.end_second,
-                "distance_m": lap.distance,
+def _runs(user_id):
+    """The runs for the export, oldest first, each with its laps and its stored stream if any.
+
+    The runs come a batch at a time with their laps and compressed streams,
+    and each stream is decoded only when its run is wanted.
+    """
+    runs = Run.query.filter_by(user_id=user_id).order_by(Run.date_time).yield_per(RUN_BATCH)
+    for batch in batched(runs, RUN_BATCH, strict=False):
+        ids = [run.id for run in batch]
+        laps = {}
+        for lap in RunLap.query.filter(RunLap.run_id.in_(ids)).order_by(RunLap.position):
+            laps.setdefault(lap.run_id, []).append(
+                {
+                    "kind": lap.kind,
+                    "start_s": lap.start_second,
+                    "end_s": lap.end_second,
+                    "distance_m": lap.distance,
+                }
+            )
+        streams = {
+            stream.run_id: stream for stream in RunStream.query.filter(RunStream.run_id.in_(ids))
+        }
+        for run in batch:
+            stream = streams.pop(run.id, None)
+            yield {
+                "garmin_activity_id": run.activity_id,
+                "started_at": _iso(run.date_time),
+                "distance_m": run.distance,
+                "duration_s": run.duration,
+                "average_heart_rate": run.avg_hr,
+                "average_pace_min_per_km": run.avg_pace,
+                "run_type": run.run_type,
+                "run_type_set_by_you": run.run_type_manual,
+                "laps": laps.get(run.id, []),
+                "workout": run.workout,
+                **(_stream(stream) if stream is not None else {}),
             }
-        )
-    streams = {
-        stream.run_id: _stream(stream)
-        for stream in RunStream.query.filter(RunStream.run_id.in_(activity_ids))
-    }
+
+
+def _plays(user_id):
+    """The song plays for the export, in the order they played, a batch at a time."""
     plays = (
-        db.session.query(UserSongHistory, Song)
+        db.session.query(UserSongHistory, Song, Run.activity_id)
         .join(Song, Song.id == UserSongHistory.song_id)
-        .filter(UserSongHistory.user_id == user.id)
+        .outerjoin(Run, and_(Run.id == UserSongHistory.run_id, Run.user_id == user_id))
+        .filter(UserSongHistory.user_id == user_id)
         .order_by(UserSongHistory.played_at)
-        .all()
+        .yield_per(ROW_BATCH)
     )
+    for play, song, activity_id in plays:
+        yield {
+            "spotify_track_id": play.song_id,
+            "track": song.name,
+            "artist": song.artist,
+            "started_at": _iso(play.played_at),
+            "seconds": play.time_played,
+            "garmin_activity_id": activity_id,
+        }
+
+
+def _scores(user_id):
+    """The song scores for the export, in the order they were made, a batch at a time."""
     scores = (
-        db.session.query(RunSongAnalysis, UserSongHistory)
+        db.session.query(RunSongAnalysis, UserSongHistory, Run.activity_id)
         .join(UserSongHistory, UserSongHistory.id == RunSongAnalysis.user_song_id)
-        .filter(RunSongAnalysis.user_id == user.id)
-        .all()
+        .outerjoin(Run, and_(Run.id == RunSongAnalysis.run_id, Run.user_id == user_id))
+        .filter(RunSongAnalysis.user_id == user_id)
+        .order_by(RunSongAnalysis.id)
+        .yield_per(ROW_BATCH)
     )
-    events = SecurityEvent.query.filter_by(user_id=user.id).order_by(SecurityEvent.created_at).all()
+    for analysis, play, activity_id in scores:
+        yield {
+            "spotify_track_id": play.song_id,
+            "garmin_activity_id": activity_id,
+            "score": analysis.performance_score,
+            "lift_s_per_km": analysis.pace_delta,
+            "heart_rate_change_bpm": analysis.hr_delta,
+            "lap_kind": analysis.lap_kind,
+            "effort_charge_s_per_km": analysis.effort_charge,
+        }
+
+
+def export_data(user):
+    """Return everything Runnify stores about ``user``, for :func:`to_json` or :func:`json_chunks`.
+
+    The runs, song plays and song scores grow with the runner's history, so
+    they are generators that read the database only as the file is written;
+    the rest is read now. The generators go by ``user``'s id alone: by the
+    time a streamed response reads them, its view has committed and Flask
+    has closed the session that loaded ``user``.
+    """
+    user_id = user.id
+    events = SecurityEvent.query.filter_by(user_id=user_id).order_by(SecurityEvent.created_at).all()
     return {
         "exported_at": _iso(utcnow()),
         "account": {
@@ -119,45 +185,9 @@ def export_data(user):
             "garmin_account": user.garmin_username,
             "spotify_connected": bool(user.spotify_refresh_token),
         },
-        "runs": [
-            {
-                "garmin_activity_id": run.activity_id,
-                "started_at": _iso(run.date_time),
-                "distance_m": run.distance,
-                "duration_s": run.duration,
-                "average_heart_rate": run.avg_hr,
-                "average_pace_min_per_km": run.avg_pace,
-                "run_type": run.run_type,
-                "run_type_set_by_you": run.run_type_manual,
-                "laps": laps.get(run.id, []),
-                "workout": run.workout,
-                **streams.get(run.id, {}),
-            }
-            for run in runs
-        ],
-        "song_plays_during_runs": [
-            {
-                "spotify_track_id": play.song_id,
-                "track": song.name,
-                "artist": song.artist,
-                "started_at": _iso(play.played_at),
-                "seconds": play.time_played,
-                "garmin_activity_id": activity_ids.get(play.run_id),
-            }
-            for play, song in plays
-        ],
-        "song_scores": [
-            {
-                "spotify_track_id": play.song_id,
-                "garmin_activity_id": activity_ids.get(analysis.run_id),
-                "score": analysis.performance_score,
-                "lift_s_per_km": analysis.pace_delta,
-                "heart_rate_change_bpm": analysis.hr_delta,
-                "lap_kind": analysis.lap_kind,
-                "effort_charge_s_per_km": analysis.effort_charge,
-            }
-            for analysis, play in scores
-        ],
+        "runs": _runs(user_id),
+        "song_plays_during_runs": _plays(user_id),
+        "song_scores": _scores(user_id),
         "playlists": [
             {
                 "name": playlist.name,

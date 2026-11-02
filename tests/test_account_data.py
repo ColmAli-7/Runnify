@@ -24,6 +24,7 @@ from runnify.services.account import json_chunks, to_json
 from runnify.services.fit import Series, WatchLap
 from runnify.services.streams import save_stream
 from tests.conftest import PASSWORD
+from tests.factories import START, make_scored_run
 
 
 def _seed(app, user_id):
@@ -105,7 +106,9 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
         {"kind": "steady", "start_s": 0, "end_s": 1500, "distance_m": 5000}
     ]
     assert data["song_plays_during_runs"][0]["track"] == "Song"
+    assert data["song_plays_during_runs"][0]["garmin_activity_id"] == "42"
     assert data["song_scores"][0]["score"] == 61.5
+    assert data["song_scores"][0]["garmin_activity_id"] == "42"
     text = response.get_data(as_text=True)
     for secret in ("secret-access", "secret-refresh", "argon2", "password_hash", "session_token"):
         assert secret not in text
@@ -129,6 +132,22 @@ def test_export_gives_each_runs_recording_as_stored(app, auth_client, user):
     assert unrecorded["garmin_activity_id"] == "43"
     assert "samples" not in unrecorded and "watch_laps" not in unrecorded
     assert '"seconds": [0,2,4],' in response.get_data(as_text=True)  # a channel to a line
+
+
+def test_export_reads_the_history_a_batch_at_a_time(app, user, monkeypatch):
+    monkeypatch.setattr(account, "RUN_BATCH", 2)
+    monkeypatch.setattr(account, "ROW_BATCH", 3)
+    names = [f"run-{day}" for day in range(5)]
+    with app.app_context():
+        for day, name in enumerate(names):
+            make_scored_run(user, start=START + timedelta(days=day), activity_id=name)
+        data = json.loads(to_json(account.export_data(db.session.get(User, user))))
+    assert [run["garmin_activity_id"] for run in data["runs"]] == names
+    assert all(len(run["samples"]["seconds"]) == 20 * 60 for run in data["runs"])
+    plays = [play["garmin_activity_id"] for play in data["song_plays_during_runs"]]
+    assert plays == [name for name in names for _ in range(4)]  # four songs a run
+    scores = [score["garmin_activity_id"] for score in data["song_scores"]]
+    assert scores == sorted(scores) and set(scores) == set(names)
 
 
 def test_to_json_puts_each_list_of_plain_values_on_one_line():
