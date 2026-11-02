@@ -184,9 +184,21 @@ def test_legacy_fit_files_are_read_and_backfilled(app, user, tmp_path):
         assert db.session.get(RunStream, run_id).sample_count == 15
 
 
-def test_backfill_command(app, user, tmp_path):
-    legacy = pathlib.Path(tmp_path) / "legacy.fit"
-    legacy.write_bytes(build_fit(_samples([3.0] * 10)))
-    _run(app, user, fit_file_path=str(legacy))
+def test_backfill_command_stores_streams_then_deletes_the_files(app, user, tmp_path):
+    folder = pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user)
+    folder.mkdir(parents=True)
+    stored, corrupt = folder / "1.fit", folder / "2.fit"
+    elsewhere = pathlib.Path(tmp_path) / "3.fit"  # outside the storage folder
+    for path in (stored, elsewhere):
+        path.write_bytes(build_fit(_samples([3.0] * 10)))
+    corrupt.write_bytes(b"not a FIT file")
+    run_ids = [_run(app, user, fit_file_path=str(path)) for path in (stored, corrupt, elsewhere)]
     result = app.test_cli_runner().invoke(args=["streams", "backfill"])
-    assert "Stored streams for 1 run." in result.output
+    assert "Stored streams for 2 runs." in result.output
+    assert "Deleted 1 FIT file." in result.output
+    assert not stored.exists()
+    assert corrupt.exists() and elsewhere.exists()  # unread, and not Runnify's to delete
+    with app.app_context():
+        paths = [db.session.get(Run, run_id).fit_file_path for run_id in run_ids]
+        assert db.session.get(RunStream, run_ids[0]) is not None
+    assert paths == [None, str(corrupt), None]  # the unread file stays until it can be read

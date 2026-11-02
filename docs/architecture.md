@@ -109,8 +109,10 @@ and evolve the schema; a test fails if the models and migrations ever drift apar
    glitches; both carry no pace. The rest is lightly smoothed, and the whole
    series is spread to one sample a second (smart recording and auto-pause
    leave gaps). Cadence, distance and the watch's laps are kept. FIT files
-   are never kept on disk; `flask --app runnify laps refetch` downloads old
-   runs again for the laps and cadence they were stored without.
+   are never kept on disk; `flask --app runnify streams backfill` stores any
+   left from before streams as streams and deletes them, and
+   `flask --app runnify laps refetch` downloads old runs again for the laps
+   and cadence they were stored without.
 
 ## Pipeline 2: Spotify history import
 

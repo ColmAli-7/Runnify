@@ -16,6 +16,8 @@ import zlib
 from datetime import timedelta
 from pathlib import Path
 
+from flask import current_app
+
 from runnify.extensions import db
 from runnify.models import RunStream
 from runnify.services.fit import Series, WatchLap, at_one_hertz, parse_fit
@@ -134,3 +136,24 @@ def backfill_from_fit_files(runs):
         if len(series) and save_stream(run, series):
             created += 1
     return created
+
+
+def remove_streamed_fit_files(runs):
+    """Delete the legacy FIT files of ``runs`` that have a stored stream; returns how many.
+
+    Each such run's ``fit_file_path`` is cleared, whether or not its file is
+    still there (hosts that wipe the disk lose them anyway). Only files inside
+    the FIT storage folder, or the ``fit_files`` folder used before it, are
+    deleted, and a run with no stream keeps its file.
+    """
+    folders = [Path(current_app.config["FIT_STORAGE_DIR"]).resolve(), Path("fit_files").resolve()]
+    removed = 0
+    for run in runs:
+        if not run.fit_file_path or db.session.get(RunStream, run.id) is None:
+            continue
+        path = Path(run.fit_file_path).resolve()
+        if path.is_file() and any(path.is_relative_to(folder) for folder in folders):
+            path.unlink()
+            removed += 1
+        run.fit_file_path = None
+    return removed

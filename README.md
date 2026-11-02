@@ -129,7 +129,7 @@ uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_
 | List every URL | `uv run flask --app runnify routes` |
 | Re-score every run after the method changes | `uv run flask --app runnify scores rebuild` |
 | Fetch the watch's laps for runs stored before them | `uv run flask --app runnify laps refetch` |
-| Move old FIT files into the database | `uv run flask --app runnify streams backfill` |
+| Move old FIT files into the database, then delete them | `uv run flask --app runnify streams backfill` |
 | Re-save stored secrets under the newest key, before removing an old one | `uv run flask --app runnify secrets reencrypt` |
 
 ## Project structure

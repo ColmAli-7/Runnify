@@ -14,17 +14,17 @@ streams_cli = AppGroup(
 
 @streams_cli.command("backfill")
 def backfill_streams():
-    """Store streams for runs that only have a legacy FIT file on disk."""
-    from runnify.services.streams import backfill_from_fit_files
+    """Store streams for runs that only have a legacy FIT file on disk, then delete the files."""
+    from runnify.services.streams import backfill_from_fit_files, remove_streamed_fit_files
 
-    runs = (
-        Run.query.filter(Run.fit_file_path.isnot(None))
-        .outerjoin(RunStream)
-        .filter(RunStream.run_id.is_(None))
+    with_files = Run.query.filter(Run.fit_file_path.isnot(None))
+    created = backfill_from_fit_files(
+        with_files.outerjoin(RunStream).filter(RunStream.run_id.is_(None)).all()
     )
-    created = backfill_from_fit_files(runs.all())
+    removed = remove_streamed_fit_files(with_files.all())
     db.session.commit()
     click.echo(f"Stored streams for {created} run{'s' if created != 1 else ''}.")
+    click.echo(f"Deleted {removed} FIT file{'s' if removed != 1 else ''}.")
 
 
 scores_cli = AppGroup("scores", help="Manage stored song effects.")
