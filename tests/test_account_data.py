@@ -310,3 +310,11 @@ def test_deleting_needs_password_and_confirmation(app, auth_client, user):
     auth_client.post("/settings/delete", data={"password": "wrong", "confirm": "y"})
     with app.app_context():
         assert db.session.get(User, user) is not None
+
+
+def test_privacy_page_names_the_settings_rows_as_settings_does(auth_client):
+    privacy = auth_client.get("/privacy").get_data(as_text=True)
+    settings = auth_client.get("/settings").get_data(as_text=True)
+    for row in ("Download your data", "Delete your account"):
+        assert f"Settings, then {row}." in privacy
+        assert f'<p class="settings__row-title">{row}</p>' in settings
