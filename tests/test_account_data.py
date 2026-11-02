@@ -19,7 +19,8 @@ from runnify.models import (
     UserSongHistory,
 )
 from runnify.security.passwords import hash_password
-from runnify.services.account import to_json
+from runnify.services import account
+from runnify.services.account import json_chunks, to_json
 from runnify.services.fit import Series, WatchLap
 from runnify.services.streams import save_stream
 from tests.conftest import PASSWORD
@@ -146,6 +147,26 @@ def test_to_json_puts_each_list_of_plain_values_on_one_line():
         '  "friends": ["Ann"]\n'
         "}"
     )
+
+
+def test_json_chunks_add_up_to_to_json_reading_each_list_as_they_reach_it(monkeypatch):
+    monkeypatch.setattr(account, "CHUNK_SIZE", 16)
+    runs = [{"seconds": [0, 1], "laps": [], "workout": None}, {"samples": {"pace": [300.5, None]}}]
+    read = []
+
+    def runs_as_read():
+        for run in runs:
+            read.append(run)
+            yield run
+
+    value = {"exported_at": "2026-11-02T12:00:00Z", "runs": runs_as_read(), "ids": iter([1, 2])}
+    chunks = json_chunks(value)
+    first = next(chunks)
+    assert read == []  # the runs wait until the text reaches them
+    chunks = [first, *chunks]
+    assert "".join(chunks) == to_json({**value, "runs": runs, "ids": [1, 2]})
+    assert all(len(chunk) >= 16 for chunk in chunks[:-1])
+    assert to_json({"empty": iter([])}) == '{\n  "empty": []\n}'
 
 
 def test_export_needs_the_password(auth_client):

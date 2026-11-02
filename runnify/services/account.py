@@ -10,6 +10,8 @@ runs.
 
 import json
 import shutil
+from collections.abc import Iterator
+from itertools import chain
 from pathlib import Path
 
 from flask import current_app
@@ -34,7 +36,10 @@ from runnify.models import (
 from runnify.security.audit import DESCRIPTIONS
 from runnify.services.streams import decode
 
+CHUNK_SIZE = 64 * 1024  # characters in each piece of a streamed export (all ASCII, so bytes)
+
 _compact = json.JSONEncoder(separators=(",", ":")).encode
+_END = object()
 
 
 def _iso(value):
@@ -174,23 +179,60 @@ def export_data(user):
     }
 
 
-def to_json(value, depth=0):
+def to_json(value):
     """``value`` as JSON indented two spaces a level, with each list of plain values on one line.
 
     Objects and lists of objects get a line an item. A run's samples run to
     thousands of numbers a channel, and a line each keeps the file readable
-    and about a third of the size of a number a line.
+    and about a third of the size of a number a line. A list may also be
+    given as an iterator, which is read as it is written.
     """
+    return "".join(_pieces(value))
+
+
+def json_chunks(value):
+    """Yield :func:`to_json`'s text for ``value`` in pieces of about :data:`CHUNK_SIZE` characters.
+
+    For a streamed response: ``value``'s iterators are only read as the text
+    reaches them, and the closing brackets come last, so a download cut short
+    is never valid JSON.
+    """
+    pieces, size = [], 0
+    for piece in _pieces(value):
+        pieces.append(piece)
+        size += len(piece)
+        if size >= CHUNK_SIZE:
+            yield "".join(pieces)
+            pieces, size = [], 0
+    if pieces:
+        yield "".join(pieces)
+
+
+def _pieces(value, depth=0):
+    """Yield :func:`to_json`'s text for ``value``, ``depth`` levels in, piece by piece."""
     if isinstance(value, dict) and value:
-        items = [f"{json.dumps(key)}: {to_json(item, depth + 1)}" for key, item in value.items()]
+        items = ((f"{json.dumps(key)}: ", item) for key, item in value.items())
         opening, closing = "{", "}"
-    elif isinstance(value, list) and value and isinstance(value[0], dict | list):
-        items = [to_json(item, depth + 1) for item in value]
+    elif isinstance(value, list | Iterator):
+        rest = iter(value)
+        first = next(rest, _END)
+        if first is _END:
+            yield "[]"
+            return
+        if not isinstance(first, dict | list | Iterator):  # plain values: one line
+            yield _compact([first, *rest])
+            return
+        items = (("", item) for item in chain([first], rest))
         opening, closing = "[", "]"
     else:
-        return _compact(value)
+        yield _compact(value)
+        return
     indent = "\n" + "  " * (depth + 1)
-    return opening + indent + ("," + indent).join(items) + "\n" + "  " * depth + closing
+    yield opening
+    for n, (label, item) in enumerate(items):
+        yield ("," if n else "") + indent + label
+        yield from _pieces(item, depth + 1)
+    yield "\n" + "  " * depth + closing
 
 
 def _remove_fit_files(user):
