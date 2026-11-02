@@ -105,6 +105,7 @@ def export_data(user):
         .all()
     )
     events = SecurityEvent.query.filter_by(user_id=user.id).order_by(SecurityEvent.created_at).all()
+    waiting = FriendRequest.query.filter_by(status="pending").order_by(FriendRequest.timestamp)
     return {
         "exported_at": _iso(utcnow()),
         "account": {
@@ -175,6 +176,16 @@ def export_data(user):
             for playlist in Playlist.query.filter_by(user_id=user.id).order_by(Playlist.created_at)
         ],
         "friends": sorted(friend.name for friend in user.friends),
+        "friend_requests": {  # those still waiting for a reply; accepted ones are in friends
+            "sent": [
+                {"to": r.receiver.name, "sent_at": _iso(r.timestamp)}
+                for r in waiting.filter_by(sender_id=user.id)
+            ],
+            "received": [
+                {"from": r.sender.name, "sent_at": _iso(r.timestamp)}
+                for r in waiting.filter_by(receiver_id=user.id)
+            ],
+        },
         "security_activity": [
             {
                 "event": DESCRIPTIONS.get(e.kind, e.kind),

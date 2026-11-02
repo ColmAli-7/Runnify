@@ -82,7 +82,9 @@ def _seed(app, user_id):
                 RunSongAnalysis(
                     run_id=run.id, user_song_id=play.id, performance_score=61.5, user_id=user_id
                 ),
-                FriendRequest(sender_id=other.id, receiver_id=user_id),
+                FriendRequest(
+                    sender_id=other.id, receiver_id=user_id, timestamp=datetime(2026, 10, 2, 8)
+                ),
                 SecurityEvent(
                     user_id=user_id,
                     kind="sign_in",
@@ -202,6 +204,29 @@ def test_export_gives_lap_sources_time_zones_and_playlist_settings(app, auth_cli
             "spotify_track_ids": ["trk"],
         }
     ]
+
+
+def test_export_gives_the_friend_requests_still_waiting(app, auth_client, user):
+    other = _seed(app, user)  # Friend has asked the runner
+    with app.app_context():
+        ann = User(name="Ann", email="ann@example.com", password_hash=hash_password("x"))
+        db.session.add(ann)
+        db.session.flush()
+        db.session.add_all(
+            [
+                FriendRequest(
+                    sender_id=user, receiver_id=ann.id, timestamp=datetime(2026, 10, 3, 9)
+                ),
+                FriendRequest(sender_id=user, receiver_id=other, status="declined"),
+                FriendRequest(sender_id=ann.id, receiver_id=user, status="accepted"),
+            ]
+        )
+        db.session.commit()
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    assert json.loads(response.data)["friend_requests"] == {
+        "sent": [{"to": "Ann", "sent_at": "2026-10-03T09:00:00Z"}],
+        "received": [{"from": "Friend", "sent_at": "2026-10-02T08:00:00Z"}],
+    }
 
 
 def test_export_gives_each_runs_recording_as_stored(app, auth_client, user):
