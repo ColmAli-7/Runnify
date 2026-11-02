@@ -130,6 +130,8 @@ def _seed(app, user_id):
         account.garmin_tokens = "secret-garmin"
         account.garmin_password = "secret-legacy-password"  # erased by the next sync
         account.totp_secret, account.totp_enabled_at = "secret-totp", datetime(2026, 9, 30, 21)
+        account.garmin_last_synced_at = datetime(2026, 10, 2, 9)
+        account.history_imported_at = datetime(2026, 10, 1, 20)
         fit_dir = pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user_id)
         fit_dir.mkdir(parents=True)
         (fit_dir / "42.fit").write_bytes(b"FIT")
@@ -216,7 +218,7 @@ def test_export_gives_consent_skips_and_browsers(app, auth_client, user):
     ]
 
 
-def test_export_gives_score_details_and_two_step_dates(app, auth_client, user):
+def test_export_gives_score_details_and_account_dates(app, auth_client, user):
     _seed(app, user)
     response = auth_client.post("/settings/export", data={"password": PASSWORD})
     data = json.loads(response.data)
@@ -231,6 +233,8 @@ def test_export_gives_score_details_and_two_step_dates(app, auth_client, user):
     assert account["two_step_verification_since"] == "2026-09-30T21:00:00Z"
     assert account["recovery_codes_left"] == 1
     assert account["recovery_codes_used_at"] == ["2026-10-05T09:00:00Z"]
+    assert account["garmin_last_synced_at"] == "2026-10-02T09:00:00Z"
+    assert account["spotify_history_imported_at"] == "2026-10-01T20:00:00Z"
 
 
 def test_export_gives_lap_sources_time_zones_and_playlist_settings(app, auth_client, user):

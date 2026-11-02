@@ -215,7 +215,9 @@ def export_data(user):
                 _iso(at) for at in sorted(code.used_at for code in codes if code.used_at)
             ],
             "garmin_account": user.garmin_username,
+            "garmin_last_synced_at": _iso(user.garmin_last_synced_at),
             "spotify_connected": bool(user.spotify_refresh_token),
+            "spotify_history_imported_at": _iso(user.history_imported_at),
             "consent": {
                 "terms_accepted_at": _iso(user.terms_accepted_at),
                 "data_consent_at": _iso(user.data_consent_at),
