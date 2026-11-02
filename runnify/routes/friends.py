@@ -75,28 +75,32 @@ def send_request(user_id):
 @bp.route("/friends/requests/<int:request_id>/accept", methods=["POST"])
 @login_required
 def accept(request_id):
-    """Accept a friend request addressed to the current user (adds the friendship both ways)."""
+    """Accept a friend request addressed to the current user (adds the friendship both ways).
+
+    The request itself is deleted: the friendship is all that's kept.
+    """
     friend_request = db.get_or_404(FriendRequest, request_id)
     if friend_request.receiver_id != current_user.id or friend_request.status != "pending":
         flash("That request isn't yours to accept.", "error")
         return redirect(url_for("friends.index"))
-    friend_request.status = "accepted"
-    friend_request.sender.friends.append(friend_request.receiver)
-    friend_request.receiver.friends.append(friend_request.sender)
+    sender, receiver = friend_request.sender, friend_request.receiver
+    sender.friends.append(receiver)
+    receiver.friends.append(sender)
+    db.session.delete(friend_request)
     db.session.commit()
-    flash(f"You're now friends with {friend_request.sender.name}.", "success")
+    flash(f"You're now friends with {sender.name}.", "success")
     return redirect(url_for("friends.index"))
 
 
 @bp.route("/friends/requests/<int:request_id>/decline", methods=["POST"])
 @login_required
 def decline(request_id):
-    """Decline a friend request addressed to the current user."""
+    """Decline a friend request addressed to the current user, deleting it."""
     friend_request = db.get_or_404(FriendRequest, request_id)
     if friend_request.receiver_id != current_user.id or friend_request.status != "pending":
         flash("That request isn't yours to decline.", "error")
     else:
-        friend_request.status = "declined"
+        db.session.delete(friend_request)
         db.session.commit()
         flash("Friend request declined.", "info")
     return redirect(url_for("friends.index"))

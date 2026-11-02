@@ -1,5 +1,10 @@
 """Friend requests: state changes need POST and the right user."""
 
+from flask_migrate import upgrade
+from sqlalchemy import text
+
+from runnify import create_app
+from runnify.config import TestConfig
 from runnify.extensions import db
 from runnify.models import FriendRequest, User
 from runnify.security.passwords import hash_password
@@ -41,8 +46,49 @@ def test_request_accept_flow(app, auth_client, user):
     sign_in_as(auth_client, other)
     auth_client.post(f"/friends/requests/{request_id}/accept")
     with app.app_context():
-        assert db.session.get(FriendRequest, request_id).status == "accepted"
+        assert db.session.get(FriendRequest, request_id) is None  # only the friendship is kept
         assert [f.id for f in db.session.get(User, user).friends] == [other]
+
+
+def test_declining_deletes_the_request(app, auth_client, user):
+    other = _make_user(app, "friend@example.com", "Friend")
+    sign_in_as(auth_client, other)
+    auth_client.post(f"/friends/{user}/request")
+    with app.app_context():
+        request_id = FriendRequest.query.one().id
+    sign_in_as(auth_client, user)
+    auth_client.post(f"/friends/requests/{request_id}/decline")
+    with app.app_context():
+        assert FriendRequest.query.count() == 0
+        assert db.session.get(User, user).friends == []
+
+
+def test_migration_deletes_answered_requests(tmp_path):
+    class MigratedConfig(TestConfig):
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{(tmp_path / 'm.db').as_posix()}"
+
+    app = create_app(MigratedConfig)
+    with app.app_context():
+        upgrade(revision="0018")
+        db.session.execute(
+            text(
+                "INSERT INTO users (id, name, email, password_hash, created_at, session_token) "
+                "VALUES (1, 'a', 'a@example.com', 'x', CURRENT_TIMESTAMP, 'a'), "
+                "(2, 'b', 'b@example.com', 'x', CURRENT_TIMESTAMP, 'b')"
+            )
+        )
+        db.session.execute(
+            text(
+                "INSERT INTO friend_requests (sender_id, receiver_id, status) "
+                "VALUES (1, 2, 'pending'), (2, 1, 'accepted'), (1, 2, 'declined')"
+            )
+        )
+        db.session.commit()
+        upgrade()
+        statuses = db.session.execute(text("SELECT status FROM friend_requests")).scalars()
+        assert statuses.all() == ["pending"]
+        db.session.remove()
+        db.engine.dispose()
 
 
 def test_removing_a_friend_ends_it_both_ways(app, auth_client, user):

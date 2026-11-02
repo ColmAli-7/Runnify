@@ -292,14 +292,14 @@ friends = db.Table(
 
 
 class FriendRequest(db.Model):
-    """A friend request between two users (``pending`` / ``accepted`` / ``declined``)."""
+    """A friend request waiting for a reply; it is deleted once accepted or declined."""
 
     __tablename__ = "friend_requests"
 
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    status = db.Column(db.String, default="pending")  # pending, accepted, or rejected
+    status = db.Column(db.String, default="pending")  # stays "pending": answered ones are deleted
     timestamp = db.Column(db.DateTime, default=utcnow)
 
     # link sender
