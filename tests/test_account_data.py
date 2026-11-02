@@ -23,6 +23,7 @@ from runnify.models import (
     User,
     UserSongHistory,
 )
+from runnify.security.crypto import FERNET_PREFIX
 from runnify.security.passwords import hash_password
 from runnify.services import account
 from runnify.services.account import json_chunks, to_json
@@ -40,8 +41,8 @@ CHROME = (
 def _seed(app, user_id):
     """Two runs (one recorded, with a lap and a scored play), a friend request and a FIT file.
 
-    The play was skipped, the runner built a playlist from it, and the account has a
-    sign-in, the runner's consent and secrets that must stay out of the export.
+    The play was skipped, the runner has a playlist of another song, and the account has
+    a sign-in, the runner's consent and secrets that must stay out of the export.
     """
     with app.app_context():
         other = User(name="Friend", email="friend@example.com", password_hash=hash_password("x"))
@@ -59,7 +60,14 @@ def _seed(app, user_id):
         unrecorded = Run(
             user_id=user_id, activity_id="43", date_time=datetime(2026, 10, 2, 7), distance=3000
         )
-        db.session.add_all([run, unrecorded, Song(id="trk", name="Song", artist="Artist")])
+        db.session.add_all(
+            [
+                run,
+                unrecorded,
+                Song(id="trk", name="Song", artist="Artist"),
+                Song(id="listed", name="Listed", artist="Artist"),
+            ]
+        )
         db.session.flush()
         db.session.add(
             RunLap(
@@ -105,7 +113,7 @@ def _seed(app, user_id):
                     session="tempo",
                     target_minutes=45,
                     created_at=datetime(2026, 10, 3, 18),
-                    tracks=[PlaylistTrack(position=0, song_id="trk", seconds=200)],
+                    tracks=[PlaylistTrack(position=0, song_id="listed", seconds=200)],
                 ),
             ]
         )
@@ -114,6 +122,7 @@ def _seed(app, user_id):
         account.data_consent_at = datetime(2026, 9, 30, 20, 1)
         account.spotify_token, account.spotify_refresh_token = "secret-access", "secret-refresh"
         account.garmin_tokens = "secret-garmin"
+        account.garmin_password = "secret-legacy-password"  # erased by the next sync
         account.totp_secret, account.totp_enabled_at = "secret-totp", datetime(2026, 9, 30, 21)
         fit_dir = pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user_id)
         fit_dir.mkdir(parents=True)
@@ -157,32 +166,37 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
     assert data["song_plays_during_runs"][0]["garmin_activity_id"] == "42"
     assert data["song_scores"][0]["score"] == 61.5
     assert data["song_scores"][0]["garmin_activity_id"] == "42"
-    text = response.get_data(as_text=True)
+    body = response.get_data(as_text=True)
     with app.app_context():
         session_token = db.session.get(User, user).session_token
     for secret in (
         "secret-access",
         "secret-refresh",
         "secret-garmin",
+        "secret-legacy-password",
         "secret-totp",
         "secret-recovery-code",
         session_token,
+        FERNET_PREFIX,  # nor any encrypted column as stored
         "argon2",
         "password_hash",
         "session_token",
     ):
-        assert secret not in text
+        assert secret not in body
 
 
 def test_export_gives_consent_skips_and_browsers(app, auth_client, user):
     _seed(app, user)
+    with app.app_context():  # agreed to an earlier policy, and not asked again yet
+        db.session.get(User, user).policy_version = "2026-09"
+        db.session.commit()
     response = auth_client.post("/settings/export", data={"password": PASSWORD})
     data = json.loads(response.data)
     assert data["account"]["two_step_verification"] is True
     assert data["account"]["consent"] == {
         "terms_accepted_at": "2026-09-30T20:00:00Z",
         "data_consent_at": "2026-09-30T20:01:00Z",
-        "policy_version": app.config["POLICY_VERSION"],
+        "policy_version": "2026-09",  # the one agreed to, not the current one
     }
     assert data["song_plays_during_runs"][0]["skipped"] is True
     assert data["security_activity"] == [
@@ -209,7 +223,7 @@ def test_export_gives_lap_sources_time_zones_and_playlist_settings(app, auth_cli
             "target_minutes": 45,
             "created_at": "2026-10-03T18:00:00Z",
             "spotify_url": None,
-            "spotify_track_ids": ["trk"],
+            "spotify_track_ids": ["listed"],
         }
     ]
 
@@ -381,12 +395,20 @@ def test_export_needs_the_password(auth_client):
 
 def test_deleting_removes_everything_personal(app, auth_client, user):
     other = _seed(app, user)
-    with app.app_context():  # a song the friend keeps in a playlist
+    with app.app_context():  # a song the runner heard that the friend keeps in a playlist
         playlist = Playlist(user_id=other, name="Theirs", session="easy", target_minutes=30)
         db.session.add_all([playlist, Song(id="theirs", name="Kept", artist="Artist")])
         db.session.flush()
-        db.session.add(
-            PlaylistTrack(playlist_id=playlist.id, position=0, song_id="theirs", seconds=200)
+        db.session.add_all(
+            [
+                PlaylistTrack(playlist_id=playlist.id, position=0, song_id="theirs", seconds=200),
+                UserSongHistory(
+                    user_id=user,
+                    song_id="theirs",
+                    played_at=datetime(2026, 10, 2, 7, 1),
+                    time_played=200,
+                ),
+            ]
         )
         db.session.commit()
     with mail.record_messages() as outbox:
@@ -409,6 +431,7 @@ def test_deleting_removes_everything_personal(app, auth_client, user):
         assert [playlist.name for playlist in Playlist.query] == ["Theirs"]
         assert db.session.get(User, other) is not None  # the friend's account is untouched
         assert db.session.get(Song, "trk") is None  # nobody else's runs used it
+        assert db.session.get(Song, "listed") is None  # only in the runner's own playlist
         assert db.session.get(Song, "theirs") is not None  # still in the friend's playlist
     assert not (pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user)).exists()
     assert auth_client.get("/dashboard").status_code == 302  # signed out
