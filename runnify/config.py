@@ -121,7 +121,7 @@ class Config:
     LOGIN_LOCKOUT_MINUTES = 15
 
     # bump when the terms or privacy policy change materially; users then re-confirm
-    POLICY_VERSION = "2026-10"
+    POLICY_VERSION = "2026-11"
     POLICY_UPDATED = "2 November 2026"
     # who runs the site, shown on the legal pages
     OPERATOR_NAME = os.getenv("OPERATOR_NAME") or "Runnify"
