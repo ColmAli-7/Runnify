@@ -32,6 +32,7 @@ from runnify.models import (
     RunStream,
     SecurityEvent,
     Song,
+    User,
     UserSongHistory,
     friends,
     utcnow,
@@ -168,6 +169,20 @@ def _scores(user_id):
         }
 
 
+def _waiting(user_id, own, other):
+    """``(name, timestamp)`` of the friend requests still waiting with ``user_id`` as ``own``.
+
+    The name is the runner's on the ``other`` side, read without the rest of
+    their account, so none of their secrets are decrypted for it.
+    """
+    return (
+        db.session.query(User.name, FriendRequest.timestamp)
+        .join(FriendRequest, other == User.id)
+        .filter(own == user_id, FriendRequest.status == "pending")
+        .order_by(FriendRequest.timestamp)
+    )
+
+
 def export_data(user):
     """Return everything Runnify stores about ``user``, for :func:`to_json` or :func:`json_chunks`.
 
@@ -179,7 +194,8 @@ def export_data(user):
     """
     user_id = user.id
     events = SecurityEvent.query.filter_by(user_id=user_id).order_by(SecurityEvent.created_at).all()
-    waiting = FriendRequest.query.filter_by(status="pending").order_by(FriendRequest.timestamp)
+    sent = _waiting(user_id, FriendRequest.sender_id, FriendRequest.receiver_id)
+    received = _waiting(user_id, FriendRequest.receiver_id, FriendRequest.sender_id)
     return {
         "exported_at": _iso(utcnow()),
         "account": {
@@ -211,15 +227,9 @@ def export_data(user):
             for playlist in Playlist.query.filter_by(user_id=user.id).order_by(Playlist.created_at)
         ],
         "friends": sorted(friend.name for friend in user.friends),
-        "friend_requests": {  # those still waiting for a reply; accepted ones are in friends
-            "sent": [
-                {"to": r.receiver.name, "sent_at": _iso(r.timestamp)}
-                for r in waiting.filter_by(sender_id=user_id)
-            ],
-            "received": [
-                {"from": r.sender.name, "sent_at": _iso(r.timestamp)}
-                for r in waiting.filter_by(receiver_id=user_id)
-            ],
+        "friend_requests": {  # those still waiting for a reply
+            "sent": [{"to": name, "sent_at": _iso(at)} for name, at in sent],
+            "received": [{"from": name, "sent_at": _iso(at)} for name, at in received],
         },
         "security_activity": [
             {

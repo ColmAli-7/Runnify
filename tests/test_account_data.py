@@ -5,6 +5,8 @@ import pathlib
 from datetime import datetime, timedelta
 
 import pytest
+from cryptography.fernet import Fernet
+from sqlalchemy import text
 
 from runnify.extensions import db, mail
 from runnify.models import (
@@ -226,6 +228,11 @@ def test_export_gives_the_friend_requests_still_waiting(app, auth_client, user):
                 FriendRequest(sender_id=user, receiver_id=other, status="declined"),
                 FriendRequest(sender_id=ann.id, receiver_id=user, status="accepted"),
             ]
+        )
+        # Ann's two-step secret is under a key since retired, so only her name can be read
+        db.session.execute(
+            text("UPDATE users SET totp_secret = :secret WHERE id = :id"),
+            {"secret": Fernet(Fernet.generate_key()).encrypt(b"x").decode(), "id": ann.id},
         )
         db.session.commit()
     response = auth_client.post("/settings/export", data={"password": PASSWORD})
