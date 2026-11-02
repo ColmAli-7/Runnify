@@ -89,7 +89,13 @@ def _seed(app, user_id):
         db.session.add_all(
             [
                 RunSongAnalysis(
-                    run_id=run.id, user_song_id=play.id, performance_score=61.5, user_id=user_id
+                    run_id=run.id,
+                    user_song_id=play.id,
+                    performance_score=61.5,
+                    user_id=user_id,
+                    seconds=170,
+                    position=0.04,
+                    method_version=3,
                 ),
                 FriendRequest(
                     sender_id=other.id, receiver_id=user_id, timestamp=datetime(2026, 10, 2, 8)
@@ -102,13 +108,18 @@ def _seed(app, user_id):
                     created_at=datetime(2026, 10, 1, 6, 55),
                 ),
                 RecoveryCode(user_id=user_id, code_hash="secret-recovery-code"),
+                RecoveryCode(
+                    user_id=user_id, code_hash="secret-used-code", used_at=datetime(2026, 10, 5, 9)
+                ),
                 Playlist(
                     user_id=user_id,
                     name="Tempo",
                     session="tempo",
                     target_minutes=45,
                     created_at=datetime(2026, 10, 3, 18),
-                    tracks=[PlaylistTrack(position=0, song_id="listed", seconds=200)],
+                    tracks=[
+                        PlaylistTrack(position=0, song_id="listed", seconds=200, lift=7.5, plays=4)
+                    ],
                 ),
             ]
         )
@@ -171,6 +182,7 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
         "secret-legacy-password",
         "secret-totp",
         "secret-recovery-code",
+        "secret-used-code",
         session_token,
         FERNET_PREFIX,  # nor any encrypted column as stored
         "argon2",
@@ -204,6 +216,23 @@ def test_export_gives_consent_skips_and_browsers(app, auth_client, user):
     ]
 
 
+def test_export_gives_score_details_and_two_step_dates(app, auth_client, user):
+    _seed(app, user)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    data = json.loads(response.data)
+    (play,), (score,) = data["song_plays_during_runs"], data["song_scores"]
+    assert score["play_started_at"] == play["started_at"]  # which play it measured
+    assert (score["moving_time_s"], score["position_in_run"], score["scoring_method"]) == (
+        170,
+        0.04,
+        3,
+    )
+    account = data["account"]
+    assert account["two_step_verification_since"] == "2026-09-30T21:00:00Z"
+    assert account["recovery_codes_left"] == 1
+    assert account["recovery_codes_used_at"] == ["2026-10-05T09:00:00Z"]
+
+
 def test_export_gives_lap_sources_time_zones_and_playlist_settings(app, auth_client, user):
     _seed(app, user)
     response = auth_client.post("/settings/export", data={"password": PASSWORD})
@@ -219,6 +248,9 @@ def test_export_gives_lap_sources_time_zones_and_playlist_settings(app, auth_cli
             "created_at": "2026-10-03T18:00:00Z",
             "spotify_url": None,
             "spotify_track_ids": ["listed"],
+            "track_seconds": [200],
+            "track_lift_s_per_km": [7.5],
+            "track_scored_plays": [4],
         }
     ]
 

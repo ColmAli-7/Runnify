@@ -62,7 +62,7 @@ erDiagram
 | `user_song_history` | A play that overlapped a run: when it started, seconds played, whether it was skipped |
 | `run_song_analysis` | A play's measured effect: `pace_delta` (s/km, the lift after any charge for extra effort), `hr_delta`, seconds measured, position in the run, the kind of lap it was measured on, the effort charge, method version |
 | `playlists`, `playlist_tracks` | Saved playlists, each track with the lift and plays it was chosen on |
-| `recovery_codes` | SHA-256 hashes of unused two-step recovery codes |
+| `recovery_codes` | SHA-256 hashes of two-step recovery codes, and when each was used |
 | `security_events` | Sign-ins and account changes with a truncated IP prefix and a short description of the browser (such as "Chrome on Windows"); kept 90 days |
 | `friends`, `friend_requests` | Friendships (stored in both directions) and pending requests |
 

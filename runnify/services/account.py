@@ -161,11 +161,15 @@ def _scores(user_id):
         yield {
             "spotify_track_id": play.song_id,
             "garmin_activity_id": activity_id,
+            "play_started_at": _iso(play.played_at),  # the play it measured
             "score": analysis.performance_score,
             "lift_s_per_km": analysis.pace_delta,
             "heart_rate_change_bpm": analysis.hr_delta,
+            "moving_time_s": analysis.seconds,
+            "position_in_run": analysis.position,
             "lap_kind": analysis.lap_kind,
             "effort_charge_s_per_km": analysis.effort_charge,
+            "scoring_method": analysis.method_version,
         }
 
 
@@ -196,6 +200,7 @@ def export_data(user):
     events = SecurityEvent.query.filter_by(user_id=user_id).order_by(SecurityEvent.created_at).all()
     sent = _waiting(user_id, FriendRequest.sender_id, FriendRequest.receiver_id)
     received = _waiting(user_id, FriendRequest.receiver_id, FriendRequest.sender_id)
+    codes = RecoveryCode.query.filter_by(user_id=user_id).all()
     return {
         "exported_at": _iso(utcnow()),
         "account": {
@@ -204,6 +209,11 @@ def export_data(user):
             "created_at": _iso(user.created_at),
             "last_login_at": _iso(user.last_login_at),
             "two_step_verification": user.two_factor_enabled,
+            "two_step_verification_since": _iso(user.totp_enabled_at),
+            "recovery_codes_left": sum(code.used_at is None for code in codes),
+            "recovery_codes_used_at": [
+                _iso(at) for at in sorted(code.used_at for code in codes if code.used_at)
+            ],
             "garmin_account": user.garmin_username,
             "spotify_connected": bool(user.spotify_refresh_token),
             "consent": {
@@ -223,6 +233,10 @@ def export_data(user):
                 "created_at": _iso(playlist.created_at),
                 "spotify_url": playlist.spotify_url,
                 "spotify_track_ids": [track.song_id for track in playlist.tracks],
+                # what each track was chosen on, in the same order
+                "track_seconds": [track.seconds for track in playlist.tracks],
+                "track_lift_s_per_km": [track.lift for track in playlist.tracks],
+                "track_scored_plays": [track.plays for track in playlist.tracks],
             }
             for playlist in Playlist.query.filter_by(user_id=user.id).order_by(Playlist.created_at)
         ],
