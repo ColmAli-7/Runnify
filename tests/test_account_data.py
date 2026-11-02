@@ -296,8 +296,10 @@ def test_deleting_removes_everything_personal(app, auth_client, user):
             RunSongAnalysis,
             FriendRequest,
             SecurityEvent,
+            RecoveryCode,
         ):
             assert model.query.count() == 0, model.__name__
+        assert [playlist.name for playlist in Playlist.query] == ["Theirs"]
         assert db.session.get(User, other) is not None  # the friend's account is untouched
         assert db.session.get(Song, "trk") is None  # nobody else's runs used it
         assert db.session.get(Song, "theirs") is not None  # still in the friend's playlist
