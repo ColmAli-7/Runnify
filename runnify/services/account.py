@@ -83,6 +83,8 @@ def export_data(user):
                 "start_s": lap.start_second,
                 "end_s": lap.end_second,
                 "distance_m": lap.distance,
+                "moving_time_s": lap.moving_seconds,
+                "average_heart_rate": lap.avg_hr,
             }
         )
     streams = {
@@ -123,6 +125,7 @@ def export_data(user):
             {
                 "garmin_activity_id": run.activity_id,
                 "started_at": _iso(run.date_time),
+                "utc_offset_minutes": run.utc_offset,
                 "distance_m": run.distance,
                 "duration_s": run.duration,
                 "average_heart_rate": run.avg_hr,
@@ -130,6 +133,7 @@ def export_data(user):
                 "run_type": run.run_type,
                 "run_type_set_by_you": run.run_type_manual,
                 "laps": laps.get(run.id, []),
+                "laps_source": run.laps_source,
                 "workout": run.workout,
                 **streams.get(run.id, {}),
             }
@@ -162,6 +166,8 @@ def export_data(user):
         "playlists": [
             {
                 "name": playlist.name,
+                "session": playlist.session,
+                "target_minutes": playlist.target_minutes,
                 "created_at": _iso(playlist.created_at),
                 "spotify_url": playlist.spotify_url,
                 "spotify_track_ids": [track.song_id for track in playlist.tracks],

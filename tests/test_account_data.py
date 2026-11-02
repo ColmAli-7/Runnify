@@ -34,8 +34,8 @@ CHROME = (
 def _seed(app, user_id):
     """Two runs (one recorded, with a lap and a scored play), a friend request and a FIT file.
 
-    The play was skipped, and the account has a sign-in, the runner's consent and secrets
-    that must stay out of the export.
+    The play was skipped, the runner built a playlist from it, and the account has a
+    sign-in, the runner's consent and secrets that must stay out of the export.
     """
     with app.app_context():
         other = User(name="Friend", email="friend@example.com", password_hash=hash_password("x"))
@@ -44,9 +44,11 @@ def _seed(app, user_id):
             user_id=user_id,
             activity_id="42",
             date_time=datetime(2026, 10, 1, 7),
+            utc_offset=60,
             distance=5000,
             duration=1500,
             run_type="easy",
+            laps_source="detected",
         )
         unrecorded = Run(
             user_id=user_id, activity_id="43", date_time=datetime(2026, 10, 2, 7), distance=3000
@@ -61,6 +63,8 @@ def _seed(app, user_id):
                 end_second=1500,
                 kind="steady",
                 distance=5000,
+                moving_seconds=1490,
+                avg_hr=150,
             )
         )
         play = UserSongHistory(
@@ -87,6 +91,14 @@ def _seed(app, user_id):
                     created_at=datetime(2026, 10, 1, 6, 55),
                 ),
                 RecoveryCode(user_id=user_id, code_hash="secret-recovery-code"),
+                Playlist(
+                    user_id=user_id,
+                    name="Tempo",
+                    session="tempo",
+                    target_minutes=45,
+                    created_at=datetime(2026, 10, 3, 18),
+                    tracks=[PlaylistTrack(position=0, song_id="trk", seconds=200)],
+                ),
             ]
         )
         account = db.session.get(User, user_id)
@@ -124,7 +136,14 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
     assert data["runs"][0]["garmin_activity_id"] == "42"
     assert data["runs"][0]["run_type"] == "easy"
     assert data["runs"][0]["laps"] == [
-        {"kind": "steady", "start_s": 0, "end_s": 1500, "distance_m": 5000}
+        {
+            "kind": "steady",
+            "start_s": 0,
+            "end_s": 1500,
+            "distance_m": 5000,
+            "moving_time_s": 1490,
+            "average_heart_rate": 150,
+        }
     ]
     assert data["song_plays_during_runs"][0]["track"] == "Song"
     assert data["song_scores"][0]["score"] == 61.5
@@ -162,6 +181,25 @@ def test_export_gives_consent_skips_and_browsers(app, auth_client, user):
             "at": "2026-10-01T06:55:00Z",
             "browser": CHROME,  # as stored, not the "Chrome on Windows" Settings shows
             "network": "203.0.113.0",
+        }
+    ]
+
+
+def test_export_gives_lap_sources_time_zones_and_playlist_settings(app, auth_client, user):
+    _seed(app, user)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    data = json.loads(response.data)
+    recorded, unrecorded = data["runs"]
+    assert (recorded["laps_source"], recorded["utc_offset_minutes"]) == ("detected", 60)
+    assert (unrecorded["laps_source"], unrecorded["utc_offset_minutes"]) == (None, None)
+    assert data["playlists"] == [
+        {
+            "name": "Tempo",
+            "session": "tempo",
+            "target_minutes": 45,
+            "created_at": "2026-10-03T18:00:00Z",
+            "spotify_url": None,
+            "spotify_track_ids": ["trk"],
         }
     ]
 
