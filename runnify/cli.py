@@ -71,6 +71,25 @@ def refetch_laps(user_id, workers):
     click.echo(f"Refreshed {total} run{'s' if total != 1 else ''} from Garmin.")
 
 
+secrets_cli = AppGroup("secrets", help="Manage the credentials stored encrypted (FERNET_KEYS).")
+
+
+@secrets_cli.command("reencrypt")
+def reencrypt_secrets():
+    """Re-save every encrypted value under the newest key, so older keys can be removed."""
+    from runnify.security.crypto import reencrypt_stored
+
+    resaved, unreadable = reencrypt_stored()
+    db.session.commit()
+    click.echo(f"Re-saved {resaved} value{'s' if resaved != 1 else ''} under the newest key.")
+    if unreadable:
+        where = ", ".join(f"{column} for id {row}" for column, row in unreadable)
+        raise click.ClickException(
+            f"No configured key decrypts {where}. Add the key it was saved with to "
+            "FERNET_KEYS and run this again before removing any key."
+        )
+
+
 demo_cli = AppGroup("demo", help="Synthetic demo data for local development (never production).")
 
 
@@ -100,4 +119,5 @@ def register_cli(app: Flask):
     app.cli.add_command(streams_cli)
     app.cli.add_command(scores_cli)
     app.cli.add_command(laps_cli)
+    app.cli.add_command(secrets_cli)
     app.cli.add_command(demo_cli)
