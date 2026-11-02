@@ -9,6 +9,7 @@ from runnify.models import (
     FriendRequest,
     Playlist,
     PlaylistTrack,
+    RecoveryCode,
     Run,
     RunLap,
     RunSongAnalysis,
@@ -24,9 +25,18 @@ from runnify.services.fit import Series, WatchLap
 from runnify.services.streams import save_stream
 from tests.conftest import PASSWORD
 
+CHROME = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/130.0.0.0 Safari/537.36"
+)
+
 
 def _seed(app, user_id):
-    """Two runs (one recorded, with a lap and a scored play), a friend request and a FIT file."""
+    """Two runs (one recorded, with a lap and a scored play), a friend request and a FIT file.
+
+    The play was skipped, and the account has a sign-in, the runner's consent and secrets
+    that must stay out of the export.
+    """
     with app.app_context():
         other = User(name="Friend", email="friend@example.com", password_hash=hash_password("x"))
         db.session.add(other)
@@ -59,6 +69,7 @@ def _seed(app, user_id):
             run_id=run.id,
             played_at=datetime(2026, 10, 1, 7, 1),
             time_played=180,
+            skipped=True,
         )
         db.session.add(play)
         db.session.flush()
@@ -68,10 +79,22 @@ def _seed(app, user_id):
                     run_id=run.id, user_song_id=play.id, performance_score=61.5, user_id=user_id
                 ),
                 FriendRequest(sender_id=other.id, receiver_id=user_id),
+                SecurityEvent(
+                    user_id=user_id,
+                    kind="sign_in",
+                    ip_prefix="203.0.113.0",
+                    user_agent=CHROME,
+                    created_at=datetime(2026, 10, 1, 6, 55),
+                ),
+                RecoveryCode(user_id=user_id, code_hash="secret-recovery-code"),
             ]
         )
         account = db.session.get(User, user_id)
+        account.terms_accepted_at = datetime(2026, 9, 30, 20)
+        account.data_consent_at = datetime(2026, 9, 30, 20, 1)
         account.spotify_token, account.spotify_refresh_token = "secret-access", "secret-refresh"
+        account.garmin_tokens = "secret-garmin"
+        account.totp_secret, account.totp_enabled_at = "secret-totp", datetime(2026, 9, 30, 21)
         fit_dir = pathlib.Path(app.config["FIT_STORAGE_DIR"]) / str(user_id)
         fit_dir.mkdir(parents=True)
         (fit_dir / "42.fit").write_bytes(b"FIT")
@@ -106,8 +129,41 @@ def test_export_contains_the_data_but_no_secrets(app, auth_client, user):
     assert data["song_plays_during_runs"][0]["track"] == "Song"
     assert data["song_scores"][0]["score"] == 61.5
     text = response.get_data(as_text=True)
-    for secret in ("secret-access", "secret-refresh", "argon2", "password_hash", "session_token"):
+    with app.app_context():
+        session_token = db.session.get(User, user).session_token
+    for secret in (
+        "secret-access",
+        "secret-refresh",
+        "secret-garmin",
+        "secret-totp",
+        "secret-recovery-code",
+        session_token,
+        "argon2",
+        "password_hash",
+        "session_token",
+    ):
         assert secret not in text
+
+
+def test_export_gives_consent_skips_and_browsers(app, auth_client, user):
+    _seed(app, user)
+    response = auth_client.post("/settings/export", data={"password": PASSWORD})
+    data = json.loads(response.data)
+    assert data["account"]["two_step_verification"] is True
+    assert data["account"]["consent"] == {
+        "terms_accepted_at": "2026-09-30T20:00:00Z",
+        "data_consent_at": "2026-09-30T20:01:00Z",
+        "policy_version": app.config["POLICY_VERSION"],
+    }
+    assert data["song_plays_during_runs"][0]["skipped"] is True
+    assert data["security_activity"] == [
+        {
+            "event": "Signed in",
+            "at": "2026-10-01T06:55:00Z",
+            "browser": CHROME,  # as stored, not the "Chrome on Windows" Settings shows
+            "network": "203.0.113.0",
+        }
+    ]
 
 
 def test_export_gives_each_runs_recording_as_stored(app, auth_client, user):

@@ -113,6 +113,11 @@ def export_data(user):
             "two_step_verification": user.two_factor_enabled,
             "garmin_account": user.garmin_username,
             "spotify_connected": bool(user.spotify_refresh_token),
+            "consent": {
+                "terms_accepted_at": _iso(user.terms_accepted_at),
+                "data_consent_at": _iso(user.data_consent_at),
+                "policy_version": user.policy_version,
+            },
         },
         "runs": [
             {
@@ -137,6 +142,7 @@ def export_data(user):
                 "artist": song.artist,
                 "started_at": _iso(play.played_at),
                 "seconds": play.time_played,
+                "skipped": play.skipped,
                 "garmin_activity_id": activity_ids.get(play.run_id),
             }
             for play, song in plays
@@ -167,6 +173,7 @@ def export_data(user):
             {
                 "event": DESCRIPTIONS.get(e.kind, e.kind),
                 "at": _iso(e.created_at),
+                "browser": e.user_agent,
                 "network": e.ip_prefix,
             }
             for e in events
