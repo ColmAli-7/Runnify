@@ -63,7 +63,7 @@ erDiagram
 | `run_song_analysis` | A play's measured effect: `pace_delta` (s/km, the lift after any charge for extra effort), `hr_delta`, seconds measured, position in the run, the kind of lap it was measured on, the effort charge, method version |
 | `playlists`, `playlist_tracks` | Saved playlists, each track with the lift and plays it was chosen on |
 | `recovery_codes` | SHA-256 hashes of unused two-step recovery codes |
-| `security_events` | Sign-ins and account changes with a truncated IP prefix and a short user agent; kept 90 days |
+| `security_events` | Sign-ins and account changes with a truncated IP prefix and a short description of the browser (such as "Chrome on Windows"); kept 90 days |
 | `friends`, `friend_requests` | Friendships (stored in both directions) and pending requests |
 
 All timestamps are naive UTC; pages show a run's start on its own clock (`Run.local_start`). Alembic revisions in `migrations/versions/` create

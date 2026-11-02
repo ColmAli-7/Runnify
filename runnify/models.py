@@ -324,8 +324,10 @@ class RecoveryCode(db.Model):
 class SecurityEvent(db.Model):
     """A security-relevant event on an account (sign-ins, password and 2FA changes, ...).
 
-    IP addresses are stored truncated (IPv4 /24, IPv6 /48) and user agents
-    shortened, so the log can't pinpoint anyone; entries expire after 90 days.
+    IP addresses are stored truncated (IPv4 /24, IPv6 /48) and ``user_agent``
+    holds only a short description of the browser (``"Chrome on Windows"``),
+    never the user agent itself, so the log can't pinpoint anyone; entries
+    expire after 90 days.
     """
 
     __tablename__ = "security_events"

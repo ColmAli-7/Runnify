@@ -86,7 +86,7 @@
               <tr{% if event.kind in ("sign_in_failed", "account_locked") %} class="activity__alert"{% endif %}>
                 <td>{{ description }}</td>
                 <td class="nowrap">{{ event.created_at|short_day }}, {{ event.created_at|clock }}</td>
-                <td class="results__optional">{{ event.user_agent|device }}</td>
+                <td class="results__optional">{{ event.user_agent or "Unknown device" }}</td>
                 <td class="results__optional num">{{ event.ip_prefix|network }}</td>
               </tr>
             {% endfor %}

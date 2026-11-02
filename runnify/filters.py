@@ -116,36 +116,6 @@ def run_name(started):
     return "Night run"
 
 
-_BROWSERS = (
-    ("Edg", "Edge"),
-    ("OPR/", "Opera"),
-    ("CriOS/", "Chrome"),
-    ("FxiOS/", "Firefox"),
-    ("Firefox/", "Firefox"),
-    ("Chrome/", "Chrome"),
-    ("Safari/", "Safari"),
-)
-_SYSTEMS = (
-    ("iPhone", "iPhone"),
-    ("iPad", "iPad"),
-    ("Android", "Android"),
-    ("Windows", "Windows"),
-    ("Mac OS X", "macOS"),
-    ("CrOS", "ChromeOS"),
-    ("Linux", "Linux"),
-)
-
-
-def device(user_agent):
-    """A short description of a browser: ``"Chrome on Windows"``, or ``"Unknown device"``."""
-    agent = user_agent or ""
-    browser = next((name for marker, name in _BROWSERS if marker in agent), None)
-    system = next((name for marker, name in _SYSTEMS if marker in agent), None)
-    if browser and system:
-        return f"{browser} on {system}"
-    return browser or system or "Unknown device"
-
-
 def network(prefix):
     """A stored network prefix for display: ``"203.0.113.0"`` -> ``"203.0.113.x"``."""
     if not prefix:
@@ -199,7 +169,6 @@ FILTERS = {
     "ordinal": ordinal,
     "run_name": run_name,
     "first_name": first_name,
-    "device": device,
     "network": network,
     "initials": initials,
 }

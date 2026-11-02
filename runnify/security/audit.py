@@ -1,4 +1,8 @@
-"""The account security activity log (see :class:`runnify.models.SecurityEvent`)."""
+"""The account security activity log (see :class:`runnify.models.SecurityEvent`).
+
+Each event keeps the network part of the IP address and a short description of
+the browser, such as ``"Chrome on Windows"``, never the user agent itself.
+"""
 
 import ipaddress
 from datetime import timedelta
@@ -40,6 +44,39 @@ def anonymise_ip(address):
     return str(ipaddress.ip_network(f"{ip}/{prefix}", strict=False).network_address)
 
 
+_BROWSERS = (
+    ("Edg", "Edge"),
+    ("OPR/", "Opera"),
+    ("CriOS/", "Chrome"),
+    ("FxiOS/", "Firefox"),
+    ("Firefox/", "Firefox"),
+    ("Chrome/", "Chrome"),
+    ("Safari/", "Safari"),
+)
+_SYSTEMS = (
+    ("iPhone", "iPhone"),
+    ("iPad", "iPad"),
+    ("Android", "Android"),
+    ("Windows", "Windows"),
+    ("Mac OS X", "macOS"),
+    ("CrOS", "ChromeOS"),
+    ("Linux", "Linux"),
+)
+
+
+def describe_browser(user_agent):
+    """A short description of the browser behind a user agent: ``"Chrome on Windows"``.
+
+    ``None`` when neither the browser nor the system can be told.
+    """
+    agent = user_agent or ""
+    browser = next((name for marker, name in _BROWSERS if marker in agent), None)
+    system = next((name for marker, name in _SYSTEMS if marker in agent), None)
+    if browser and system:
+        return f"{browser} on {system}"
+    return browser or system
+
+
 def record(user, kind):
     """Add a ``kind`` event to ``user``'s log (the caller commits)."""
     if kind not in DESCRIPTIONS:
@@ -47,7 +84,7 @@ def record(user, kind):
     ip_prefix = user_agent = None
     if has_request_context():
         ip_prefix = anonymise_ip(request.remote_addr)
-        user_agent = (request.user_agent.string or "")[:160] or None
+        user_agent = describe_browser(request.user_agent.string)
     db.session.add(
         SecurityEvent(user_id=user.id, kind=kind, ip_prefix=ip_prefix, user_agent=user_agent)
     )

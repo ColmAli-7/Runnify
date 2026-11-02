@@ -96,33 +96,6 @@ def test_first_name():
     assert filters.first_name("  ") == ""
 
 
-@pytest.mark.parametrize(
-    ("agent", "expected"),
-    [
-        (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36",
-            "Chrome on Windows",
-        ),
-        (
-            "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/130.0 Safari/537.36 Edg/130.0",
-            "Edge on Windows",
-        ),
-        (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Safari/604.1",
-            "Safari on iPhone",
-        ),
-        (
-            "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
-            "Firefox on Linux",
-        ),
-        ("", "Unknown device"),
-        (None, "Unknown device"),
-    ],
-)
-def test_device(agent, expected):
-    assert filters.device(agent) == expected
-
-
 def test_network():
     assert filters.network("203.0.113.0") == "203.0.113.x"
     assert filters.network("2001:db8:1::") == "2001:db8:1::/48"

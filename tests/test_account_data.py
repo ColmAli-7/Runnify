@@ -32,11 +32,6 @@ from runnify.services.streams import decode, save_stream
 from tests.conftest import PASSWORD
 from tests.factories import START, make_scored_run
 
-CHROME = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/130.0.0.0 Safari/537.36"
-)
-
 
 def _seed(app, user_id):
     """Two runs (one recorded, with a lap and a scored play), a friend request and a FIT file.
@@ -103,7 +98,7 @@ def _seed(app, user_id):
                     user_id=user_id,
                     kind="sign_in",
                     ip_prefix="203.0.113.0",
-                    user_agent=CHROME,
+                    user_agent="Chrome on Windows",
                     created_at=datetime(2026, 10, 1, 6, 55),
                 ),
                 RecoveryCode(user_id=user_id, code_hash="secret-recovery-code"),
@@ -203,7 +198,7 @@ def test_export_gives_consent_skips_and_browsers(app, auth_client, user):
         {
             "event": "Signed in",
             "at": "2026-10-01T06:55:00Z",
-            "browser": CHROME,  # as stored, not the "Chrome on Windows" Settings shows
+            "browser": "Chrome on Windows",
             "network": "203.0.113.0",
         }
     ]
