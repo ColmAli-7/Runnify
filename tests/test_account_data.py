@@ -287,6 +287,166 @@ def test_export_gives_the_friend_requests_still_waiting(app, auth_client, user):
     }
 
 
+# Where the export gives each stored column. A list's path names its items' keys.
+EXPORTED = {
+    "users.name": "account.name",
+    "users.email": "account.email",
+    "users.created_at": "account.created_at",
+    "users.last_login_at": "account.last_login_at",
+    "users.totp_enabled_at": "account.two_step_verification_since",
+    "users.garmin_username": "account.garmin_account",
+    "users.garmin_last_synced_at": "account.garmin_last_synced_at",
+    "users.history_imported_at": "account.spotify_history_imported_at",
+    "users.terms_accepted_at": "account.consent.terms_accepted_at",
+    "users.data_consent_at": "account.consent.data_consent_at",
+    "users.policy_version": "account.consent.policy_version",
+    "recovery_codes.used_at": "account.recovery_codes_used_at",
+    "runs.activity_id": "runs.garmin_activity_id",
+    "runs.date_time": "runs.started_at",
+    "runs.utc_offset": "runs.utc_offset_minutes",
+    "runs.distance": "runs.distance_m",
+    "runs.duration": "runs.duration_s",
+    "runs.avg_hr": "runs.average_heart_rate",
+    "runs.avg_pace": "runs.average_pace_min_per_km",
+    "runs.run_type": "runs.run_type",
+    "runs.run_type_manual": "runs.run_type_set_by_you",
+    "runs.laps_source": "runs.laps_source",
+    "runs.workout": "runs.workout",
+    "run_laps.position": "runs.laps",  # their order
+    "run_laps.start_second": "runs.laps.start_s",
+    "run_laps.end_second": "runs.laps.end_s",
+    "run_laps.kind": "runs.laps.kind",
+    "run_laps.distance": "runs.laps.distance_m",
+    "run_laps.moving_seconds": "runs.laps.moving_time_s",
+    "run_laps.avg_hr": "runs.laps.average_heart_rate",
+    "run_streams.started_at": "runs.samples.started_at",
+    "run_streams.samples": "runs.samples.seconds",  # each channel, and the watch's laps
+    "songs.id": "song_plays_during_runs.spotify_track_id",
+    "songs.name": "song_plays_during_runs.track",
+    "songs.artist": "song_plays_during_runs.artist",
+    "user_song_history.song_id": "song_plays_during_runs.spotify_track_id",
+    "user_song_history.played_at": "song_plays_during_runs.started_at",
+    "user_song_history.time_played": "song_plays_during_runs.seconds",
+    "user_song_history.run_id": "song_plays_during_runs.garmin_activity_id",
+    "user_song_history.skipped": "song_plays_during_runs.skipped",
+    "run_song_analysis.run_id": "song_scores.garmin_activity_id",
+    "run_song_analysis.user_song_id": "song_scores.play_started_at",
+    "run_song_analysis.performance_score": "song_scores.score",
+    "run_song_analysis.pace_delta": "song_scores.lift_s_per_km",
+    "run_song_analysis.hr_delta": "song_scores.heart_rate_change_bpm",
+    "run_song_analysis.seconds": "song_scores.moving_time_s",
+    "run_song_analysis.position": "song_scores.position_in_run",
+    "run_song_analysis.lap_kind": "song_scores.lap_kind",
+    "run_song_analysis.effort_charge": "song_scores.effort_charge_s_per_km",
+    "run_song_analysis.method_version": "song_scores.scoring_method",
+    "playlists.name": "playlists.name",
+    "playlists.session": "playlists.session",
+    "playlists.target_minutes": "playlists.target_minutes",
+    "playlists.created_at": "playlists.created_at",
+    "playlists.spotify_url": "playlists.spotify_url",
+    "playlist_tracks.position": "playlists.spotify_track_ids",  # their order
+    "playlist_tracks.song_id": "playlists.spotify_track_ids",
+    "playlist_tracks.seconds": "playlists.track_seconds",
+    "playlist_tracks.lift": "playlists.track_lift_s_per_km",
+    "playlist_tracks.plays": "playlists.track_scored_plays",
+    "friends.user_id": "friends",
+    "friends.friend_id": "friends",
+    "friend_requests.sender_id": "friend_requests.received.from",
+    "friend_requests.receiver_id": "friend_requests.sent.to",
+    "friend_requests.timestamp": "friend_requests.sent.sent_at",
+    "security_events.kind": "security_activity.event",
+    "security_events.created_at": "security_activity.at",
+    "security_events.user_agent": "security_activity.browser",
+    "security_events.ip_prefix": "security_activity.network",
+}
+
+# Why each other stored column stays out of the export.
+LEFT_OUT = {
+    "users.password_hash": "a secret",
+    "users.session_token": "a secret",
+    "users.spotify_token": "a secret",
+    "users.spotify_refresh_token": "a secret; account.spotify_connected says if there is one",
+    "users.garmin_tokens": "a secret",
+    "users.garmin_password": "a secret, erased by the next sync",
+    "users.totp_secret": "a secret; account.two_step_verification says if there is one",
+    "recovery_codes.code_hash": "a secret; account.recovery_codes_left counts them",
+    "users.spotify_expires_at": "when the Spotify access token runs out, so part of it",
+    **dict.fromkeys(
+        [f"users.garmin_sync_{field}" for field in ("state", "message", "done", "total")]
+        + [f"users.history_import_{field}" for field in ("state", "message", "done", "total")]
+        + ["users.garmin_sync_updated_at", "users.history_import_updated_at"],
+        "a running sync's or import's progress, shown only while it runs",
+    ),
+    "users.failed_login_count": "sign-in protection; security_activity has each failure",
+    "users.locked_until": "sign-in protection; security_activity has the pause",
+    "users.totp_last_step": "the last code's time step, so no code works twice",
+    "runs.fit_file_path": "where a leftover FIT file was; streams backfill deletes them",
+    "runs.scoring_due": "whether the run's songs still need scoring",
+    "run_streams.sample_count": "the length of each list in runs.samples",
+    "playlists.spotify_playlist_id": "the id playlists.spotify_url ends with",
+    "friend_requests.status": "always pending: answered requests are deleted",
+    **dict.fromkeys(
+        ["songs.duration", "songs.spotify_url", "songs.tempo"],
+        "about the track in the shared catalogue, not the runner",
+    ),
+    **dict.fromkeys(
+        [
+            "users.id",
+            "runs.id",
+            "runs.user_id",
+            "run_laps.id",
+            "run_laps.run_id",
+            "run_streams.run_id",
+            "user_song_history.id",
+            "user_song_history.user_id",
+            "run_song_analysis.id",
+            "run_song_analysis.user_id",
+            "playlists.id",
+            "playlists.user_id",
+            "playlist_tracks.playlist_id",
+            "recovery_codes.id",
+            "recovery_codes.user_id",
+            "security_events.id",
+            "security_events.user_id",
+            "friend_requests.id",
+        ],
+        "Runnify's own keys: where an item sits in the file says what it belongs to",
+    ),
+}
+
+
+def _has(data, path):
+    """Whether the export ``data`` has the dotted ``path``, looking in each list's first item."""
+    for key in path.split("."):
+        while isinstance(data, list) and data:
+            data = data[0]
+        if not isinstance(data, dict) or key not in data:
+            return False
+        data = data[key]
+    return True
+
+
+def test_every_stored_column_is_exported_or_left_out_on_purpose(app, auth_client, user):
+    other = _seed(app, user)
+    with app.app_context():  # a friend and a request the runner sent, so no list is empty
+        runner, friend = db.session.get(User, user), db.session.get(User, other)
+        runner.friends.append(friend)
+        friend.friends.append(runner)
+        ann = User(name="Ann", email="ann@example.com", password_hash=hash_password("x"))
+        db.session.add(ann)
+        db.session.flush()
+        db.session.add(FriendRequest(sender_id=user, receiver_id=ann.id))
+        db.session.commit()
+        stored = {f"{t.name}.{c.name}" for t in db.metadata.sorted_tables for c in t.columns}
+    unaccounted = stored - EXPORTED.keys() - LEFT_OUT.keys()
+    assert not unaccounted, f"add to EXPORTED or LEFT_OUT: {sorted(unaccounted)}"
+    assert not EXPORTED.keys() - stored and not LEFT_OUT.keys() - stored  # none gone stale
+    assert not EXPORTED.keys() & LEFT_OUT.keys()
+    data = json.loads(auth_client.post("/settings/export", data={"password": PASSWORD}).data)
+    missing = sorted(path for path in EXPORTED.values() if not _has(data, path))
+    assert not missing, f"not in the export: {missing}"
+
+
 def test_export_gives_each_runs_recording_as_stored(app, auth_client, user):
     _seed(app, user)
     response = auth_client.post("/settings/export", data={"password": PASSWORD})
